@@ -9,7 +9,7 @@
 > **Week Milestone:**  
 > Implement the core encoder pieces so model behavior is not a black box.
 >
-> **v1 October calendar:** Gate 3 target **Sep 13**. This week compresses to **5 build sessions** — see the v1 Compression Map below.
+> **v2 gate evidence:** Follow Gate 3 in [the execution plan](REVISED_EXECUTION_PLAN.md), not a calendar target. This week has **4 build sessions: Days 15, 16, 18, and 21**; together with Week 4, the encoder block has **9 build sessions**.
 
 ---
 
@@ -18,29 +18,26 @@
 | Day | Focus | Minimum Evidence / Artifact | Compute | Daily Link |
 | :--- | :--- | :--- | :--- | :--- |
 | **Day 15** | Attention for speech sequences | You can derive every major tensor shape and explain quadratic sequence cost. | `Local CPU, L4 optional for scaling` | [Open Day 15](days/day_15.md) |
-| **Day 16** | Conformer convolution module | You can explain why depthwise convolution is computationally attractive and what
-local context it captures. | `Local CPU` | [Open Day 16](days/day_16.md) |
-| **Day 17** | Macaron feed forward and residual scaling | You can explain the ordering of the Conformer block without memorizing a diagram. | `Local CPU` | [Open Day 17](days/day_17.md) |
-| **Day 18** | Assemble one Conformer block | You can point to every operation and say why it exists. | `Local CPU` | [Open Day 18](days/day_18.md) |
-| **Day 19** | Build a tiny Conformer encoder | A real log Mel tensor can pass through your encoder and produce valid gradients. | `Local CPU, L4 optional` | [Open Day 19](days/day_19.md) |
-| **Day 20** | Compare your block with a production | You can read production Conformer code and orient yourself without treating it as
-magic. | `Local CPU` | [Open Day 20](days/day_20.md) |
-| **Day 21** | Week 3 architecture review | You can explain which parts are local, which are global, and which become
-problematic for streaming. | `Local CPU` | [Open Day 21](days/day_21.md) |
+| **Day 16** | Conformer convolution module | You can explain why depthwise convolution is computationally attractive and what local context it captures. | `Local CPU` | [Open Day 16](days/day_16.md) |
+| **Day 17** | LEARN-ONLY: macaron feed forward and residual scaling | Explain block ordering; build work is absorbed into Day 18. | `Local CPU` | [Open Day 17](days/day_17.md) |
+| **Day 18** | CORE: assemble one Conformer block; absorbs Days 17 and 19 | One tested block, macaron FFN, real-log-Mel projection/masks, shape trace, and valid gradients. | `Local CPU` | [Open Day 18](days/day_18.md) |
+| **Day 19** | MERGED into Day 18: real-log-Mel block validation | `results/day19_shape_trace.md` is produced in Day 18; no separate encoder. | `Local CPU — within Day 18` | [Open Day 19](days/day_19.md) |
+| **Day 20** | DROPPED: production implementation comparison | Optional reading only; no build or artifact. | `Local CPU` | [Open Day 20](days/day_20.md) |
+| **Day 21** | CORE: static architecture review | Report links the tested shape trace and explains local/global context and streaming limits. | `Local CPU` | [Open Day 21](days/day_21.md) |
 
 ---
 
-## v1 Compression Map (October Calendar)
+## v2 Compression Map (Gate Evidence)
 
-| Day | v1 Status | Note |
+| Day | v2 Status | Note |
 | :--- | :--- | :--- |
 | **Day 15** | CORE | Attention from scratch |
 | **Day 16** | CORE | Conformer convolution module from scratch |
 | **Day 17** | LEARN-ONLY | No build session. Read the Learn block in theory time; the macaron build moves into Day 18. |
-| **Day 18** | CORE — absorbs Day 17 | Implement the macaron FFN here, then assemble the full Conformer block |
-| **Day 19** | CORE — simplified | 2-block encoder + real log-Mel gradient check only |
+| **Day 18** | CORE — absorbs Days 17 and 19 | Macaron FFN + one block with real-log-Mel projection, masks, shapes, and gradient tests; no second toy-training ablation required |
+| **Day 19** | MERGED into Day 18 | Same-block validation only; retain `results/day19_shape_trace.md`, no separate encoder or depth sweep |
 | **Day 20** | DROPPED | Reading assignment only: orient in production Conformer code |
-| **Day 21** | CORE | Architecture review milestone |
+| **Day 21** | CORE | Static architecture report and linked shape trace; no inspector UI |
 
 ---
 
@@ -109,7 +106,7 @@ local context it captures.
 
 ---
 
-### DAY 17: Macaron feed forward and residual scaling
+### DAY 17: Macaron feed forward and residual scaling (LEARN-ONLY)
 - **Compute:** `Local CPU`
 - **Dedicated Daily File:** [`docs/days/day_17.md`](days/day_17.md)
 
@@ -120,15 +117,13 @@ local context it captures.
 - Half step residual weighting in Conformer.
 
 #### Build in MendSpeech
-- Implement the feed forward module and residual wrapper.
-- Add numerical tests for shape and gradient flow.
+- No standalone build. Day 18 implements the feed-forward module, residual wrapper, and numerical shape/gradient tests.
 
 #### Experiment and Measure
-- Compare output statistics with and without residual scaling.
+- Day 18 compares output statistics with and without residual scaling in its tests.
 
 #### Required Output
-- `src/models/conformer_ffn.py`
-- `tests/test_conformer_ffn.py`
+- None for this learn-only session; the FFN implementation and tests are Day 18 outputs.
 
 #### Completion Check
 > You can explain the ordering of the Conformer block without memorizing a diagram.
@@ -139,57 +134,67 @@ local context it captures.
 - **Compute:** `Local CPU`
 - **Dedicated Daily File:** [`docs/days/day_18.md`](days/day_18.md)
 
+> **v2 STATUS: CORE — absorbs Days 17 and 19.** Implement the macaron feed-forward, assemble one tested Conformer block, and pass real log-Mel features through that same block with input projection and mask propagation. No separate encoder or depth sweep.
+
 #### Learn
 - Macaron structure.
 - Layer normalization placement.
 - Attention plus convolution interaction.
+- Input projection, padding masks, and temporal dimensions for real log-Mel features.
 
 #### Build in MendSpeech
-- Assemble feed forward, attention, convolution, second feed forward, and final normalization.
-- Match expected input and output shapes.
+- Implement the macaron feed-forward and half-step residual wrapper absorbed from Day 17, with shape and gradient tests.
+- Assemble feed forward, the scratch attention and convolution modules, second feed forward, and final normalization into one block.
+- Add input projection from real log-Mel features and propagate padding masks through this same block; assert input, output, and valid-length shapes.
 
 #### Experiment and Measure
 - Run forward and backward tests on several sequence lengths.
-- Intentionally remove one residual path and compare training stability on a toy task.
+- Trace a real log-Mel tensor through projection and every stage; test mask handling and finite, nonzero gradients on valid inputs.
+- Compare output statistics with and without half-step residual scaling in the same tests. A second toy-training ablation is not a release requirement.
 
 #### Required Output
+- `src/models/conformer_ffn.py` — Day 17's absorbed macaron implementation
+- `tests/test_conformer_ffn.py`
 - `src/models/conformer_block.py`
 - `tests/test_conformer_block.py`
 - `docs/conformer_block_walkthrough.md`
+- `results/day19_shape_trace.md` — retained Day 19 path, produced here
 
 #### Completion Check
-> You can point to every operation and say why it exists.
+> You can explain every operation in one tested block. A real log-Mel tensor
+> passes through its projection and mask handling with documented shapes and
+> valid gradients; the retained Day 19 shape trace records the evidence.
 
 ---
 
-### DAY 19: Build a tiny Conformer encoder
-- **Compute:** `Local CPU, L4 optional`
+### DAY 19: Real-log-Mel block validation (merged into Day 18)
+- **Compute:** `Local CPU — within Day 18`
 - **Dedicated Daily File:** [`docs/days/day_19.md`](days/day_19.md)
+
+> **v2 STATUS: MERGED into Day 18.** No standalone session. Validate input projection, mask propagation, shapes, and gradients on Day 18's same Conformer block; do not build a separate encoder or run a depth sweep.
 
 #### Learn
 - Input projection.
-- Stacked blocks.
 - Mask propagation.
 - Temporal dimensions.
 
 #### Build in MendSpeech
-- Build a small encoder around your blocks.
-- Connect log Mel features to the encoder.
+- In Day 18, connect real log-Mel features through input projection to the same tested Conformer block.
+- Propagate padding masks and validate temporal dimensions; no separate implementation.
 
 #### Experiment and Measure
-- Track tensor shape through every layer on real speech.
-- Profile increasing depth.
+- In Day 18, trace shapes through every stage on real speech and test masks and finite, nonzero gradients on valid inputs.
 
 #### Required Output
-- `src/models/tiny_conformer.py`
-- `results/day19_shape_trace.md`
+- `results/day19_shape_trace.md` — produced in Day 18; no standalone code artifact
 
 #### Completion Check
-> A real log Mel tensor can pass through your encoder and produce valid gradients.
+> Absorbed into Day 18: a real log-Mel tensor passes through the same block's
+> projection and mask handling with a documented shape trace and valid gradients.
 
 ---
 
-### DAY 20: Compare your block with a production
+### DAY 20: Production implementation comparison (DROPPED)
 - **Compute:** `Local CPU`
 - **Dedicated Daily File:** [`docs/days/day_20.md`](days/day_20.md)
 
@@ -199,17 +204,16 @@ local context it captures.
 - Identify differences caused by engineering and efficiency.
 
 #### Build in MendSpeech
-- Create an annotated comparison table: your component, paper definition, production implementation.
+- None; optional reading only, not a scheduled build.
 
 #### Experiment and Measure
-- Choose one difference and reproduce its effect on a small benchmark if feasible.
+- No experiment required.
 
 #### Required Output
-- `docs/day20_implementation_comparison.md`
+- None; no standalone artifact is required.
 
 #### Completion Check
-> You can read production Conformer code and orient yourself without treating it as
-magic.
+> No scheduled completion requirement. Optional reading supports orientation in production Conformer code.
 
 ---
 
@@ -217,21 +221,22 @@ magic.
 - **Compute:** `Local CPU`
 - **Dedicated Daily File:** [`docs/days/day_21.md`](days/day_21.md)
 
+> **v2 STATUS: CORE — static architecture review.** Keep the review milestone and shape evidence; no architecture-inspector UI.
+
 #### Learn
 - Review attention, convolution, feed forward, normalization, residual paths, and sequence cost.
 
 #### Build in MendSpeech
-- Add an architecture inspector page to MendSpeech showing encoder stage shapes and context assumptions.
+- Write a static architecture report showing the single block's stage shapes, mask propagation, and context assumptions, using `results/day19_shape_trace.md` from Day 18.
 
 #### Experiment and Measure
 - Give yourself a ten minute whiteboard explanation from waveform features through one Conformer block.
 
 #### Required Output
-- `app/encoder_inspector.py`
 - `reports/week3_conformer.md`
 
 #### Completion Check
 > You can explain which parts are local, which are global, and which become
-problematic for streaming.
+> problematic for streaming, with the static report linked to the tested shape trace.
 
 ---

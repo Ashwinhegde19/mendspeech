@@ -3,6 +3,10 @@
 > **Week 2 • Day 1 of 7**  
 > **Navigation:** [← Day 07](day_07.md) | [Week 2 Plan](../Week_2_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 09 →](day_09.md)
 
+> **v2 STATUS: CORE.** The external comparator requires a bounded feasibility
+> record, not successful neural masked inpainting. This revision does not alter
+> historical result evidence or assert that a new check has passed.
+
 ---
 
 ### Compute Target
@@ -22,17 +26,26 @@ small runs`
 - Run a pretrained ASR model on clean and damaged SpeechDamageBench clips.
 - Store transcript, token outputs if available, and timing metadata.
 - Add a reusable Modal entry point so the same command can run ASR experiments on an L4 without editing deployment code each day.
-- Smoke-test the Week 8 direct audio inpainting baseline. Choose a
-  **public, installable** pretrained model (Voicebox is not a clean public
-  baseline; F5-TTS is TTS, not inpainting). Record install steps plus a
-  fallback in `docs/baseline_install_notes.md`. If the install works, run
-  one masked span. If it does not fit this session, the notes + fallback
-  are the minimum — do not spend the night model-hunting.
+- Check the single general-restoration candidate in `docs/baseline_install_notes.md`.
+  VoiceFixer's documented interface is not evidence of mask-aware inpainting;
+  label only verified capabilities. Use one setup session plus at most one
+  focused compatibility retry, then stop. No model search or scratch fallback.
+- Record license/permitted use, code/package/checkpoint revisions, invocation,
+  supported conditions, native input/output format, mask support, and whether
+  processing changes audio outside a target interval. Verify sample-rate and
+  length conversion explicitly; unknown behavior remains unverified.
+- Attempt one clean and one damaged smoke case. Record final feasibility
+  `feasible` or `deferred`, attempt outcomes and blockers in the notes. If
+  feasible, the only planned adapter is `src/baselines/direct_audio_restore.py`;
+  do not create a second mask-specific adapter. Day 50/54 consume this record.
 
 ---
 
 ### 3. Experiment and Measure
 - Compare clean and corrupted transcripts on the exact same utterances.
+- Keep comparator smoke evidence separate from ASR results. Record source IDs,
+  corruption parameters/seed, repeatability and any unsupported condition; leave
+  unavailable metrics blank with a reason. Comparable GPU timing/memory uses L4.
 
 ---
 
@@ -40,7 +53,8 @@ small runs`
 - `src/asr/baseline.py`
 - `infra/modal_asr.py`
 - `results/day08_baseline_transcripts.csv`
-- `docs/baseline_install_notes.md` (chosen model, install command, fallback)
+- `docs/baseline_install_notes.md` (one candidate, capability/provenance record,
+  setup/retry evidence, `feasible` or `deferred`; no overwritten historical results)
 
 ---
 
@@ -48,6 +62,8 @@ small runs`
 > **Definition of Done for Day 08:**  
 > You can draw the path from features to encoder states to token probabilities to text,
 and launch the same baseline locally or on Modal with a documented command.
+The bounded comparator check has an evidence-backed status; a documented deferral
+is sufficient for this external branch, but is not successful inpainting.
 
 ---
 

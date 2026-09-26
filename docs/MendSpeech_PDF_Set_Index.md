@@ -2,6 +2,9 @@
 
 This document maps all original PDF files to their Markdown counterparts in this workspace.
 
+The PDFs are unchanged historical archives. Current scope and completion checks
+come from the Markdown [execution plan](REVISED_EXECUTION_PLAN.md) and day specs.
+
 | Document Title | Original PDF (`pdfs/`) | Markdown File (`docs/`) | Purpose |
 | :--- | :--- | :--- | :--- |
 | **Project Blueprint** | `pdfs/MendSpeech_Project_Blueprint.pdf` | [`MendSpeech_Project_Blueprint.md`](MendSpeech_Project_Blueprint.md) | Architecture, research questions, metrics, benchmark package, definition of done. |
@@ -14,4 +17,4 @@ This document maps all original PDF files to their Markdown counterparts in this
 | **Week 5 Daily Plan** | `pdfs/Week_5_MendSpeech_Daily_Plan.pdf` | [`Week_5_MendSpeech_Daily_Plan.md`](Week_5_MendSpeech_Daily_Plan.md) | Streaming cache-aware inference & adaptive context. |
 | **Week 6 Daily Plan** | `pdfs/Week_6_MendSpeech_Daily_Plan.pdf` | [`Week_6_MendSpeech_Daily_Plan.md`](Week_6_MendSpeech_Daily_Plan.md) | Robust fine-tuning, RNN-T & confidence calibration. |
 | **Week 7 Daily Plan** | `pdfs/Week_7_MendSpeech_Daily_Plan.pdf` | [`Week_7_MendSpeech_Daily_Plan.md`](Week_7_MendSpeech_Daily_Plan.md) | TTS, speaker preservation & boundary matching. |
-| **Week 8 Daily Plan** | `pdfs/Week_8_MendSpeech_Daily_Plan.pdf` | [`Week_8_MendSpeech_Daily_Plan.md`](Week_8_MendSpeech_Daily_Plan.md) | Research capstone: Cascaded vs. direct inpainting. |
+| **Week 8 Daily Plan** | `pdfs/Week_8_MendSpeech_Daily_Plan.pdf` | [`Week_8_MendSpeech_Daily_Plan.md`](Week_8_MendSpeech_Daily_Plan.md) | Current Markdown: controlled repair comparisons and verified external restoration. |

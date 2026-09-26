@@ -22,17 +22,21 @@
 ### 2. Build in MendSpeech
 - Implement a small subsampling front end or isolate one from a framework.
 - Track frames per second before and after each stage.
+- Incorporate Day 22's comparison checklist and diagram of FastConformer efficiency choices.
 
 ---
 
 ### 3. Experiment and Measure
 - Compare 2x, 4x, and 8x temporal reduction on tensor length, runtime, and rough output behavior.
+- Estimate attention-matrix size before and after subsampling; record the absorbed Day 22 evidence.
 
 ---
 
 ### 4. Required Output Artifacts
 - `src/models/subsampling.py`
 - `results/day23_subsampling.csv`
+- `docs/day22_fastconformer_notes.md` — absorbed Day 22 evidence
+- `results/day22_compute_estimates.csv` — absorbed Day 22 evidence
 
 ---
 

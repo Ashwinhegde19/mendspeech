@@ -1,35 +1,34 @@
-# Speech-ML Systems Drill Track
+# Optional Speech-ML Systems Drills
 
-> **Purpose:** reinforce implementation speed, first-principles explanations,
-> and production speech-system judgment alongside the 56-day MendSpeech build.
-> This is not a second project and never overrides a day file's completion
-> check.
+> **Purpose:** reinforce first-principles explanations and speech-system
+> reasoning alongside MendSpeech. This is optional study material, not another
+> project, a release dependency, or a substitute for a day file's completion check.
 
 ---
 
 ## Operating Rules
 
-- Run three 30-minute drills per week after Gate 2.
-- Prefer a blank editor, paper, or whiteboard. Disable autocomplete for coding
-  drills when practical.
-- Stop at 30 minutes, save the attempt, and record the first point where the
-  explanation or implementation became uncertain.
-- Skip a systems drill before skipping a core Learn/Build/Measure session.
+- Choose a topic only when it helps the current Learn/Build/Measure session.
+  There is no weekly quota, stopwatch requirement, mandatory rebuild or gate.
+- Use existing code, paper, a notebook or an editor as appropriate. Re-derive
+  a small example when useful; no tool restrictions are required.
+- Note where the explanation or implementation becomes uncertain and revisit
+  the relevant theory or measured evidence. Skip drills before core work.
 - Use project evidence in answers; do not memorize product or library names as
   explanations.
 
 ---
 
-## Drill Rotation
+## Topic Menu
 
-### A. Timed implementation
+### A. Implementation reasoning
 
 - Implement naive gradient descent for linear regression with NumPy; derive
   the gradient, test convergence, and explain learning-rate failure.
 - Implement waveform framing and timestamps without a helper library.
 - Implement a minimal energy or spectral VAD, then diagnose false alarms and
   missed speech.
-- Implement CTC collapse and WER dynamic programming from a blank file.
+- Trace or implement CTC collapse and WER dynamic programming on a small example.
 
 ### B. Mathematics and tensor reasoning
 
@@ -43,10 +42,10 @@
 - Estimate memory and compute before running an attention or convolution
   experiment; compare the estimate with the profiler.
 
-### C. Speech architecture defense
+### C. Speech architecture reasoning
 
-- Draw waveform → features → encoder → CTC/RNN-T decoder → timestamps from
-  memory and name the shape at every boundary.
+- Draw waveform → features → encoder → CTC/RNN-T decoder → timestamps and
+  name the shape at every boundary.
 - Explain how Whisper-style fixed windows or chunks differ from cache-aware
   streaming and where boundary errors, recomputation, and latency arise.
 - Compare encoder-only, encoder-decoder, and decoder-only architectures; state
@@ -89,19 +88,23 @@
 
 ---
 
-## Gate Checkpoints
+## Optional Review Prompts by Project Stage
+
+These prompts do not add completion checks to the execution-plan gates. The
+required Add-on A baseline/reference VAD measurements remain in the Week 2 plan;
+they do not require a timed reconstruction here.
 
 ### After Gate 2
 
-- Build the scratch VAD under its 2.5-hour constraint.
+- Explain the measured baseline/reference VAD errors and onset/offset behavior.
 - Explain waveform framing, CTC, WER, confidence, and timestamp alignment.
-- Code gradient descent once without autocomplete.
+- Derive a gradient-descent update on a small numerical example.
 
 ### After Gate 4
 
 - Draw cache-aware streaming state and explain what is reused.
 - Defend a p95 latency measurement and a backpressure policy.
-- Explain attention tensor shapes and sequence-length cost from memory.
+- Explain attention tensor shapes and sequence-length cost.
 
 ### After Gate 6
 
@@ -112,15 +115,15 @@
 
 ### After Gate 7
 
-- Give a ten-minute system defense from waveform to final benchmark result.
-- Reproduce one timed coding drill selected at random.
-- Present the strongest result, the most damaging limitation, and the next
-  experiment without notes.
+- Trace the system from waveform to final benchmark result using its artifacts.
+- Revisit an uncertain implementation detail if that would clarify the result.
+- Explain the strongest result, the most significant limitation, and an appropriate
+  next experiment without adding it to the release scope.
 
 ---
 
-## Evidence Log
+## Optional Notes
 
-Record each drill outside this file in a dated notebook or untracked practice
-log. Only commit reusable explanations, tests, or measured artifacts that meet
-the repository's normal quality and privacy rules.
+If useful, record technical explanations outside this file in a notebook or
+untracked practice log. No drill artifacts are required. Reusable explanations,
+tests or measured artifacts must follow the repository's quality and privacy rules.

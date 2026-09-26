@@ -3,7 +3,7 @@
 > **Week 8 • Day 7 of 7**  
 > **Navigation:** [← Day 55](day_55.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Summary →](../INDEX.md)
 
-> **v1 STATUS: CORE — absorbs Day 55.** Final demo plus report completion in one session.
+> **v2 STATUS: CORE — absorbs Day 55.** Gate 7 closes on report, artifact, and reproduction evidence, not a date or guaranteed session count.
 
 ---
 
@@ -19,8 +19,15 @@ interface and analysis`
 ---
 
 ### 2. Build in MendSpeech
-- Build the final demo with upload or microphone input, controlled damage, live transcript, uncertainty heatmap, preserved versus repaired timeline, before and after playback, metrics, and architecture selection for benchmark playback.
-- Show which milliseconds were preserved, reconstructed by the cascaded path, or repaired by the direct baseline.
+- Extend only `app/audio_lab.py` with upload or consented microphone input,
+  controlled damage, transcript, uncertainty heatmap, Preserve / Inspect /
+  Repair / Abstain, before/after playback, and measured metrics. Reuse Day 49
+  abstention; do not create a separate final or voice-agent app.
+- Label live input/control, prerecorded benchmark playback, simulated context,
+  and oracle diagnostics distinctly. Expose only supported external conditions
+  in benchmark playback; show unavailable comparator/inpainting as deferred.
+- Show measured changed/preserved samples, including crossfade margins. Do not
+  claim a full-waveform restoration model preserved everything outside a mask.
 - Reproduce one frozen benchmark from a fresh environment and tag a stable release.
 
 ---
@@ -33,7 +40,7 @@ interface and analysis`
 ---
 
 ### 4. Required Output Artifacts
-- `app/mendspeech_final.py`
+- `app/audio_lab.py`
 - `README.md`
 - `demos/final_demo.mp4`
 - `docs/architecture.png`
@@ -44,8 +51,10 @@ interface and analysis`
 
 ### 5. Completion Check
 > **Definition of Done for Day 56:**  
-> A new user can understand, run, and evaluate MendSpeech, SpeechDamageBench,
-the cascaded baseline, and the direct audio comparison, and you can defend every major design decision.
+> A new user can reproduce MendSpeech and SpeechDamageBench, evaluate the
+> internal baselines and any supported external comparison, and distinguish
+> measured results from unsupported/deferred capabilities. The one app and
+> technical report agree on abstention, consent, and live/simulated labels.
 
 ---
 
@@ -58,5 +67,5 @@ same task in the next session instead of pretending the day is finished.
 
 ### 7. References & Resources
 - Your frozen protocol and prior results
-- A reproducible pretrained direct latent or codec audio inpainting baseline
+- The one comparator's verified support record or explicit deferral
 - Primary papers only when needed to interpret a result

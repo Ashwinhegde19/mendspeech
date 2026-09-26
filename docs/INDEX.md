@@ -2,6 +2,11 @@
 
 Welcome to the **MendSpeech Documentation and Daily Execution Suite**. This workspace is structured specifically for executing the MendSpeech research and systems project day-by-day using **AI Coding Agents** (such as Antigravity, Claude, or Gemini).
 
+> **v2 scope:** Read the [execution plan](REVISED_EXECUTION_PLAN.md) first.
+> Day numbers are specification identifiers, not calendar promises. Status
+> banners override day bodies; optional drills are not release gates. Extend
+> one application, `app/audio_lab.py`, rather than creating milestone copies.
+
 ---
 
 ## 📂 Workspace Structure
@@ -13,15 +18,15 @@ MendSpeech_All_Plans/
 │   ├── MendSpeech_Project_Blueprint.md   # Architectural blueprint, metrics, definition of done
 │   ├── MendSpeech_8_Week_Master_Roadmap.md # Timeline, workload, research questions, hardware
 │   ├── MendSpeech_Complete_56_Day_Plan.md# All 56 daily plans compiled in one searchable file
-│   ├── SPEECH_ML_SYSTEMS_DRILLS.md        # Parallel speech systems fundamentals drills
+│   ├── SPEECH_ML_SYSTEMS_DRILLS.md        # Optional speech systems fundamentals drills
 │   ├── Week_1_MendSpeech_Daily_Plan.md   # Audio DSP & SpeechDamageBench v0
 │   ├── Week_2_MendSpeech_Daily_Plan.md   # ASR, CTC math, confidence & Modal pipeline
-│   ├── Week_3_MendSpeech_Daily_Plan.md   # Conformer encoder from scratch
+│   ├── Week_3_MendSpeech_Daily_Plan.md   # One tested Conformer block from scratch
 │   ├── Week_4_MendSpeech_Daily_Plan.md   # FastConformer subsampling & efficiency
 │   ├── Week_5_MendSpeech_Daily_Plan.md   # Streaming cache-aware ASR & lookahead
 │   ├── Week_6_MendSpeech_Daily_Plan.md   # Robust fine-tuning, RNN-T & calibration
 │   ├── Week_7_MendSpeech_Daily_Plan.md   # TTS, boundary matching & seam diagnostics
-│   ├── Week_8_MendSpeech_Daily_Plan.md   # Research capstone: Cascaded vs direct inpainting
+│   ├── Week_8_MendSpeech_Daily_Plan.md   # Controlled repair and restoration comparisons
 │   └── days/                             # Granular individual daily task files (Day 01 to Day 56)
 │       ├── day_01.md
 │       ├── day_02.md
@@ -59,14 +64,14 @@ When working with an AI agent:
 | **Week 5** | Streaming, Cache-Aware Inference, & Adaptive Context | Implement cache-aware streaming ASR and evaluate uncertainty-guided adaptive context spending. | [Week 5 Guide](Week_5_MendSpeech_Daily_Plan.md) | [Day 29](days/day_29.md) • [Day 30](days/day_30.md) • [Day 31](days/day_31.md) • [Day 32](days/day_32.md) • [Day 33](days/day_33.md) • [Day 34](days/day_34.md) • [Day 35](days/day_35.md) |
 | **Week 6** | Robustness, Fine-Tuning, RNN-T, & Calibration | Adapt the recognizer to damaged speech, explore RNN-T, and calibrate confidence scores. | [Week 6 Guide](Week_6_MendSpeech_Daily_Plan.md) | [Day 36](days/day_36.md) • [Day 37](days/day_37.md) • [Day 38](days/day_38.md) • [Day 39](days/day_39.md) • [Day 40](days/day_40.md) • [Day 41](days/day_41.md) • [Day 42](days/day_42.md) |
 | **Week 7** | TTS, Speaker Preservation, & Boundary-Matched Reconstruction | Build MendSpeech V1 cascaded selective repair with duration alignment and seam diagnostics. | [Week 7 Guide](Week_7_MendSpeech_Daily_Plan.md) | [Day 43](days/day_43.md) • [Day 44](days/day_44.md) • [Day 45](days/day_45.md) • [Day 46](days/day_46.md) • [Day 47](days/day_47.md) • [Day 48](days/day_48.md) • [Day 49](days/day_49.md) |
-| **Week 8** | Research Capstone: Cascaded vs. Direct Repair | Freeze benchmarks, run Pareto ablations, compare with direct audio inpainting, and publish report. | [Week 8 Guide](Week_8_MendSpeech_Daily_Plan.md) | [Day 50](days/day_50.md) • [Day 51](days/day_51.md) • [Day 52](days/day_52.md) • [Day 53](days/day_53.md) • [Day 54](days/day_54.md) • [Day 55](days/day_55.md) • [Day 56](days/day_56.md) |
+| **Week 8** | Research Capstone: Controlled Repair Comparisons | Freeze benchmarks, run ablations, report the verified external comparator or its deferral, and reproduce the release. | [Week 8 Guide](Week_8_MendSpeech_Daily_Plan.md) | [Day 50](days/day_50.md) • [Day 51](days/day_51.md) • [Day 52](days/day_52.md) • [Day 53](days/day_53.md) • [Day 54](days/day_54.md) • [Day 55](days/day_55.md) • [Day 56](days/day_56.md) |
 
 ---
 
 ## 📚 Core Documentation Links
-- [**Revised Execution Plan — October calendar, gates & add-on labs**](REVISED_EXECUTION_PLAN.md)
+- [**Revised Execution Plan — v2 focused scope, gates & add-on labs**](REVISED_EXECUTION_PLAN.md)
 - [**MendSpeech Project Blueprint**](MendSpeech_Project_Blueprint.md)
 - [**8-Week Master Roadmap**](MendSpeech_8_Week_Master_Roadmap.md)
 - [**Complete 56-Day Searchable Plan**](MendSpeech_Complete_56_Day_Plan.md)
-- [**Speech-ML Systems Drill Track**](SPEECH_ML_SYSTEMS_DRILLS.md)
+- [**Optional Speech-ML Systems Drill Track**](SPEECH_ML_SYSTEMS_DRILLS.md)
 - [**Index of PDF Documents**](MendSpeech_PDF_Set_Index.md)

@@ -3,6 +3,8 @@
 > **Week 7 • Day 6 of 7**  
 > **Navigation:** [← Day 47](day_47.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 49 →](day_49.md)
 
+> **v2 STATUS: CORE — predicted-text selective repair with measured seam outcomes.** Oracle text is a separate diagnostic, never the normal path.
+
 ---
 
 ### Compute Target
@@ -22,11 +24,18 @@
 ---
 
 ### 2. Build in MendSpeech
-- Take a known damaged interval and synthesize only its transcript span.
+- For normal runs, use the controller-selected interval and predicted ASR
+  text, not the gold/reference transcript. Reuse the selected TTS stack;
+  reject unsafe spans when inferred content or speaker permissions are weak.
+- Gold text or known damage boundaries may be used only in separately labeled
+  `oracle_text` / `oracle_span` diagnostics. Record text source and span source
+  independently and exclude oracle rows from end-to-end performance claims.
 - Match generated duration to the target interval without changing untouched speech.
 - Match local energy before stitching and implement both linear and equal power crossfades.
 - Add optional room tone under the regenerated span when the original context supports it.
 - Log preserved samples, reconstructed samples, boundary length, and all matching parameters.
+- Test identity/no-repair behavior, exact sample counts, and unchanged samples
+  outside the target interval plus explicitly declared crossfade margins.
 
 ---
 
@@ -34,6 +43,8 @@
 - Compare full utterance TTS, naive selective repair, and boundary matched selective repair.
 - Measure preservation percentage, latency, energy discontinuity, and speaker similarity proxy.
 - Run a small blinded seam audibility check with randomized sample order.
+- Hold predicted text and intervals fixed for stitching comparisons. Report
+  smoother, unchanged, or worse seams; do not select cases to force an improvement.
 
 ---
 
@@ -48,8 +59,10 @@
 
 ### 5. Completion Check
 > **Definition of Done for Day 48:**  
-> The final audio keeps most original samples, replaces only a targeted interval, and
-shows measurably smoother boundaries than naive stitching.
+> Predicted-text runs preserve samples outside declared repair/crossfade bounds,
+> and seam metrics plus blinded checks compare matched and naive stitching on
+> identical spans. Measured non-improvement is valid; oracle-only performance
+> cannot satisfy the normal end-to-end check.
 
 ---
 

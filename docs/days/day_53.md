@@ -3,7 +3,7 @@
 > **Week 8 • Day 4 of 7**  
 > **Navigation:** [← Day 52](day_52.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 54 →](day_54.md)
 
-> **v1 STATUS: MERGED into [Day 52](day_52.md) — single combined ablation session.**
+> **v2 STATUS: MERGED into [Day 52](day_52.md) — single combined ablation session.** Produce all repair/seam controls and artifacts within Day 52; no standalone session.
 
 ---
 

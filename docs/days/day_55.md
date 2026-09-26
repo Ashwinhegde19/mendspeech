@@ -3,7 +3,7 @@
 > **Week 8 • Day 6 of 7**  
 > **Navigation:** [← Day 54](day_54.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 56 →](day_56.md)
 
-> **v1 STATUS: MERGED with [Day 56](day_56.md) — one combined session.** Write the report alongside the final demo.
+> **v2 STATUS: MERGED into [Day 56](day_56.md).** Write the technical report alongside the single `app/audio_lab.py` demo; completion is evidence-based.
 
 ---
 
@@ -23,8 +23,16 @@
 ### 2. Build in MendSpeech
 - Write the complete report.
 - Add exact reproduction commands and environment capture.
-- Include the cascaded versus direct repair comparison as a dedicated section.
-- Document seam limitations, prosody loss, and any conditions where the direct baseline is clearly stronger.
+- Include a dedicated internal-versus-external comparison section with the
+  one comparator's selected, supported, measured, unsupported, and deferred
+  conditions. If it could not run, report internal comparisons and explicit
+  external/inpainting deferral, not an invented architectural result.
+- Document seam limitations, prosody loss, consent, abstention, and supported
+  conditions where either method is stronger, unchanged, or worse.
+- State Day 46's base/adapted evidence or training deferral, gold-text/oracle
+  exclusions, and live versus simulated context labels. Simulation cannot
+  establish measured runtime gains; blocked training is not measured adaptation.
+- Reproduce the existing `app/audio_lab.py`; do not introduce a second app.
 - Include plots with captions that state what changed and what stayed fixed.
 
 ---
@@ -60,5 +68,5 @@ same task in the next session instead of pretending the day is finished.
 
 ### 7. References & Resources
 - Your frozen protocol and prior results
-- A reproducible pretrained direct latent or codec audio inpainting baseline
+- The one comparator's verified support record or explicit deferral
 - Primary papers only when needed to interpret a result

@@ -1,6 +1,11 @@
 # MendSpeech Project Blueprint
 
-> **Selective Semantic Speech Restoration Under Real-Time Constraints, with Cascaded and Direct Audio Repair Baselines.**
+> **Selective Semantic Speech Restoration Under Real-Time Constraints, with Controlled Repair Baselines.**
+>
+> **v2 scope:** One recognition pipeline, one selected TTS stack, one evolving
+> application, and one evaluation suite. The [execution plan](REVISED_EXECUTION_PLAN.md)
+> governs bounded adaptation and external-comparator feasibility. These are
+> target behaviors, not claims that the current implementation is complete.
 
 ---
 
@@ -16,18 +21,23 @@
 - Align confidence and uncertainty to time.
 - Classify intervals as **Preserve**, **Inspect**, **Repair**, or **Abstain**.
 - **For MendSpeech V1:** Reconstruct only repair intervals with speaker-conditioned TTS, then apply acoustic boundary matching before stitching.
-- **For the Research Comparison:** Run the same damaged spans through a pretrained direct latent or codec audio inpainting baseline.
+- **For the Research Comparison:** Evaluate one verified pretrained audio-restoration comparator on the same damaged cases. Use masked-inpainting terminology only if its interface and experiment actually support masks; explicitly defer an unavailable comparison.
 - Show exactly which milliseconds were preserved, reconstructed, or left unrepaired.
 
 ---
 
-## 2. Two Repair Architectures
+## 2. Repair Architecture and External Comparator
 
-| Dimension | MendSpeech V1: Cascaded Baseline | Direct Audio Inpainting Baseline |
+| Dimension | MendSpeech V1: Cascaded Baseline | Verified Audio-Restoration Comparator |
 | :--- | :--- | :--- |
-| **Pipeline** | Streaming ASR $\rightarrow$ Calibrated Uncertainty $\rightarrow$ Repair Policy $\rightarrow$ Speaker-Conditioned TTS $\rightarrow$ Duration Alignment $\rightarrow$ Boundary Matching $\rightarrow$ Waveform Stitching | Damaged Audio $\rightarrow$ Latent/Codec Representation $\rightarrow$ Masked/Conditioned Reconstruction $\rightarrow$ Restored Audio |
-| **Key Strengths** | Deterministic semantic control and a practical, low-latency streaming systems path. | Preserves acoustic context, prosody, inflection, breathing, and room reverberation without a text bottleneck. |
-| **Key Limitations** | Discards pitch, emotion, breathing, co-articulation, and other acoustic context at the text interface. | Requires higher compute, is harder to control semantically, and is less suited for strict low-latency streaming constraints. |
+| **Pipeline** | Streaming ASR $\rightarrow$ Calibrated Uncertainty $\rightarrow$ Repair Policy $\rightarrow$ Speaker-Conditioned TTS $\rightarrow$ Duration Alignment $\rightarrow$ Boundary Matching $\rightarrow$ Waveform Stitching | Damaged Audio $\rightarrow$ Verified Pretrained Restoration Model $\rightarrow$ Restored Audio |
+| **Hypothesis to test** | Selective reconstruction can retain more reliable original audio than full resynthesis at a useful latency. | Avoiding the text bottleneck may preserve acoustic information; measure rather than assume this advantage. |
+| **Limitations to measure** | ASR errors can become false repairs; text loses acoustic detail and cannot justify inventing unrecoverable content. | Mask support, locality, language coverage, compute, and acoustic preservation depend on the selected model; full-utterance restoration is not selective inpainting. |
+
+Normal reconstruction uses predicted text. Gold-transcript repair is a separately
+labeled oracle control. Keep raw damaged audio, full resynthesis, naive selective
+stitching, and boundary-matched selective repair even if the external comparator
+is unavailable. Never claim superiority over a model that was not evaluated.
 
 ---
 
@@ -76,14 +86,14 @@
 ---
 
 ## 6. Required Ablations
-- **Context Policy:** Fixed low lookahead vs. fixed high lookahead vs. adaptive context.
+- **Context Policy:** Supported fixed low/high lookahead settings, plus a bounded adaptive experiment. Label live, simulated, and unavailable modes; simulation cannot establish live latency savings.
 - **Uncertainty:** Raw confidence vs. calibrated confidence (temperature scaling).
 - **Threshold Policies:** Preserve, Balanced, and Rescue repair thresholds.
 - **Granularity:** Selective span repair vs. full utterance resynthesis.
 - **Stitching Quality:** Naive waveform stitching vs. boundary-matched stitching.
 - **ASR Robustness:** Base ASR vs. robustness-adapted (fine-tuned) ASR.
-- **Architecture:** Cascaded V1 vs. direct latent/codec audio inpainting baseline.
-- **Span Sensitivity:** Short vs. long missing dropout spans.
+- **Architecture:** Cascaded V1 vs. one verified restoration comparator; include a masked-inpainting claim only if the tested capability supports it. Record blocked comparisons as deferred limitations.
+- **TTS Adaptation:** Base vs. adapted selected stack when permitted data, checkpoint, and L4 budget pass the feasibility check; otherwise explicitly defer adaptation, not the repair controls.
 - **Clean Speech Regression:** Ensuring already clean speech is not degraded by the pipeline.
 
 ---
@@ -99,7 +109,7 @@ mendspeech/
 │   ├── controller/     # Repair policies, adaptive context, abstention logic
 │   ├── tts/            # Synthesis and speaker conditioning
 │   ├── repair/         # Timing alignment, boundary matching, crossfade stitching
-│   ├── baselines/      # Pretrained direct latent / codec audio inpainting
+│   ├── baselines/      # One verified restoration adapter with capability metadata
 │   ├── metrics/        # WER, CER, RTF, seam discontinuity, speaker similarity
 │   └── bench/          # Benchmark harnesses and runners
 ├── speechdamagebench/  # Standalone benchmark package
@@ -109,9 +119,9 @@ mendspeech/
 │   ├── pyproject.toml
 │   └── README.md
 ├── infra/              # Modal cloud execution scripts and container definitions
-├── app/                # Live interactive demo and research console
+├── app/                # audio_lab.py is the evolving demo; shared UI components
 ├── experiments/        # Frozen experiment configs
-├── results/            # Run outputs, logs, and benchmark tables
+├── results/            # Measured tables and figures; audio/checkpoints/run logs ignored
 └── reports/            # Research report, figures, and failure casebooks
 ```
 
@@ -123,7 +133,13 @@ mendspeech/
 3. Boundary matching is quantitatively measured (discontinuity scores), not just evaluated by ear.
 4. The final research report includes at least one surprising result and one limitation that materially constrains claims.
 5. The system explicitly abstains from hallucinating speech when audio is too damaged.
-6. The direct audio baseline is evaluated fairly, with clear documentation of where it outperforms the cascaded path.
+6. The external comparator is evaluated fairly with verified capability labels, or its blocked feasibility check and untested claims are explicitly documented. A negative or unavailable result must not be recast as an architectural advantage.
 7. You can explain every major model and systems component from first principles without relying on library names as explanations.
 8. Benchmark results are reported at a fixed, documented scale (≥30 utterances, ≥5 speakers, reference transcripts, speaker-separated splits) with the statistical caveat stated in the report.
-9. The direct audio inpainting baseline is selected and smoke-tested no later than Week 2, with install steps and a fallback documented.
+9. One external restoration candidate receives a bounded Week 2 feasibility check. Record the pinned interface, mask support, formats, license, smoke-test outcome, and blocker if any. No open-ended model search or scratch inpainting fallback.
+10. ASR adaptation, calibration, cache/endpointing correctness, clean regression,
+    and serving failure/recovery have reproducible evidence. The single TTS
+    stack has an adaptation result or an explicit feasibility deferral; inference
+    alone must not be described as model training.
+11. The application exposes measured capabilities only. Release evidence and
+    limitations are independent of optional learning drills or extra UI pages.

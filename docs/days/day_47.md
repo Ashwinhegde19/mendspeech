@@ -3,6 +3,8 @@
 > **Week 7 • Day 5 of 7**  
 > **Navigation:** [← Day 46](day_46.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 48 →](day_48.md)
 
+> **v2 STATUS: CORE — consented conditioning within the selected stack.** No second TTS installation.
+
 ---
 
 ### Compute Target
@@ -19,8 +21,16 @@
 ---
 
 ### 2. Build in MendSpeech
-- Choose a speaker conditioned or reference conditioned path that is legally and ethically appropriate for your own or consented samples.
-- Compute speaker embeddings before and after synthesis if tooling is available.
+- Reuse the selected stack's verified speaker-conditioning path and Day 43 provenance
+  checks. Use only owned or explicitly consented references, separate from
+  held-out target recordings; do not derive conditioning from a clean test
+  reference unavailable at inference time.
+- Compute speaker embeddings before and after synthesis if supported by the
+  pinned tooling. Mark unavailable proxies `unsupported`; do not add another
+  synthesis stack or infer identity preservation from naturalness alone.
+- Record permitted voice uses, conditioning access, and limitations in
+  `docs/voice_use_policy.md`; abstain when consent or required conditioning
+  is missing. Use the base checkpoint if adaptation was deferred.
 
 ---
 

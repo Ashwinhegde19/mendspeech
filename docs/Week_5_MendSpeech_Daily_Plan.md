@@ -7,11 +7,9 @@
 
 > [!IMPORTANT]
 > **Week Milestone:**  
-> Turn the recognizer into a real time system and test uncertainty guided context spending.
+> Turn the recognizer into a real time system and test uncertainty-guided context spending only within supported checkpoint capabilities.
 >
-> **v1 October calendar:** Gate 4 target **Sep 27**. Days 29–35 run as
-> written with VAD/endpointing in the live milestone, then complete **Add-on
-> B** (async serving and load behavior) on the Gate 4 weekend.
+> **v2 gate evidence:** Follow Gate 4 in [the execution plan](REVISED_EXECUTION_PLAN.md), not a calendar target. Days 29–35 retain streaming, cache, and VAD/endpointing evidence; **Add-on B** async serving and load behavior remains required. Day 32 uses supported fixed contexts; Day 34 is a bounded live/simulated/unavailable comparison, not a custom serving project.
 
 ---
 
@@ -21,13 +19,25 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Day 29** | Offline versus streaming ASR | You can explain why naive chunking creates boundary errors and redundant compute. | `Modal L4` | [Open Day 29](days/day_29.md) |
 | **Day 30** | Buffered streaming | You can quantify the compute waste caused by overlapping history. | `Modal L4` | [Open Day 30](days/day_30.md) |
-| **Day 31** | Cache aware streaming internals | You can explain what is cached, what is recomputed, and why cache aware inference
-can be more efficient. | `Modal L4` | [Open Day 31](days/day_31.md) |
-| **Day 32** | Lookahead ablation | You can defend a Balanced operating point using data rather than preference. | `Modal L4` | [Open Day 32](days/day_32.md) |
+| **Day 31** | Cache aware streaming internals | You can explain what is cached, what is recomputed, and why cache aware inference can be more efficient. | `Modal L4` | [Open Day 31](days/day_31.md) |
+| **Day 32** | Supported fixed-context lookahead ablation | Measured supported operating points, or an explicit unavailable comparison; no invented context configurations. | `Modal L4` | [Open Day 32](days/day_32.md) |
 | **Day 33** | Break the cache on purpose | You can explain a concrete failure caused by incorrect state handling. | `Modal L4` | [Open Day 33](days/day_33.md) |
-| **Day 34** | Adaptive context controller prototype | You have a falsifiable first answer to whether uncertainty can guide context spending. | `Modal L4` | [Open Day 34](days/day_34.md) |
-| **Day 35** | Week 5 live streaming milestone | A person can speak and watch MendSpeech transcribe incrementally while exposing
-the state that drives repair decisions. | `Modal L4` | [Open Day 35](days/day_35.md) |
+| **Day 34** | Bounded adaptive-context comparison | Retained CSV with explicit live/simulated/unavailable status; unsupported adaptation defers only the adaptive claim. | `Modal L4` | [Open Day 34](days/day_34.md) |
+| **Day 35** | Shared audio lab streaming milestone | Incremental text, VAD/endpointing, cache and serving evidence; context mode only where available. | `Modal L4` | [Open Day 35](days/day_35.md) |
+
+---
+
+## v2 Scope Map (Gate Evidence)
+
+| Day | v2 Status | Note |
+| :--- | :--- | :--- |
+| **Day 29** | CORE | Offline versus naive streaming comparison |
+| **Day 30** | CORE | Buffered streaming and measured recomputation |
+| **Day 31** | CORE | Cache-aware inference and comparison remain required; use Day 24's capability record |
+| **Day 32** | CORE | Separate runs at supported fixed contexts only |
+| **Day 33** | CORE | Controlled cache-state failure evidence remains required |
+| **Day 34** | CORE — capability-bounded | At most two supported settings; report live, simulated, or unavailable without fabricated adaptive latency |
+| **Day 35** | CORE | Extend `app/audio_lab.py`; VAD/endpointing, cache handling, and Add-on B serving/load evidence remain required |
 
 ---
 
@@ -118,9 +128,11 @@ can be more efficient.
 
 ---
 
-### DAY 32: Lookahead ablation
+### DAY 32: Supported fixed-context lookahead ablation
 - **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_32.md`](days/day_32.md)
+
+> **v2 STATUS: CORE — fixed context only.** Use only configurations verified for the Day 24 checkpoint. This session does not require live context switching.
 
 #### Learn
 - Right context.
@@ -129,11 +141,12 @@ can be more efficient.
 - WER and latency as competing objectives.
 
 #### Build in MendSpeech
-- Run several supported lookahead settings with everything else fixed.
-- Store per utterance and aggregate metrics.
+- Run the supported fixed-context configurations recorded in Day 24, using a separate run per setting and holding model, audio, hardware, batching, and decoding fixed.
+- Store per-utterance and aggregate metrics, exact context values and units, and capability status. Do not coerce unsupported values or build a new streaming path.
 
 #### Experiment and Measure
-- Plot WER versus latency and identify dominated operating points.
+- Plot measured WER versus measured L4 latency and identify dominated operating points only when multiple supported settings exist.
+- If only one setting is supported, retain its measured point and label the comparison unavailable; if none is runnable, record the reason and leave metrics missing. Keep the CSV and figure paths, with an explicitly annotated unavailable comparison rather than fabricated points or latency.
 
 #### Required Output
 - `experiments/lookahead_ablation.py`
@@ -141,7 +154,9 @@ can be more efficient.
 - `results/day32_pareto.png`
 
 #### Completion Check
-> You can defend a Balanced operating point using data rather than preference.
+> You can defend a supported fixed operating point using measured data, or show
+> why the comparison is unavailable. A single point is not a Pareto frontier;
+> unsupported context variation defers that claim, not the rest of Gate 4.
 
 ---
 
@@ -170,9 +185,11 @@ can be more efficient.
 
 ---
 
-### DAY 34: Adaptive context controller prototype
+### DAY 34: Bounded adaptive-context comparison
 - **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_34.md`](days/day_34.md)
+
+> **v2 STATUS: CORE — capability-bounded comparison.** Use only Day 24/32 supported settings. Live adaptation is conditional; unavailable support defers the adaptive claim, not the remaining streaming, endpointing, cache, or serving requirements.
 
 #### Learn
 - Policy driven context selection.
@@ -181,18 +198,22 @@ can be more efficient.
 - Stability versus oscillation.
 
 #### Build in MendSpeech
-- Implement a controller that classifies chunks as easy or uncertain.
-- Map states to small or larger supported right context settings, even if the first prototype must simulate switching between runs.
+- Implement a small capability-guarded policy that classifies chunks as easy or uncertain using the existing uncertainty signal and fixed decision rules.
+- Compare at most two supported right-context settings from Day 32. Use live switching only when the checkpoint supports it; otherwise simulate policy choices from separate fixed-setting runs on the same controlled subset.
+- If fewer than two settings are supported, return an explicit unavailable status and reason. No custom serving infrastructure, new model, or architecture change to force adaptation.
 
 #### Experiment and Measure
-- Compare fixed fast, fixed accurate, and adaptive policies on a controlled subset.
+- Compare the two fixed policies and the bounded adaptive policy where supported, with an explicit `live`, `simulated`, or `unavailable` status for the adaptive comparison.
+- A simulated comparison is offline policy evidence, not live adaptive latency. Keep measured fixed-run timings separate; leave adaptive latency missing unless measured on a real live switching run. Do not fabricate measurements or claim a benefit from a simulation alone.
 
 #### Required Output
-- `src/controller/adaptive_context.py`
-- `results/day34_adaptive_context.csv`
+- `src/controller/adaptive_context.py` — bounded policy and capability guard; reports unavailable when unsupported
+- `results/day34_adaptive_context.csv` — retain this path even when unavailable; include status, supported settings, evidence/reason, and missing values for unmeasured metrics
 
 #### Completion Check
-> You have a falsifiable first answer to whether uncertainty can guide context spending.
+> You have a measured live comparison, an explicitly limited simulated policy
+> comparison, or an evidence-backed unavailable result. Unsupported behavior
+> honestly defers the adaptive claim without waiving the rest of Gate 4.
 
 ---
 
@@ -200,32 +221,36 @@ can be more efficient.
 - **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_35.md`](days/day_35.md)
 
+> **v2 STATUS: CORE — shared audio lab streaming milestone.** Streaming, VAD/endpointing, cache-state handling, and Gate 4 Add-on B serving/load evidence remain required. Adaptive context is displayed only where supported.
+
 #### Learn
 - Review buffered streaming, cache aware inference, lookahead, cache failures,
   adaptive context, VAD-driven endpointing, and partial-versus-final latency.
 
 #### Build in MendSpeech
-- Connect microphone or simulated live audio to the streaming recognizer.
+- Extend the existing `app/audio_lab.py` entrypoint to connect microphone or simulated live audio to the streaming recognizer; do not create another app.
 - Reuse Add-on A VAD for endpointing and log speech start, speech end, and
   finalization timestamps.
-- Show partial text, confidence timeline, VAD/endpointing state, current
-  context mode, queue depth, and latency.
+- Show partial text, confidence timeline, VAD/endpointing state, cache state, queue depth, and measured latency. Show current context mode only when the runner exposes it; distinguish fixed from live adaptive behavior and never present a simulated policy as live.
+- Keep Gate 4 Add-on B async serving, per-stream isolation, backpressure, and load/failure evidence required. Link those artifacts rather than building context-specific serving infrastructure.
 
 #### Experiment and Measure
 - Record a short demo with clean and damaged speech.
 - Measure time to first partial transcript, endpoint delay, false starts, and
   missed endpoints on the same cases.
 - Document remaining technical limitations honestly.
+- Link Day 31/33 cache evidence, Day 34's live/simulated/unavailable status, and Add-on B serving/load results. Unsupported adaptive context does not waive endpointing, cache correctness, or serving checks.
 
 #### Required Output
-- `app/mendspeech_v2_streaming.py`
+- `app/audio_lab.py`
 - `demos/week5_streaming_demo.mp4`
 - `reports/week5_streaming.md`
 
 #### Completion Check
 > A person can speak and watch MendSpeech transcribe incrementally while exposing
-the VAD, endpointing, cache, context, and uncertainty state that drives repair
-decisions.
+> VAD, endpointing, cache, and uncertainty state, with context mode shown only
+> where available. The report links required serving/load and cache evidence;
+> any adaptive deferral is explicit and does not substitute for those checks.
 
 ---
 

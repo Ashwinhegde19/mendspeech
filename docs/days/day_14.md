@@ -3,6 +3,9 @@
 > **Week 2 • Day 7 of 7**  
 > **Navigation:** [← Day 13](day_13.md) | [Week 2 Plan](../Week_2_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 15 →](day_15.md)
 
+> **v2 STATUS: CORE — Gate 2 advances on evidence, not a date.** Extend
+> `app/audio_lab.py`; external-comparator deferral does not block the core ASR work.
+
 ---
 
 ### Compute Target
@@ -16,19 +19,30 @@
 ---
 
 ### 2. Build in MendSpeech
-- Pipeline: damaged audio to transcript to confidence to highlighted repair spans.
-- Add clean JSON output for every run.
+- Extend `app/audio_lab.py`: damaged audio to transcript to confidence to timed
+  preserve/inspect/repair/abstain proposals. Reuse the Day 12 overlay; do not
+  create a separate milestone app or claim synthesis before it exists.
+- Add clean JSON output for every run: source/corruption/seed, model revision,
+  policy preset/version, thresholds, intervals, actions and reason codes.
 - Verify the Modal wrapper records model revision, GPU type, software versions, and run id automatically.
+- Carry forward `docs/baseline_install_notes.md`: one comparator's `feasible`
+  or `deferred` status and verified capabilities. A blocker report is enough
+  for this conditional branch; it must not be labeled masked-inpainting success.
 
 ---
 
 ### 3. Experiment and Measure
-- Run at least twenty corrupted utterances and manually inspect policy errors.
+- Run at least twenty corrupted utterances with matched clean/raw-damaged
+  controls and fixed validation-selected thresholds; inspect false repair,
+  missed repair, inspect and abstain cases. Preserve model-version provenance.
+- Report ASR WER/CER, uncertainty overlap, proposed repair coverage and clean
+  false repairs; do not imply generated-audio improvement. Keep L4 comparisons
+  separate from functional CPU smoke runs.
 
 ---
 
 ### 4. Required Output Artifacts
-- `app/mendspeech_v0.py`
+- `app/audio_lab.py`
 - `infra/modal_asr.py`
 - `results/week2_casebook.md`
 - `reports/week2_asr_uncertainty.md`
@@ -37,8 +51,10 @@
 
 ### 5. Completion Check
 > **Definition of Done for Day 14:**  
-> A user can see what the ASR heard and which exact intervals MendSpeech wants to
-preserve or repair.
+> The one app shows what the ASR heard and the exact proposed actions, with
+unchanged audio for inspect/abstain. The casebook/report retain controls, model
+and policy versions, errors and comparator feasibility status. Gate 2 does not
+require a successful external neural restoration model.
 
 ---
 
@@ -51,13 +67,4 @@ same task in the next session instead of pretending the day is finished.
 
 ### 7. References & Resources
 - CTC primary paper or a reliable derivation
-- Framework ASR documentation for logits, timestamps, and confidence   Week 3: Conformer From First Principles Implement the core encoder pieces so model behavior is not a black box.  Day  Focus  Minimum evidence  Compute  Day 15  Attention for speech sequences
-- Change sequence length and measure forward time and memory.  Local CPU, L4 optional for scaling  Day 16  Conformer convolution module
-- Feed synthetic impulses and inspect how local information spreads.  Local CPU  Day 17  Macaron feed forward and residual scaling
-- Compare output statistics with and without residual scaling.  Local CPU  Day 18  Assemble one Conformer block
-- Run forward and backward tests on several sequence lengths.
-- Intentionally remove one residual path and compare training stability on a toy task.  Local CPU  Day 19  Build a tiny Conformer encoder
-- Track tensor shape through every layer on real speech.
-- Profile increasing depth.  Local CPU, L4 optional  Day 20  Compare your block with a production
-- Choose one difference and reproduce its effect on a small benchmark if feasible.  Local CPU  Day 21  Week 3 architecture review
-- Give yourself a ten minute whiteboard explanation from waveform features through one Conformer block.  Local CPU
+- Framework ASR documentation for logits, timestamps, and confidence

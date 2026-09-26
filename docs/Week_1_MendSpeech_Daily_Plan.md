@@ -9,11 +9,10 @@
 > **Week Milestone:**  
 > Build the audio laboratory and make SpeechDamageBench a deterministic standalone package.
 >
-> **v1 October calendar:** Gate 1 target **Aug 23**. Day 01 audio notes
-> exist; the labeled benchmark corpus (`data/benchmark/`, transcripts,
-> ≥5 speakers) is still open and is absorbed by Days 04–05. Day 07
-> **freezes** that set — it does not collect it. Sunday 23 Aug may be
-> used as the allowed catch-up session for Day 07.
+> **v2 gate contract:** Collect the labeled benchmark corpus in Days 04–05;
+> reach at least 30 utterances and 5 speakers before Day 07 freezes it.
+> This is the original acquisition contract, not permission to mutate the
+> already frozen set. Gate 1 is evidence-based; no calendar target implies completion.
 
 ---
 

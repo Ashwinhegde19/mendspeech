@@ -1,14 +1,14 @@
-# Day 54: Compare against direct latent or codec audio inpainting
+# Day 54: Capability-scoped direct restoration comparison
 
 > **Week 8 • Day 5 of 7**  
 > **Navigation:** [← Day 53](day_53.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 55 →](day_55.md)
 
+> **v2 STATUS: CORE — one conditional external comparator, no model hunting.** Week 2 feasibility bounds apply; unavailable external restoration/inpainting is explicitly deferred.
+
 ---
 
 ### Compute Target
-`Modal L4 or the smallest GPU that can
-run the chosen pretrained baseline,
-plus local analysis`
+`Modal L4 for comparisons; local CPU for analysis`
 
 ---
 
@@ -21,34 +21,59 @@ plus local analysis`
 ---
 
 ### 2. Build in MendSpeech
-- Use the pretrained direct audio inpainting baseline already selected and smoke-tested in Week 2 (see `docs/baseline_install_notes.md`); do not start model hunting here.
-- Wrap it behind the same benchmark interface used by MendSpeech.
-- Feed identical SpeechDamageBench cases and record the same metrics wherever they are meaningful.
-- Create a failure casebook covering both architectures.
-- Keep abstention active for MendSpeech when the inferred content is not reliable enough to reconstruct safely.
+- Consume the one selected comparator and bounded feasible/deferred decision
+  in Week 2's `docs/baseline_install_notes.md`. Selection is not a claim of
+  tested support. Do not search for substitutes or train restoration from scratch.
+- If feasible, implement only `src/baselines/direct_audio_restore.py` behind
+  the shared benchmark interface. Record checkpoint/revision/license, sample
+  rate, supported damage conditions, mask support, and whether output changes
+  samples outside a requested interval. Do not pass masks unless supported.
+  This plan chooses one restoration adapter, not a separate inpainting
+  adapter; an inpainting claim requires verified mask-aware
+  missing-span reconstruction, not a suggestive filename or denoising output.
+- Feed identical supported SpeechDamageBench cases, label out-of-scope
+  conditions `unsupported`, and exclude them from aggregate comparisons.
+  A model available only outside L4 is not an L4 efficiency comparison;
+  defer it rather than silently changing hardware or extending the budget.
+- If unavailable, still compare raw damaged audio, full resynthesis, naive
+  selective repair, and boundary-matched selective repair. Record external
+  restoration/inpainting as `deferred`, not tested; no second project/fallback.
+- Reuse the tested `src/controller/abstain.py` from Day 49. Keep abstention
+  active when inferred content, conditioning consent, or seam safety is weak.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare raw damaged audio, MendSpeech V1 cascaded repair, full resynthesis, and the direct audio baseline on the same cases.
+- Compare the four internal paths and only the supported external conditions
+  on the same cases. Use predicted text for normal TTS paths; separately label
+  oracle text/spans and live versus simulated context policies.
 - Select at least ten worst or most revealing cases and inspect them manually.
-- Identify at least one regime where each approach has an advantage, or explicitly report if the data does not support that conclusion.
+- In `results/capstone_architecture_compare.csv`, include method/checkpoint,
+  corruption, mask capability, text/span source, execution mode, condition
+  status, and reason. Measured rows may show improvement, equality, or harm;
+  `unsupported`/`deferred` rows have missing metrics, never invented numbers.
+- Create a failure casebook and tradeoff plot from measured evidence only.
+  If no supported external run exists, title the plot as internal comparisons
+  and state the deferral; do not imply both architectures were evaluated.
 
 ---
 
 ### 4. Required Output Artifacts
-- `src/baselines/direct_audio_inpaint.py`
+- Feasible branch only: `src/baselines/direct_audio_restore.py` (one adapter
+  with capability metadata; no placeholder implementation if deferred)
 - `results/capstone_architecture_compare.csv`
 - `results/capstone_failure_casebook.md`
 - `results/architecture_tradeoff.png`
-- `src/controller/abstain.py`
+- Reuse, do not postpone: `src/controller/abstain.py` (required by Day 49)
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 54:**  
-> You can explain when the cascaded path is competitive, where it loses acoustic
-information, and whether direct audio repair earns its extra complexity on your benchmark.
+> Supported conditions have reproducible measured comparisons and explicit
+> limitations; unsupported conditions are not fabricated. If the comparator
+> is unavailable, the internal capstone plus external/inpainting deferral is
+> complete, but an external or mask-aware comparison is not claimed as tested.
 
 ---
 
@@ -61,5 +86,5 @@ same task in the next session instead of pretending the day is finished.
 
 ### 7. References & Resources
 - Your frozen protocol and prior results
-- A reproducible pretrained direct latent or codec audio inpainting baseline
+- The one Week 2 comparator's model card and verified capability record
 - Primary papers only when needed to interpret a result

@@ -3,6 +3,8 @@
 > **Week 7 • Day 3 of 7**  
 > **Navigation:** [← Day 44](day_44.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 46 →](day_46.md)
 
+> **v2 STATUS: CORE — boundary diagnostics and the selected stack's vocoder only.** No separate vocoder installation or training.
+
 ---
 
 ### Compute Target
@@ -19,15 +21,20 @@
 ---
 
 ### 2. Build in MendSpeech
-- Run a neural vocoder or inspect the one used by the selected TTS stack.
+- Reuse only Day 43's selected stack's matched pretrained vocoder; keep
+  weights frozen. GAN anatomy is theory, not a separate training experiment.
 - Add boundary diagnostics that measure short time energy and simple spectral statistics before and after a candidate repair span.
 - Save a local room tone estimate where possible.
 
 ---
 
 ### 3. Experiment and Measure
-- Measure inference speed and real time factor.
+- Measure inference speed and real time factor on L4 with fixed batch size,
+  warm-up, and sample rate. Distinguish isolated vocoder from end-to-end time;
+  mark isolated timing unavailable if the interface does not expose it.
 - Create intentionally mismatched generated spans and verify that the boundary diagnostics flag obvious loudness or spectral discontinuities.
+- Include unchanged/identity stitch controls and tests for sample-count and
+  outside-span preservation. Record both flagged and missed seam artifacts.
 
 ---
 

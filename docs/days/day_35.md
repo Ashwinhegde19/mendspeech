@@ -3,6 +3,8 @@
 > **Week 5 • Day 7 of 7**  
 > **Navigation:** [← Day 34](day_34.md) | [Week 5 Plan](../Week_5_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 36 →](day_36.md)
 
+> **v2 STATUS: CORE — shared audio lab streaming milestone.** Streaming, VAD/endpointing, cache-state handling, and Gate 4 Add-on B serving/load evidence remain required. Adaptive context is displayed only where supported.
+
 ---
 
 ### Compute Target
@@ -17,11 +19,11 @@
 ---
 
 ### 2. Build in MendSpeech
-- Connect microphone or simulated live audio to the streaming recognizer.
+- Extend the existing `app/audio_lab.py` entrypoint to connect microphone or simulated live audio to the streaming recognizer; do not create another app.
 - Reuse Add-on A VAD for endpointing and log speech start, speech end, and
   finalization timestamps.
-- Show partial text, confidence timeline, VAD/endpointing state, current
-  context mode, queue depth, and latency.
+- Show partial text, confidence timeline, VAD/endpointing state, cache state, queue depth, and measured latency. Show current context mode only when the runner exposes it; distinguish fixed from live adaptive behavior and never present a simulated policy as live.
+- Keep Gate 4 Add-on B async serving, per-stream isolation, backpressure, and load/failure evidence required. Link those artifacts rather than building context-specific serving infrastructure.
 
 ---
 
@@ -30,11 +32,12 @@
 - Measure time to first partial transcript, endpoint delay, false starts, and
   missed endpoints on the same cases.
 - Document remaining technical limitations honestly.
+- Link Day 31/33 cache evidence, Day 34's live/simulated/unavailable status, and Add-on B serving/load results. Unsupported adaptive context does not waive endpointing, cache correctness, or serving checks.
 
 ---
 
 ### 4. Required Output Artifacts
-- `app/mendspeech_v2_streaming.py`
+- `app/audio_lab.py`
 - `demos/week5_streaming_demo.mp4`
 - `reports/week5_streaming.md`
 
@@ -43,8 +46,9 @@
 ### 5. Completion Check
 > **Definition of Done for Day 35:**  
 > A person can speak and watch MendSpeech transcribe incrementally while exposing
-the VAD, endpointing, cache, context, and uncertainty state that drives repair
-decisions.
+> VAD, endpointing, cache, and uncertainty state, with context mode shown only
+> where available. The report links required serving/load and cache evidence;
+> any adaptive deferral is explicit and does not substitute for those checks.
 
 ---
 
@@ -57,11 +61,4 @@ same task in the next session instead of pretending the day is finished.
 
 ### 7. References & Resources
 - Stateful or cache aware Conformer primary material
-- NVIDIA NeMo streaming ASR documentation and examples   Week 6: Robustness, Fine Tuning, RNNT, and Calibration Adapt the recognizer to damaged speech while learning training and calibration discipline.  Day  Focus  Minimum evidence  Compute  Day 36  Training pipeline anatomy
-- Deliberately use a bad learning rate and record the failure signature.  Modal L4  Day 37  Build a robust fine tuning dataset
-- Audit duplicate and speaker leakage.  Local CPU  Day 38  Fine tune for damaged speech robustness
-- Compare base and adapted model on the frozen test set.  Modal L4, consider L40S only if memory blocks the planned experiment  Day 39  SpecAugment and augmentation ablation
-- Compare no augmentation versus selected augmentation with the same seed and training budget.  Modal L4  Day 40  RNNT and streaming decoding
-- Compare CTC and transducer outputs on selected difficult clips.  Modal L4  Day 41  Confidence calibration for repair decisions
-- Compare raw and calibrated confidence if a simple method is feasible.  Modal L4 for logits, local CPU for analysis  Day 42  Week 6 robustness milestone
-- Run one fixed benchmark suite and freeze results for Week 8 comparisons.  Modal L4
+- NVIDIA NeMo streaming ASR documentation and examples

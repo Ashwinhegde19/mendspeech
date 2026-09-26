@@ -1,14 +1,19 @@
 # MendSpeech Complete Learning and Research Roadmap
 
-> **A 56-Day Systems & Research Curriculum for Selective Semantic Speech Restoration, Real-Time Streaming ASR, Calibrated Decisions, Boundary-Matched Reconstruction, and Direct Audio Repair Comparison.**
+> **A 56-Specification Systems & Research Roadmap for Selective Semantic Speech Restoration, Streaming ASR, Calibrated Decisions, and Boundary-Matched Reconstruction.**
 
 ---
 
 > [!IMPORTANT]
 > **Timeline & Workload Realism:**  
-> Eight weeks (56 days) is the foundational structure. A realistic execution window is **8 to 10 weeks** and roughly **150 to 185 focused engineering hours**. Do not sacrifice deep understanding to preserve an arbitrary calendar deadline.
+> Eight weeks describes the original content grouping, not a promised delivery date.
+> Sessions can span multiple sittings; training/data preparation and debugging
+> require explicit estimates. Do not sacrifice evidence to preserve a calendar.
 >
-> **October update:** The execution calendar is now governed by [REVISED_EXECUTION_PLAN.md](REVISED_EXECUTION_PLAN.md) — October completion, milestone gates, compressed Weeks 3–4 (merged Encoder Block) and Week 8, plus four add-on labs. This roadmap defines content order and depth, not dates.
+> **v2 focused scope:** [REVISED_EXECUTION_PLAN.md](REVISED_EXECUTION_PLAN.md)
+> governs gates, compression, and three retained add-ons. Weeks 3–4 have nine
+> build sessions; Week 8 has five. From Day 10, the nominal remaining scope is
+> 40 core sessions plus approximately six add-on sessions, before contingencies.
 
 ---
 
@@ -29,9 +34,9 @@
    Keep original audio                            │
                                    ┌──────────────┴──────────────┐
                                    ▼                             ▼
-                          MendSpeech V1: Cascaded      Direct Audio Baseline:
-                          Speaker-Conditioned TTS      Pretrained Latent /
-                          + Boundary Matching          Codec Inpainting
+                          MendSpeech V1: Cascaded      External Comparator:
+                          Speaker-Conditioned TTS      One Verified Audio
+                          + Boundary Matching          Restoration Model
                                    │                             │
                                    └──────────────┬──────────────┘
                                                   ▼
@@ -40,23 +45,32 @@
                                Latency, RTF, Seam Discontinuity
 ```
 
+The external branch is evaluated only after its bounded feasibility check.
+Mask support and locality must be verified; unavailable comparisons remain
+explicitly deferred. The normal repair path uses predicted text, not reference
+transcripts. One application, `app/audio_lab.py`, exposes the measured system.
+
 ---
 
 ## 2. What the Revised Plan Changes
 - **Explicit Real-Time Baseline:** The cascaded ASR $\rightarrow$ text $\rightarrow$ TTS path is designated as a low-latency systems baseline, not an exaggerated claim of state-of-the-art restoration.
 - **Boundary Matching Layer:** Week 7 introduces short-time energy matching, local loudness equalization, room-tone handling, and equal-power crossfades with quantitative seam metrics.
 - **Standalone `SpeechDamageBench`:** Packaged as an independent, deterministic, versioned Python library with seed-controlled degradations.
-- **Direct Audio Inpainting Comparison:** Week 8 compares the cascaded baseline against a reproducible pretrained direct latent/codec audio model.
-- **Timed VAD and Production Serving:** Gate 2 adds a constrained scratch VAD
-  build; Gate 4 carries it into endpointing, async WebSocket serving,
+- **Bounded Restoration Comparison:** Week 2 checks one candidate; Week 8
+  compares its verified behavior or documents why that comparison is unavailable.
+- **VAD and Production Serving:** Gate 2 adds a small deterministic VAD baseline
+  and reference comparison; Gate 4 carries it into endpointing, async WebSocket serving,
   backpressure, utilization, and tail-latency measurement.
-- **Speech-ML Systems Drills:** short parallel fundamentals drills reinforce
+- **Optional Speech-ML Systems Drills:** short fundamentals exercises reinforce
   gradient descent, transformer linear algebra, chunked ASR, profiling, and
-  representation factorization without displacing the core build.
-- **Indic and Code-Mixed Extension:** the post-capstone add-on evaluates one
-  verifiable Indian-language slice, Indian English, and code-mixed speech while
-  preserving the frozen core benchmark.
-- **Honest Pacing:** Workload calibrated to 150–185 hours with risk hotspots flagged upfront.
+  representation factorization without becoming release gates or a quota.
+- **Indic and Code-Mixed Extension:** prepare a separate verified manifest after
+  Gate 2; complete measurements as the relevant pipeline exists. Reuse the single
+  ASR adaptation experiment only where language and data support permit.
+- **One TTS Stack:** prioritize controlled adaptation, speaker conditioning,
+  duration, and seams over multiple architecture installations.
+- **Focused Delivery:** no voice-agent loop, encoder-inspector UI, tiny-encoder
+  depth sweep, or parallel milestone app implementations.
 
 ---
 
@@ -71,19 +85,21 @@
 | **Week 5** | Streaming, Cache-Aware Inference, & Adaptive Context | Implement cache-aware streaming ASR and evaluate uncertainty-guided adaptive context spending. | [Week 5 Plan](Week_5_MendSpeech_Daily_Plan.md) |
 | **Week 6** | Robustness, Fine-Tuning, RNN-T, & Calibration | Adapt the recognizer to damaged speech, explore RNN-T, and calibrate confidence scores. | [Week 6 Plan](Week_6_MendSpeech_Daily_Plan.md) |
 | **Week 7** | TTS, Speaker Preservation, & Boundary-Matched Reconstruction | Build MendSpeech V1 cascaded selective repair with duration alignment and seam diagnostics. | [Week 7 Plan](Week_7_MendSpeech_Daily_Plan.md) |
-| **Week 8** | Research Capstone: Cascaded vs. Direct Repair | Freeze benchmarks, run Pareto ablations, compare with direct audio inpainting, and publish report. | [Week 8 Plan](Week_8_MendSpeech_Daily_Plan.md) |
+| **Week 8** | Research Capstone: Controlled Repair Comparisons | Freeze benchmarks, run ablations, report the external comparator outcome, and reproduce the release. | [Week 8 Plan](Week_8_MendSpeech_Daily_Plan.md) |
 
 ---
 
-## 4. Realistic Workload & Risk Matrix
+## 4. Workload Risks
 
-| Phase | Expected Effort | Risk Level | Main Challenges & Risk Mitigation |
-| :--- | :--- | :--- | :--- |
-| **Weeks 1 to 3** | 35 to 45 hours | **Low** | Core PyTorch, NumPy, signal processing, and tensor math. Keep local tests fast. Freeze the reference-transcripted corpus (≥30 utterances, ≥5 speakers) early so Week 2 WER is meaningful. |
-| **Weeks 4 to 5** | 45 to 55 hours | **High** | NVIDIA NeMo framework configuration, streaming cache tensors, chunk masks, GPU timing, and Modal deployment. |
-| **Week 6** | 25 to 35 hours | **Medium** | Data splits, fine-tuning stability, SpecAugment, ECE temperature scaling, and evaluation discipline. |
-| **Weeks 7 to 8** | 40 to 50 hours | **Medium–High** | Speaker-conditioned TTS latency, seam artifact debugging, direct audio baseline integration, and research synthesis. The direct inpainting baseline must be chosen and smoke-tested in Week 2 — never defer model selection to Week 8. |
-| **Total** | **150 to 185 hours** | — | *Do not rush through days without fulfilling the completion checks.* |
+| Phase | Main risk | Bound |
+| :--- | :--- | :--- |
+| **Weeks 1–3** | Data quality, source leakage, tensor/mask correctness | Frozen corpus, fast tests, one scratch block rather than a second recognizer |
+| **Weeks 4–5** | Checkpoint compatibility, stateful inference, latency | Verify capabilities early; fixed-context streaming first; no custom framework for adaptive switching |
+| **Week 6** | Fine-tuning stability and export/precision support | One adaptation experiment, clean regression, held-out calibration and backend-specific checks |
+| **Weeks 7–8** | TTS data/budget, seams, external dependencies | One TTS stack and bounded training feasibility; external candidate check in Week 2; retain report and reproduction |
+
+Session counts are in the execution plan. The removed three nominal sessions
+do not guarantee equivalent capacity for TTS data preparation or training.
 
 ---
 
@@ -99,17 +115,23 @@
 > [!TIP]
 > **Handling Incomplete Tasks:** If debugging takes longer than 65 minutes, continue the exact same task in the next session rather than pretending the day is finished.
 >
-> **Timebox rule:** any day may consume at most two extra sessions (~6 hours total). After that, log the remaining work as *deferred*, land the day's core deliverable in its minimal working form, and move on. A working end-to-end pipeline beats a perfect week.
+> **Timebox rule:** any day may consume at most two extra sessions before a
+> scope review. Required failed checks remain incomplete. Only explicitly
+> conditional experiments may be deferred with a blocker and narrowed claims;
+> a deadline does not turn unfinished work into a completed gate.
 
 ---
 
 ## 6. Hardware Strategy
 - **Week 1:** Local CPU only.
-- **Week 2:** Local CPU for theory days; Modal L4 optional from Day 08 for ASR and the inpainting smoke-test.
+- **Week 2:** Local CPU for theory days; Modal L4 optional from Day 08 for ASR and the bounded restoration smoke test.
 - **Week 3:** Local CPU. GPU only for optional scaling checks.
 - **Weeks 4 to 8:** Default to **Modal L4 (24GB VRAM)** for reproducible inference, streaming, fine-tuning, and benchmarks.
 - **Hardware Consistency:** Keep hardware strictly fixed across any latency, RTF, or memory comparison.
-- **Budget Reality:** Modal L4 costs roughly $0.38/hour; expect 30–60 GPU-hours across Weeks 4–8 (≈ **$15–30 total**). Batch experiments to avoid per-run cold-start overhead, and never use a larger GPU (L40S/A100) for any latency, RTF, or memory comparison.
+- **Budget Reality:** Keep the approximate **$15–30** project envelope visible.
+  Verify current rates and remaining budget before scheduling compute; new TTS
+  adaptation is not assumed to fit. Cache outputs, separate cold/warm runs, and
+  never substitute another GPU tier in latency, RTF, or memory comparisons.
 
 ---
 
@@ -117,7 +139,7 @@
 1. *Can selective semantic repair improve intelligibility while retaining more original speech than full resynthesis?*
 2. *Can calibrated ASR uncertainty guide streaming context spending so extra latency is consumed only when speech is degraded?*
 3. *Can boundary-matching DSP techniques reduce audible seam artifacts in short-span TTS reconstruction?*
-4. *In what specific acoustic regimes does the cascaded real-time path outperform or underperform direct latent/codec audio inpainting?*
+4. *Where does the cascaded path outperform or underperform the verified external restoration comparator?* This question remains deferred if the feasibility check fails; masked-inpainting claims require verified mask support.
 
 ---
 
@@ -129,4 +151,4 @@
 - **Streaming ASR:** NVIDIA Stateful Conformer with Cache-Based Streaming Inference.
 - **Transducer:** Graves RNN-T papers and NeMo RNN-T decoders.
 - **TTS & Vocoders:** FastSpeech 2, HiFi-GAN, VITS papers.
-- **Direct Audio Baseline:** Pretrained latent / codec audio inpainting model (e.g., VoiceCraft / Voicebox / AudioMAE / F5-TTS).
+- **External Restoration Baseline:** One candidate and its verified primary documentation, as recorded in [baseline notes](baseline_install_notes.md); no architecture shopping list.

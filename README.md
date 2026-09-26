@@ -15,8 +15,10 @@ seams are.
 The project also answers a concrete architectural question on the same
 damaged spans:
 
-**cascaded ASR → TTS repair vs. direct audio inpainting** — where does
-each path win, and what does each throw away?
+**selective ASR → TTS repair vs. full resynthesis and a verified audio-restoration
+comparator** — where does each path win, and what does each throw away?
+Masked-inpainting claims require an actually verified mask-aware baseline;
+blocked external comparisons are reported as limitations, not results.
 
 ---
 
@@ -26,6 +28,10 @@ each path win, and what does each throw away?
 | :--- | :--- |
 | **MendSpeech** | Streaming recognition, calibrated uncertainty, a preserve / inspect / repair / abstain policy, and selective reconstruction with boundary-matched stitching (`src/`). |
 | **SpeechDamageBench** | A standalone, versioned damage generator (noise, clipping, bandwidth limits, dropouts, reverberation). Every sample records corruption, severity, seed, and source. Usable without MendSpeech. |
+
+The focused release uses one ASR pipeline, one selected TTS stack, one evolving
+application, and one shared evaluation suite. Architecture learning exercises
+support this system; they do not create parallel products.
 
 Working format: 16 kHz mono float32. Speech defaults for analysis windows
 are 25 ms FFT / 10 ms hop.
@@ -48,7 +54,7 @@ definition of done live in the
 | `src/streaming` | Cache-aware real-time inference, lookahead control | planned |
 | `src/controller` | Preserve / inspect / repair / abstain policy | planned |
 | `src/tts`, `src/repair` | Speaker-conditioned synthesis, boundary matching, seam diagnostics | planned |
-| `src/baselines`, `src/metrics` | Direct inpainting comparison; WER, RTF, ECE, seam scores | planned |
+| `src/baselines`, `src/metrics` | Verified restoration comparison; WER, RTF, ECE, seam scores | planned |
 
 Audio files and checkpoints are gitignored. Manifests and measured
 results are tracked. The [results index](results/README.md) ties every
@@ -92,11 +98,11 @@ pacing and gate contract.
 | :--- | :--- |
 | Audio lab | Loaders, STFT, log-Mel, SpeechDamageBench v0, frozen labeled eval set |
 | Recognition | Pretrained ASR, CTC, confidence, time-aligned uncertain spans |
-| Encoders | Conformer pieces from first principles; measured FastConformer baseline |
+| Encoders | One tested Conformer block from first principles; measured FastConformer baseline |
 | Streaming | Cache-aware inference, VAD/endpointing, adaptive lookahead |
 | Robustness | Fine-tuning on damage, quantization, calibration |
-| Repair | Speaker-conditioned TTS, boundary matching, seam diagnostics |
-| Comparison | Cascaded path vs. a pretrained direct inpainting baseline |
+| Repair | One speaker-conditioned TTS stack, bounded adaptation, boundary matching, seam diagnostics |
+| Comparison | Controlled repair baselines and one feasibility-checked restoration comparator |
 
 Session notes and experiment specs live under [`docs/`](docs/INDEX.md).
 Contributor rules — code style, determinism, git, compute — are in
