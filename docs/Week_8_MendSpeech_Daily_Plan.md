@@ -21,12 +21,12 @@
 
 | Day | Focus | Minimum Evidence / Artifact | Compute | Daily Link |
 | :--- | :--- | :--- | :--- | :--- |
-| **Day 50** | Freeze questions and baselines | Four internal comparisons plus one feasible external comparator; support/deferral and oracle/live labels frozen | `Local CPU; L4 dry run` | [Open Day 50](days/day_50.md) |
+| **Day 50** | Freeze questions and baselines | Internal/external controls, decoder/calibration provenance, TTS language/prosody/delivery modes, and oracle/live labels frozen | `Local CPU; L4 dry run` | [Open Day 50](days/day_50.md) |
 | **Day 51** | Release SpeechDamageBench v1 and freeze evaluation | Independently installable, deterministic, versioned benchmark | `Local CPU` | [Open Day 51](days/day_51.md) |
-| **Day 52** | Recognition and context ablations | Measured live effects versus separately labeled simulation; no fictitious runtime gains | `Modal L4` | [Open Day 52](days/day_52.md) |
+| **Day 52** | Recognition and context ablations | Decoder/calibration held fixed; measured live context effects versus separate simulation/offline evidence | `Modal L4` | [Open Day 52](days/day_52.md) |
 | **Day 53** | Cascaded repair and seam ablations | Fixed predicted text/spans isolate stitching effects; null/worse outcomes valid | `Modal L4` | [Open Day 53](days/day_53.md) |
 | **Day 54** | Capability-scoped direct restoration comparison | Supported measured rows, unsupported/deferred conditions, and honest internal-only fallback | `Modal L4; local analysis` | [Open Day 54](days/day_54.md) |
-| **Day 55** | Technical report and reproducibility guide | Claims trace to measurements; unsupported/deferred capabilities explicit | `Local CPU` | [Open Day 55](days/day_55.md) |
+| **Day 55** | Technical report and reproducibility guide | Claims trace to decoder, per-language TTS/prosody, delivery-mode and repair-timing measurements; missing evidence explicit | `Local CPU` | [Open Day 55](days/day_55.md) |
 | **Day 56** | One final app and clean reproduction | `app/audio_lab.py`, tested abstention, reproducible charts/report, evidence-based Gate 7 | `Modal L4; local interface` | [Open Day 56](days/day_56.md) |
 
 ---
@@ -47,6 +47,10 @@ remain policy settings, not new model projects. The one selected external
 comparator consumes `docs/baseline_install_notes.md` from Week 2; do not
 model-hunt or train a restoration fallback from scratch. No inpainting or mask
 support is assumed. Deferred training and unsupported conditions stay explicit.
+Reuse the bounded Day 26 and Days 43–46 experiments rather than adding new
+decoder/model sweeps in the capstone. Freeze language and synthesis delivery
+claims separately from live ASR/context; a blocked required target needs scope
+review, not a retrospective completed label.
 
 ---
 
@@ -60,6 +64,7 @@ support is assumed. Deferred training and unsupported conditions stay explicit.
 ## Daily Detailed Operating Plans
 
 ### DAY 50: Freeze research questions and baselines
+
 - **Compute:** `Local CPU for planning, Modal L4 for
 dry run`
 - **Dedicated Daily File:** [`docs/days/day_50.md`](days/day_50.md)
@@ -79,6 +84,14 @@ dry run`
 
 #### Build in MendSpeech
 - Freeze code revision, model revisions, datasets, hardware, corruption configs, and metrics.
+- Freeze the acoustic head, decoder configuration, LM/text-manifest hashes,
+  normalization, and matching Day 41 calibration. Link Day 26's three-way
+  decoding evidence without treating cached offline decoding as live streaming.
+- Freeze the separate Day 43 two-language TTS manifest, base/adapted checkpoint,
+  conditioning consent, native-versus-DSP controls, and generation mode. Link
+  Days 44–46 quality/latency evidence per language; unknown native streaming
+  capability and incomplete language targets stay explicit, never filled by a
+  second stack. Record synthesis-only versus complete-repair timing boundaries.
 - Freeze raw damaged audio, full resynthesis, naive selective repair, and
   boundary-matched selective repair, with predicted text as the normal path.
   Hold text/spans fixed for stitching comparisons; segregate oracle rows.
@@ -110,6 +123,8 @@ dry run`
 > Another engineer can reproduce the supported comparisons and distinguish
 > selected from tested support, external/inpainting deferral, oracle diagnostics,
 > and live versus simulated context results without inventing missing evidence.
+> Decoder/calibration provenance, language coverage, prosody controls, and actual
+> TTS delivery modes are frozen; incompatible or missing evidence is not complete.
 
 ---
 
@@ -148,6 +163,7 @@ usable without MendSpeech.
 ---
 
 ### DAY 52: Run recognition and context ablations
+
 - **Compute:** `Modal L4, keep hardware fixed`
 - **Dedicated Daily File:** [`docs/days/day_52.md`](days/day_52.md)
 
@@ -161,6 +177,10 @@ usable without MendSpeech.
 #### Build in MendSpeech
 - Run every streaming condition on the exact same benchmark subset.
 - Repeat timing runs enough to estimate variance.
+- Hold the acoustic model, precision, decoder, LM, and matching calibration
+  fixed across context conditions. Reference the Day 26 decoder ablation
+  separately rather than confounding an LM change with a context improvement;
+  an offline-only decoder stays out of measured streaming comparisons.
 - Record GPU type and environment automatically through the Modal runner.
 - Record `execution_mode=live|simulated` for every context policy. A live
   adaptive claim requires runtime context changes in the recognizer, not
@@ -280,6 +300,7 @@ recognition, reconstruction, and stitching effects.
 ---
 
 ### DAY 55: Write the research report and reproducibility guide
+
 - **Compute:** `Local CPU`
 - **Dedicated Daily File:** [`docs/days/day_55.md`](days/day_55.md)
 
@@ -303,6 +324,15 @@ recognition, reconstruction, and stitching effects.
 - State Day 46's base/adapted evidence or training deferral, gold-text/oracle
   exclusions, and live versus simulated context labels. Simulation cannot
   establish measured runtime gains; blocked training is not measured adaptation.
+- Trace greedy/beam/LM claims to Day 26, including harmful changes and separate
+  decoder-only/fresh end-to-end timings. Trace each TTS language and prosody
+  claim to Days 43–46, with held-out counts, reviewer/listener limits, and
+  regression results rather than a pooled score that hides one language.
+- State whether TTS is native streaming, phrase-chunked, or full-waveform
+  delivery, whether full text is required up front, and what must finish before
+  repaired audio can play. Native streaming, code-mixed synthesis, and emotion
+  control are not implied by multilingual output or network chunking. Include
+  Day 49 complete-repair timing separately from Day 45 synthesis latency.
 - Reproduce the existing `app/audio_lab.py`; do not introduce a second app.
 - Include plots with captions that state what changed and what stayed fixed.
 

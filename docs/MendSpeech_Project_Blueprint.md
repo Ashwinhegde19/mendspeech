@@ -4,7 +4,8 @@
 >
 > **v2 scope:** One recognition pipeline, one selected TTS stack, one evolving
 > application, and one evaluation suite. The [execution plan](REVISED_EXECUTION_PLAN.md)
-> governs bounded adaptation and external-comparator feasibility. These are
+> governs decoding comparisons, two-language TTS evaluation, bounded adaptation,
+> and external-comparator feasibility. These are
 > target behaviors, not claims that the current implementation is complete.
 
 ---
@@ -38,6 +39,18 @@ Normal reconstruction uses predicted text. Gold-transcript repair is a separatel
 labeled oracle control. Keep raw damaged audio, full resynthesis, naive selective
 stitching, and boundary-matched selective repair even if the external comparator
 is unavailable. Never claim superiority over a model that was not evaluated.
+
+Compare greedy, beam-only, and beam plus one small n-gram LM using the same
+compatible acoustic model. This begins as an offline decoding experiment, not
+an automatic streaming upgrade. Keep search scores separate from calibrated
+confidence; decoder changes require validation of alignment and repair thresholds.
+
+The one TTS stack targets two verified languages including an Indian language,
+with separate held-out synthesis data, per-language quality, bounded adaptation,
+and repair-focused prosody evaluation. Native streaming is checked, not assumed.
+Short-span synthesis latency is required even when only full-waveform inference
+is supported; measure complete repair latency separately. No mobile/edge port,
+second TTS stack, or independent emotion-generation subsystem is included.
 
 ---
 
@@ -82,6 +95,9 @@ is unavailable. Never claim superiority over a model that was not evaluated.
 | **Calibration (ECE / Brier)** | Tests whether confidence values support reliable policy decisions. |
 | **Boundary Energy Discontinuity** | Quantitative signal for stitching and seam quality. |
 | **Abstention Outcomes** | Measures whether the system avoids hallucinating unrecoverable content. |
+| **Decoder Accuracy/Cost** | Separates WER/CER and names/numbers from cached decoder time and fresh audio-to-text latency. |
+| **Per-Language TTS Quality** | Held-out pronunciation, intelligibility, speaker consistency, and adaptation regressions; small-set limits explicit. |
+| **Prosody and Synthesis Timing** | Duration error, voiced pitch/energy continuity, first playable audio, and completion time with backend-mode labels. |
 
 ---
 
@@ -92,8 +108,11 @@ is unavailable. Never claim superiority over a model that was not evaluated.
 - **Granularity:** Selective span repair vs. full utterance resynthesis.
 - **Stitching Quality:** Naive waveform stitching vs. boundary-matched stitching.
 - **ASR Robustness:** Base ASR vs. robustness-adapted (fine-tuned) ASR.
+- **Decoding:** Greedy vs. beam-only vs. beam plus one LM; validation-only tuning, unchanged acoustic model, and helpful/harmful text changes. Offline evidence is not a streaming claim.
 - **Architecture:** Cascaded V1 vs. one verified restoration comparator; include a masked-inpainting claim only if the tested capability supports it. Record blocked comparisons as deferred limitations.
 - **TTS Adaptation:** Base vs. adapted selected stack when permitted data, checkpoint, and L4 budget pass the feasibility check; otherwise explicitly defer adaptation, not the repair controls.
+- **TTS Language/Prosody:** Two separate language slices, including one Indian language; fixed text/speaker comparisons of baseline and supported native control or explicitly labeled DSP. Code-mixed and emotion-control claims require separate evidence and are not implied.
+- **TTS Delivery:** Required short-span latency baseline; native streaming compared only when supported by the same stack, with buffering and chunk-quality checks. No unsupported mode in latency rankings.
 - **Clean Speech Regression:** Ensuring already clean speech is not degraded by the pipeline.
 
 ---
@@ -143,3 +162,8 @@ mendspeech/
     alone must not be described as model training.
 11. The application exposes measured capabilities only. Release evidence and
     limitations are independent of optional learning drills or extra UI pages.
+12. Three-way decoding and two-language synthesis evidence are required targets.
+    A blocked target remains incomplete pending an explicit scope review; a
+    documented unsupported native TTS streaming branch does not invalidate the
+    measured full-waveform baseline or imply streaming support. The final report
+    distinguishes synthesis-only timings from end-to-end repair and network time.

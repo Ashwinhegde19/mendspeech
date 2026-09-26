@@ -3,7 +3,7 @@
 > **Week 7 • Day 1 of 7**  
 > **Navigation:** [← Day 42](day_42.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 44 →](day_44.md)
 
-> **v2 STATUS: CORE — one TTS stack and a bounded adaptation feasibility gate.** No second synthesis installation; completion follows evidence, not a date.
+> **v2 STATUS: CORE — one TTS stack, two-language evaluation, and bounded adaptation feasibility.** Inference, language, prosody, training and native streaming are separate capabilities; no second synthesis installation.
 
 ---
 
@@ -19,6 +19,8 @@
 - Vocoder.
 - Speaker conditioning.
 - Prosody.
+- Language/frontend coverage, held-out synthesis evaluation, and native audio
+  generation versus phrase chunking or delivery of an already completed waveform.
 - Content, speaker, and style representations; why useful factorization is not
   proof of perfect disentanglement.
 
@@ -34,6 +36,24 @@
   library versions, sample rate, text normalization and token coverage, and
   speaker-embedding shape/provenance. Use only owned or explicitly consented
   speaker references; public availability alone is not consent.
+- Target exactly two supported languages, including at least one Indian
+  language, preferably the Add-on C language if verified. Do not assume English
+  or code-mixed support. Freeze `data/tts_eval_manifest.csv` with at least ten
+  held-out sentences per language, including names and numbers. Record original
+  and normalized text, language, source/license, speaker/reference consent,
+  hashes, split roles, and competent language review. This is a diagnostic set,
+  not evidence of population-level or many-language generalization.
+- Keep the TTS set separate from the immutable core benchmark and Add-on C's
+  ASR manifest. Exclude its sentences/reference recordings from adaptation and
+  tuning; do not condition on the held-out target recording. A separate consented
+  same-speaker reference is allowed if labeled, not claimed as unseen-speaker
+  transfer. Record unknown pretraining overlap rather than claiming its absence.
+- In the pipeline record, verify each language's frontend/tokenizer and native
+  output rate with synthesis smoke tests. Record exposed rate/pitch/style
+  controls and native incremental audio APIs, if any, with revision-specific
+  evidence. Distinguish `verified`, `unsupported`, and `unverified` per capability;
+  language inference, adaptation and streaming are not one combined status.
+  State whether full input text is required before generation starts.
 - Record legal paired training-data provenance and permitted uses, duration,
   transcript quality, speaker/reference IDs, and disjoint train/validation/
   held-out sentence splits. Exclude frozen evaluation audio, transcripts, and
@@ -51,6 +71,11 @@
 - Record inference feasibility separately. Do not model-hunt, train from
   scratch, add a second project, or promise a session/compute budget; if
   inference is blocked, dependent synthesis work remains deferred.
+- If two-language inference is blocked, keep the requirement incomplete and
+  seek scope review; a deferral note does not complete the language target.
+  Unsupported native streaming instead falls back to Day 45's measured
+  full-waveform baseline. Neither case authorizes another stack, mobile port,
+  or a separate emotion-generation subsystem.
 - Save generated waveforms locally in ignored storage and exposed intermediate
   representations; tracked sample directories contain only manifests/notes.
 - Record where the selected system injects linguistic content, speaker
@@ -60,6 +85,10 @@
 
 ### 3. Experiment and Measure
 - Compare several sentences with punctuation and pacing changes.
+- Generate the held-out two-language samples, record unsupported items and
+  pronunciation/intelligibility observations with competent language review,
+  and freeze the set before Day 44 comparisons. Native streaming verification
+  uses a minimal exposed-API check; waveform splitting is not that evidence.
 - FastSpeech 2 and VITS are short theoretical contrasts, not additional models
   to install or benchmark. Record unresolved capabilities explicitly.
 
@@ -69,6 +98,9 @@
 - `src/tts/baseline.py`
 - `results/day43_tts_samples/`
 - `docs/tts_pipeline.md`
+- `data/tts_eval_manifest.csv`
+- `results/day43_tts_language_quality.csv` (per-item language, configuration,
+  reference role, reviewer assessment, and supported/missing status)
 
 ---
 
@@ -79,6 +111,9 @@
 > exact trainable parameters, L4 pilot evidence or a blocking reason, cost
 > bounds, and a feasible or deferred adaptation decision. No training success
 > is claimed by this gate; unresolved fields remain explicitly unverified.
+> Two supported languages have held-out synthesis/review evidence and a frozen
+> separate manifest. If this target is blocked, it stays incomplete pending scope
+> review. Native streaming can be unsupported without being mislabeled implemented.
 
 ---
 
@@ -86,6 +121,8 @@
 25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
 notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
 same task in the next session instead of pretending the day is finished.
+Language review, consent/data preparation and pilot work require a revised
+estimate; use the execution plan's scope-review rule rather than a fixed deadline.
 
 ---
 

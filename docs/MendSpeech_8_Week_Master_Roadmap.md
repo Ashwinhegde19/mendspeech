@@ -13,7 +13,9 @@
 > **v2 focused scope:** [REVISED_EXECUTION_PLAN.md](REVISED_EXECUTION_PLAN.md)
 > governs gates, compression, and three retained add-ons. Weeks 3–4 have nine
 > build sessions; Week 8 has five. From Day 10, the nominal remaining scope is
-> 40 core sessions plus approximately six add-on sessions, before contingencies.
+> 40 core specification slots plus approximately six add-on sessions. The added
+> decoding and TTS evidence expands those slots; re-estimate after compatibility
+> checks rather than treating 46 as an updated delivery promise.
 
 ---
 
@@ -68,7 +70,12 @@ transcripts. One application, `app/audio_lab.py`, exposes the measured system.
   Gate 2; complete measurements as the relevant pipeline exists. Reuse the single
   ASR adaptation experiment only where language and data support permit.
 - **One TTS Stack:** prioritize controlled adaptation, speaker conditioning,
-  duration, and seams over multiple architecture installations.
+  two supported languages including one Indian language, repair-focused prosody,
+  and short-span latency over multiple architecture installations. Native
+  streaming is verified only if the same backend supports it.
+- **Controlled Decoding:** greedy, beam-only, and one n-gram LM share a compatible
+  acoustic model and the Day 26 harness. Separate offline decoder cost from
+  fresh end-to-end latency; keep LM scores distinct from calibrated confidence.
 - **Focused Delivery:** no voice-agent loop, encoder-inspector UI, tiny-encoder
   depth sweep, or parallel milestone app implementations.
 
@@ -81,10 +88,10 @@ transcripts. One application, `app/audio_lab.py`, exposes the measured system.
 | **Week 1** | Audio, Degradation, & Measurement Foundations | Build the audio laboratory and release `SpeechDamageBench` v0 as a standalone package. | [Week 1 Plan](Week_1_MendSpeech_Daily_Plan.md) |
 | **Week 2** | ASR, CTC, Confidence, & Repair Localization | Build the recognition and uncertainty layer, plus a reusable Modal cloud execution pipeline. | [Week 2 Plan](Week_2_MendSpeech_Daily_Plan.md) |
 | **Week 3** | Conformer From First Principles | Implement Conformer attention, convolutions, and Macaron feed-forwards from scratch in PyTorch. | [Week 3 Plan](Week_3_MendSpeech_Daily_Plan.md) |
-| **Week 4** | FastConformer & Efficient Encoder Behavior | Profile subsampling, receptive fields, and establish a reproducible FastConformer baseline. | [Week 4 Plan](Week_4_MendSpeech_Daily_Plan.md) |
+| **Week 4** | FastConformer & Efficient Encoder Behavior | Reproducible baseline, efficiency harness, and controlled greedy/beam/LM comparison. | [Week 4 Plan](Week_4_MendSpeech_Daily_Plan.md) |
 | **Week 5** | Streaming, Cache-Aware Inference, & Adaptive Context | Implement cache-aware streaming ASR and evaluate uncertainty-guided adaptive context spending. | [Week 5 Plan](Week_5_MendSpeech_Daily_Plan.md) |
 | **Week 6** | Robustness, Fine-Tuning, RNN-T, & Calibration | Adapt the recognizer to damaged speech, explore RNN-T, and calibrate confidence scores. | [Week 6 Plan](Week_6_MendSpeech_Daily_Plan.md) |
-| **Week 7** | TTS, Speaker Preservation, & Boundary-Matched Reconstruction | Build MendSpeech V1 cascaded selective repair with duration alignment and seam diagnostics. | [Week 7 Plan](Week_7_MendSpeech_Daily_Plan.md) |
+| **Week 7** | TTS, Speaker Preservation, & Boundary-Matched Reconstruction | One-stack two-language evidence, bounded adaptation, repair prosody, short-span latency, and selective repair. | [Week 7 Plan](Week_7_MendSpeech_Daily_Plan.md) |
 | **Week 8** | Research Capstone: Controlled Repair Comparisons | Freeze benchmarks, run ablations, report the external comparator outcome, and reproduce the release. | [Week 8 Plan](Week_8_MendSpeech_Daily_Plan.md) |
 
 ---
@@ -94,12 +101,14 @@ transcripts. One application, `app/audio_lab.py`, exposes the measured system.
 | Phase | Main risk | Bound |
 | :--- | :--- | :--- |
 | **Weeks 1–3** | Data quality, source leakage, tensor/mask correctness | Frozen corpus, fast tests, one scratch block rather than a second recognizer |
-| **Weeks 4–5** | Checkpoint compatibility, stateful inference, latency | Verify capabilities early; fixed-context streaming first; no custom framework for adaptive switching |
+| **Weeks 4–5** | Decoder/head compatibility, LM text leakage, stateful inference, latency | One small LM and acoustic model; validate offline decoding before any streaming integration; fixed-context streaming first |
 | **Week 6** | Fine-tuning stability and export/precision support | One adaptation experiment, clean regression, held-out calibration and backend-specific checks |
-| **Weeks 7–8** | TTS data/budget, seams, external dependencies | One TTS stack and bounded training feasibility; external candidate check in Week 2; retain report and reproduction |
+| **Weeks 7–8** | TTS language/consent/data/budget, seams, native streaming compatibility | One stack; separate required language/latency evidence from conditional training and native streaming; retain report and reproduction |
 
 Session counts are in the execution plan. The removed three nominal sessions
 do not guarantee equivalent capacity for TTS data preparation or training.
+Decoder integration, two-language review/listening and latency checks add work;
+no fixed extra-session or compute estimate is promised before the capability checks.
 
 ---
 
@@ -140,6 +149,8 @@ do not guarantee equivalent capacity for TTS data preparation or training.
 2. *Can calibrated ASR uncertainty guide streaming context spending so extra latency is consumed only when speech is degraded?*
 3. *Can boundary-matching DSP techniques reduce audible seam artifacts in short-span TTS reconstruction?*
 4. *Where does the cascaded path outperform or underperform the verified external restoration comparator?* This question remains deferred if the feasibility check fails; masked-inpainting claims require verified mask support.
+5. *Does an external LM improve recognition without increasing plausible but incorrect repairs?* Keep decoder and calibrated-policy changes distinguishable.
+6. *How do language, prosody controls, and synthesis delivery mode affect short-span repair quality and latency?* Unsupported controls and small-set limits remain explicit.
 
 ---
 

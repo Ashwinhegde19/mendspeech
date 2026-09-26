@@ -22,6 +22,10 @@
 ### 2. Build in MendSpeech
 - Run every streaming condition on the exact same benchmark subset.
 - Repeat timing runs enough to estimate variance.
+- Hold the acoustic model, precision, decoder, LM, and matching calibration
+  fixed across context conditions. Reference the Day 26 decoder ablation
+  separately rather than confounding an LM change with a context improvement;
+  an offline-only decoder stays out of measured streaming comparisons.
 - Record GPU type and environment automatically through the Modal runner.
 - Record `execution_mode=live|simulated` for every context policy. A live
   adaptive claim requires runtime context changes in the recognizer, not

@@ -3,6 +3,8 @@
 > **Week 6 • Day 6 of 7**  
 > **Navigation:** [← Day 40](day_40.md) | [Week 6 Plan](../Week_6_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 42 →](day_42.md)
 
+> **v2 STATUS: CORE — calibration follows the selected model, decoder, and precision.** External LM search scores do not automatically become repair confidence.
+
 ---
 
 ### Compute Target
@@ -15,17 +17,28 @@ analysis`
 - Reliability diagrams.
 - Expected calibration error intuition.
 - Threshold selection from validation data.
+- Decoder-dependent hypotheses, alignment, and acoustic versus LM score meaning.
 
 ---
 
 ### 2. Build in MendSpeech
 - Build a simple calibration analysis for confidence versus correctness.
 - Choose policy thresholds on validation, not test.
+- Record model/head/tokenizer, precision, decoder configuration and LM revision
+  from Days 24/26/40. Define and test how confidence attaches to the actual
+  decoded words/spans; a fused beam score is not a probability, and greedy
+  thresholds cannot silently transfer to LM-altered hypotheses. Validate token/
+  timestamp alignment or retain the verified greedy path for repair.
+- Refit/check calibration when model, precision or decoder changes. Preserve
+  the exact score definition and fitting split in `configs/repair_modes_calibrated.yaml`.
 
 ---
 
 ### 3. Experiment and Measure
 - Compare raw and calibrated confidence if a simple method is feasible.
+- Evaluate correctness and reliability for the chosen configuration on held-out
+  clean/damaged cases, including LM-induced errors if LM output enters repair.
+  Keep validation-selected thresholds fixed; report failed calibration honestly.
 
 ---
 
@@ -38,7 +51,9 @@ analysis`
 
 ### 5. Completion Check
 > **Definition of Done for Day 41:**  
-> Repair thresholds are now justified from held out evidence rather than guessed.
+> Repair thresholds are justified from held-out evidence for the actual
+> model/decoder/precision, with tested hypothesis alignment and an explicit
+> confidence definition. Search scores are not relabeled calibrated confidence.
 
 ---
 

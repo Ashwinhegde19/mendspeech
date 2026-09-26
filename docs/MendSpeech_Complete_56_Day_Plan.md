@@ -806,23 +806,33 @@ attention cost.
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — baseline and early capability check.** Verify the selected checkpoint's supported behavior before downstream streaming and export work; unsupported capabilities are documented, not replaced by a model search or new architecture.
+> **v2 STATUS: CORE — baseline and early capability check.** Verify decoding/LM, streaming, and export support on the selected checkpoint; unsupported capabilities are documented, not replaced by a model search or new architecture.
 
 #### Learn
 - Model checkpoint loading.
 - Tokenizer and decoder configuration.
 - Batch versus single utterance inference.
 - Checkpoint-specific cache-aware inference, right-context controls, export support, and tokenizer language coverage.
+- CTC versus transducer search, token/blank mapping, and external LM fusion.
 
 #### Build in MendSpeech
 - Run a current NeMo FastConformer checkpoint on your clean and damaged sets.
 - Record model revision and all inference settings.
+- Pin the acoustic head and tokenizer expected by Day 26's greedy/beam/LM
+  experiment. Verify a supported beam backend, optional dependencies and
+  small n-gram LM format against the pinned framework; do not assume these
+  extras are installed or that a CTC recipe works with a transducer head.
+  Record offline versus incremental support separately. Use this same acoustic
+  checkpoint, not another model just to obtain a decoder comparison.
 - In `configs/model_baseline.yaml`, record capability status and evidence for cache-aware inference, supported right-context values and units, runtime context switching, the intended export path, and tokenizer language support for the planned evaluation languages. Distinguish verified, unsupported, and unverified behavior.
 - Check the pinned model/framework documentation and use minimal supported smoke checks where feasible. Record failures and limitations early; do not start a model hunt, retrain an encoder, or add custom infrastructure to manufacture support.
 
 #### Experiment and Measure
 - Benchmark WER, latency, and GPU memory by damage type.
 - Carry the capability record into Days 25, 31–35 and later export work. Unsupported adaptive switching defers the adaptive claim, not unrelated gate evidence; unsupported cache-aware inference or export remains an explicit dependency issue, not a completed requirement.
+- Include decoder compatibility smoke evidence and estimate Day 26's text
+  preparation/integration effort. A blocked required comparison remains
+  incomplete pending scope review; no scratch backend or open-ended model hunt.
 
 #### Required Output
 - `src/asr/fastconformer_runner.py`
@@ -833,7 +843,8 @@ attention cost.
 > **Definition of Done for Day 24:**
 > You have a reproducible baseline with model, data, hardware, and settings fixed,
 > plus an evidence-backed capability record covering cache-aware inference,
-> right context, export, and tokenizer language support. Unsupported or unverified
+> right context, export, tokenizer language support, and decoder/head/LM backend
+> compatibility. Unsupported or unverified
 > capabilities and their downstream implications are explicit.
 
 ### Day 25: Context and attention limits
@@ -869,29 +880,73 @@ attention cost.
 
 **Compute:** `Modal L4`
 
+> **v2 STATUS: CORE — efficiency and three-way offline decoding.** Extend the shared harness; one acoustic model and one small n-gram LM. Extra integration work is not assumed to fit the original session slot.
+
 #### Learn
 - Warmup runs.
 - Synchronized GPU timing.
 - Median and percentile latency.
 - Real time factor.
 - Peak memory.
+- Greedy search versus beam search; LM weight, insertion terms, and pruning.
+- External LM preferences can alter content: lower WER alone is not proof that
+  repair decisions are safer. Fused search scores are not calibrated probabilities.
 
 #### Build in MendSpeech
 - Create one benchmark function used by every later experiment.
 - Log environment and model metadata automatically.
+- Use the compatible acoustic head/backend verified in Day 24. Compare greedy,
+  beam without an external LM, and beam plus one small n-gram LM in
+  `src/asr/decoding.py`; no second acoustic checkpoint or scratch search engine.
+- Freeze text provenance, permitted use, source IDs, normalization, hashes,
+  deduplication and split roles in `data/lm_text_manifest.csv`. Exclude all
+  evaluation references/duplicates from LM training; document unknown base-model
+  pretraining overlap. Keep raw corpora and LM binaries in ignored storage.
+- Freeze one small LM order and corpus budget plus a small validation-only
+  beam-width/LM-weight candidate list in `configs/decoding.yaml`. Keep lexicon,
+  insertion bonuses, tokenizer and normalization controlled; beam-only disables
+  the external LM. Select once on validation, never using test errors as prompts
+  for vocabulary additions, tuning, or retraining. No broad parameter sweep.
+- Reuse the same acoustic outputs when the selected head/backend permits it;
+  otherwise rerun identical frozen acoustic settings and label cache use. Test
+  empty inputs, token mapping, and LM influence in `tests/test_asr_decoding.py`;
+  CTC tests include blank/repeated-token collapse. Test timing/alignment mapping
+  before decoded hypotheses can enter repair. Document backend score semantics.
+- Keep offline decoding separate from the streaming runner. If compatibility is
+  blocked, retain the greedy baseline and report the failed required comparison
+  for scope review, not completed beam/LM integration.
 
 #### Experiment and Measure
 - Run repeated inference and calculate variance.
 - Detect and discard obviously invalid cold start comparisons.
+- Report WER/CER, predeclared names/numbers errors, and both helpful and harmful
+  transcript changes on identical held-out clean/damaged cases. A null or worse
+  LM result is valid; invented improvement or omitted failed cases are not.
+- Measure decoder-only elapsed time using cached acoustic outputs separately
+  from fresh audio-to-transcript latency, RTF and peak memory. Use repeated warm
+  runs on fixed L4/batch/precision, separate cold measurements, and record CPU
+  decoder host, thread/worker counts, cache status, timing boundaries and counts.
+  Cached decoder speed is not live ASR latency; no streaming LM claim yet.
 
 #### Required Output
 - `src/bench/benchmark_asr.py`
 - `src/bench/environment.py`
 - `results/day26_repeatability.csv`
+- `src/asr/decoding.py`
+- `tests/test_asr_decoding.py`
+- `configs/decoding.yaml`
+- `data/lm_text_manifest.csv`
+- `results/day26_decoding_comparison.csv`
+- `docs/day26_decoding.md` (reproduction, tuning/split audit, score semantics,
+  backend/head compatibility, help/hurt cases, and streaming limitations)
 
 #### Completion Check
 > **Definition of Done for Day 26:**
-> Repeated runs produce stable enough numbers to support comparisons.
+> Repeated runs support reproducible greedy/beam/LM accuracy and cost comparisons
+> with validation-only selection and tests. The evidence distinguishes cached
+> decoder time from fresh end-to-end latency and search scores from confidence.
+> A blocked beam or LM branch leaves this comparison incomplete; independent
+> work may continue, but Gate 3 requires evidence or an approved scope revision.
 
 ### Day 27: FastConformer failure casebook
 
@@ -936,9 +991,17 @@ reason for each.
 - Replace the generic ASR runner in MendSpeech with the reproducible FastConformer path.
 - Extend `app/audio_lab.py`, the single app entrypoint, to expose latency, RTF, WER when reference text exists, and GPU memory. Do not create a versioned demo app.
 - Capture Day 27's top three repeatable failure patterns with transcript, confidence, and damage metadata in the retained casebook.
+- Link Day 26's decoding comparison with head/tokenizer/LM/config provenance
+  in `reports/week4_fastconformer.md`. Show offline beam/LM output only as
+  offline evidence. Retain a verified streaming-compatible decoder (greedy if
+  needed); do not replace it with an offline-only backend or treat LM-fused
+  scores as confidence. Changes to text/timestamps require alignment checks
+  and Day 41 decoder-specific calibration before calibrated repair claims.
 
 #### Experiment and Measure
 - Run the same ten reference clips through the full Week 2 uncertainty policy using FastConformer.
+- Record the actual decoder for every run. Include helpful/harmful Day 26
+  examples; preserve the original greedy results instead of overwriting them.
 
 #### Required Output
 - `app/audio_lab.py`
@@ -948,7 +1011,10 @@ reason for each.
 #### Completion Check
 > **Definition of Done for Day 28:**
 > The shared audio lab exposes a measured, inspectable FastConformer recognition
-> core, and the report links the top-three failure casebook.
+> core, and the report links the top-three failure casebook and completed
+> three-way decoding evidence. Offline and streaming capabilities, score
+> semantics and pending calibration are explicit; blocked decoding needs scope
+> review rather than a completed Gate 3 label.
 
 ---
 
@@ -1398,17 +1464,30 @@ no unsupported INT8, speedup or calibration claim is presented as complete.
 **Compute:** `Modal L4 for logits, local CPU for
 analysis`
 
+> **v2 STATUS: CORE — calibration follows the selected model, decoder, and precision.** External LM search scores do not automatically become repair confidence.
+
 #### Learn
 - Reliability diagrams.
 - Expected calibration error intuition.
 - Threshold selection from validation data.
+- Decoder-dependent hypotheses, alignment, and acoustic versus LM score meaning.
 
 #### Build in MendSpeech
 - Build a simple calibration analysis for confidence versus correctness.
 - Choose policy thresholds on validation, not test.
+- Record model/head/tokenizer, precision, decoder configuration and LM revision
+  from Days 24/26/40. Define and test how confidence attaches to the actual
+  decoded words/spans; a fused beam score is not a probability, and greedy
+  thresholds cannot silently transfer to LM-altered hypotheses. Validate token/
+  timestamp alignment or retain the verified greedy path for repair.
+- Refit/check calibration when model, precision or decoder changes. Preserve
+  the exact score definition and fitting split in `configs/repair_modes_calibrated.yaml`.
 
 #### Experiment and Measure
 - Compare raw and calibrated confidence if a simple method is feasible.
+- Evaluate correctness and reliability for the chosen configuration on held-out
+  clean/damaged cases, including LM-induced errors if LM output enters repair.
+  Keep validation-selected thresholds fixed; report failed calibration honestly.
 
 #### Required Output
 - `src/asr/calibration.py`
@@ -1417,7 +1496,9 @@ analysis`
 
 #### Completion Check
 > **Definition of Done for Day 41:**
-> Repair thresholds are now justified from held out evidence rather than guessed.
+> Repair thresholds are justified from held-out evidence for the actual
+> model/decoder/precision, with tested hypothesis alignment and an explicit
+> confidence definition. Search scores are not relabeled calibrated confidence.
 
 ### Day 42: Week 6 robustness milestone
 
@@ -1468,7 +1549,7 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — one TTS stack and a bounded adaptation feasibility gate.** No second synthesis installation; completion follows evidence, not a date.
+> **v2 STATUS: CORE — one TTS stack, two-language evaluation, and bounded adaptation feasibility.** Inference, language, prosody, training and native streaming are separate capabilities; no second synthesis installation.
 
 #### Learn
 - Text or phoneme representation.
@@ -1477,6 +1558,8 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 - Vocoder.
 - Speaker conditioning.
 - Prosody.
+- Language/frontend coverage, held-out synthesis evaluation, and native audio
+  generation versus phrase chunking or delivery of an already completed waveform.
 - Content, speaker, and style representations; why useful factorization is not
   proof of perfect disentanglement.
 
@@ -1490,6 +1573,24 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
   library versions, sample rate, text normalization and token coverage, and
   speaker-embedding shape/provenance. Use only owned or explicitly consented
   speaker references; public availability alone is not consent.
+- Target exactly two supported languages, including at least one Indian
+  language, preferably the Add-on C language if verified. Do not assume English
+  or code-mixed support. Freeze `data/tts_eval_manifest.csv` with at least ten
+  held-out sentences per language, including names and numbers. Record original
+  and normalized text, language, source/license, speaker/reference consent,
+  hashes, split roles, and competent language review. This is a diagnostic set,
+  not evidence of population-level or many-language generalization.
+- Keep the TTS set separate from the immutable core benchmark and Add-on C's
+  ASR manifest. Exclude its sentences/reference recordings from adaptation and
+  tuning; do not condition on the held-out target recording. A separate consented
+  same-speaker reference is allowed if labeled, not claimed as unseen-speaker
+  transfer. Record unknown pretraining overlap rather than claiming its absence.
+- In the pipeline record, verify each language's frontend/tokenizer and native
+  output rate with synthesis smoke tests. Record exposed rate/pitch/style
+  controls and native incremental audio APIs, if any, with revision-specific
+  evidence. Distinguish `verified`, `unsupported`, and `unverified` per capability;
+  language inference, adaptation and streaming are not one combined status.
+  State whether full input text is required before generation starts.
 - Record legal paired training-data provenance and permitted uses, duration,
   transcript quality, speaker/reference IDs, and disjoint train/validation/
   held-out sentence splits. Exclude frozen evaluation audio, transcripts, and
@@ -1507,6 +1608,11 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 - Record inference feasibility separately. Do not model-hunt, train from
   scratch, add a second project, or promise a session/compute budget; if
   inference is blocked, dependent synthesis work remains deferred.
+- If two-language inference is blocked, keep the requirement incomplete and
+  seek scope review; a deferral note does not complete the language target.
+  Unsupported native streaming instead falls back to Day 45's measured
+  full-waveform baseline. Neither case authorizes another stack, mobile port,
+  or a separate emotion-generation subsystem.
 - Save generated waveforms locally in ignored storage and exposed intermediate
   representations; tracked sample directories contain only manifests/notes.
 - Record where the selected system injects linguistic content, speaker
@@ -1514,6 +1620,10 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 
 #### Experiment and Measure
 - Compare several sentences with punctuation and pacing changes.
+- Generate the held-out two-language samples, record unsupported items and
+  pronunciation/intelligibility observations with competent language review,
+  and freeze the set before Day 44 comparisons. Native streaming verification
+  uses a minimal exposed-API check; waveform splitting is not that evidence.
 - FastSpeech 2 and VITS are short theoretical contrasts, not additional models
   to install or benchmark. Record unresolved capabilities explicitly.
 
@@ -1521,6 +1631,9 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 - `src/tts/baseline.py`
 - `results/day43_tts_samples/`
 - `docs/tts_pipeline.md`
+- `data/tts_eval_manifest.csv`
+- `results/day43_tts_language_quality.csv` (per-item language, configuration,
+  reference role, reviewer assessment, and supported/missing status)
 
 #### Completion Check
 > **Definition of Done for Day 43:**
@@ -1529,6 +1642,9 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 > exact trainable parameters, L4 pilot evidence or a blocking reason, cost
 > bounds, and a feasible or deferred adaptation decision. No training success
 > is claimed by this gate; unresolved fields remain explicitly unverified.
+> Two supported languages have held-out synthesis/review evidence and a frozen
+> separate manifest. If this target is blocked, it stays incomplete pending scope
+> review. Native streaming can be unsupported without being mislabeled implemented.
 
 ### Day 44: Selected-stack duration and prosody
 
@@ -1536,12 +1652,14 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — reuse Day 43's selected stack.** FastSpeech 2 is theory only, not a second installation.
+> **v2 STATUS: CORE — repair-focused prosody in Day 43's selected stack.** Evaluate both language slices; FastSpeech 2 is theory only, not a second installation or an emotion-control claim.
 
 #### Learn
 - Duration prediction.
 - Pitch and energy predictors.
 - Parallel generation intuition.
+- Voiced/unvoiced pitch masking, duration error in seconds, energy continuity
+  at a repair boundary, and listener assessment versus objective proxies.
 
 #### Build in MendSpeech
 - Contrast FastSpeech 2 duration/pitch/energy predictors with the selected
@@ -1551,20 +1669,45 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 - Measure duration, pitch/energy summaries, and punctuation effects on fixed
   sentences and fixed consented speaker embeddings. A bounded post-synthesis
   duration adjustment must be labeled DSP, not learned prosody control.
+- Use Day 43's held-out manifest in both languages. Compare baseline to one
+  supported native control, or one bounded DSP adjustment if native control is
+  unavailable, holding text, speaker reference, seed and output format fixed.
+  Use only permitted surrounding context for timing/style targets, not the
+  missing clean target span. Any privileged target access is a separate oracle.
+- Freeze control limits on validation material, never the evaluation sentences.
+  Test duration/sample-count and finite-metric handling; report pitch only for
+  valid voiced frames, with coverage and unvoiced/failed estimates marked
+  missing rather than forced to zero. Add these checks alongside the public
+  implementation when built, in `tests/test_tts_prosody.py`.
 
 #### Experiment and Measure
 - Compare generated length against target intervals. If native rate control
   is unavailable, record `unsupported` and measure punctuation or DSP effects
   instead. Store waveforms ignored; commit only sample manifests/measurements.
+- In `results/day44_prosody_metrics.csv`, record per-language duration error,
+  voiced pitch mismatch, energy discontinuity at context boundaries, and
+  pronunciation/intelligibility observations for base and controlled conditions.
+  Keep text/punctuation changes in separate rows from fixed-text control tests.
+- Run a small randomized/blinded base-versus-controlled listening check with
+  competent language review. Record item/rater counts, order seed, naturalness
+  and intelligibility judgments, and single-rater limits where applicable in
+  `results/day44_listening_sheet.md`. Improved seams are not guaranteed; reject
+  a nicer-sounding timing change that materially damages intelligibility.
 
 #### Required Output
 - `docs/day44_fastspeech2.md`
 - `results/day44_prosody_samples/`
+- `results/day44_prosody_metrics.csv`
+- `results/day44_listening_sheet.md`
+- `tests/test_tts_prosody.py`
 
 #### Completion Check
 > **Definition of Done for Day 44:**
 > You can explain short-span timing constraints using measured selected-stack
 > behavior, distinguish native controls from DSP, and label unsupported controls.
+> Both language slices have fixed-condition prosody and listening evidence with
+> units, voiced coverage, target provenance and limitations. Missing native pitch
+> control is not learned emotion control; no positive result is required.
 
 ### Day 45: Vocoder realism and acoustic boundary diagnostics
 
@@ -1572,19 +1715,38 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — boundary diagnostics and the selected stack's vocoder only.** No separate vocoder installation or training.
+> **v2 STATUS: CORE — short-span latency, boundary diagnostics, and the selected stack's vocoder.** Native streaming is conditional on verified support; full-waveform latency is required. No extra stack or vocoder training.
 
 #### Learn
 - Mel to waveform generation.
 - HiFi GAN style generator and discriminator intuition.
 - Phase, bandwidth, and vocoder artifacts.
 - Short time energy, local loudness, spectral balance, and room tone as boundary signals.
+- First playable audio versus completed synthesis, input/output streaming
+  distinctions, buffering, and chunk seams in short repair spans.
 
 #### Build in MendSpeech
 - Reuse only Day 43's selected stack's matched pretrained vocoder; keep
   weights frozen. GAN anatomy is theory, not a separate training experiment.
 - Add boundary diagnostics that measure short time energy and simple spectral statistics before and after a candidate repair span.
 - Save a local room tone estimate where possible.
+- Extend the existing benchmark approach with `src/bench/benchmark_tts.py`
+  and `tests/test_tts_latency.py`, using Day 43's pinned stack and held-out
+  languages. Define the timing start (normalized text/reference ready), minimum
+  playable audio buffer, synchronization and termination before measuring.
+  Record text length, generated duration, seed, native sample rate, batch size,
+  precision, CPU host/workers, L4 environment and warm-up/repeat counts.
+- Label actual generation behavior `native_streaming`, `phrase_chunked`, or
+  `full_waveform_delivery`. Native streaming must emit usable audio before full
+  synthesis completes; state whether it needs full text up front. Delivery of
+  an already generated waveform in chunks is full-waveform generation, not
+  evidence of streaming synthesis. Phrase chunking is labeled only if actually
+  implemented; no separate phrase-chunking feature is required here.
+- If Day 43 verifies a native API, test chunk ordering, finalization, sample
+  coverage without duplication or loss, short/silent outputs, and boundary
+  discontinuities with deterministic fixtures. Otherwise record the unsupported
+  branch and benchmark real full-waveform short-span output. Do not install a
+  second model to obtain streaming. Keep network playback outside this timing.
 
 #### Experiment and Measure
 - Measure inference speed and real time factor on L4 with fixed batch size,
@@ -1593,16 +1755,32 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 - Create intentionally mismatched generated spans and verify that the boundary diagnostics flag obvious loudness or spectral discontinuities.
 - Include unchanged/identity stitch controls and tests for sample-count and
   outside-span preservation. Record both flagged and missed seam artifacts.
+- Measure time to first playable audio, total synthesis time, RTF and peak
+  memory in `results/day45_tts_latency.csv`; separate cold and warm runs and
+  language/length/mode slices. Report p50/p95 with repeat counts and small-sample
+  caveats. For full-waveform generation, first playable cannot predate complete
+  generation. Mark unavailable modes/isolated stages missing, not zero.
+- For supported native streaming, compare the same language/text/reference
+  cases to full-waveform output where exposed, measuring chunk quality as well
+  as speed. Do not claim end-to-end repair latency from synthesis-only numbers:
+  context waiting, validation, stitching and serving are measured at Day 49.
 
 #### Required Output
 - `results/day45_vocoder_benchmark.csv`
 - `src/repair/boundary_metrics.py`
 - `docs/vocoder_and_boundary_notes.md`
+- `src/bench/benchmark_tts.py`
+- `tests/test_tts_latency.py`
+- `results/day45_tts_latency.csv`
+- Update `docs/tts_pipeline.md` with verified delivery modes and limitations.
 
 #### Completion Check
 > **Definition of Done for Day 45:**
 > You can separate acoustic model errors from vocoder artifacts and quantify at least
 two causes of an audible seam.
+> Short-span latency has reproducible per-language evidence and explicit timing
+> boundaries. Native streaming is tested only when supported, otherwise clearly
+> unsupported; completed-waveform delivery is never labeled streaming generation.
 
 ### Day 46: Bounded TTS adaptation — base versus adapted
 
@@ -1636,6 +1814,10 @@ two causes of an audible seam.
   held-out sentences.
 - Keep checkpoints, generated audio, and run logs in ignored storage. Track
   only code/config, provenance hashes, measured summaries, and the report.
+- Record which of Day 43's two languages enter training and validation; reuse
+  the frozen TTS evaluation manifest for both languages without retuning on it.
+  One language's adaptation must not erase the other language from evaluation.
+  No second fine-tuning project or a second checkpoint family is required.
 - If the gate or run is blocked, record `deferred` with the reason in
   `docs/tts_pipeline.md` and the comparison/listening artifacts. Do not create
   placeholder training artifacts or claim adaptation was executed. Retain
@@ -1646,6 +1828,12 @@ two causes of an audible seam.
   sentences, speaker embeddings, generation settings, and L4 hardware.
   Measure intelligibility proxy, duration error, speaker proxy when supported,
   inference latency/RTF, trainable count, training time, memory, and actual cost.
+- Report results per language, including regression in any language not used
+  for adaptation. Keep generation modes and speaker conditions matched. Use
+  ASR WER/CER only as an intelligibility proxy with verified evaluator-language
+  coverage, pinned model/normalization, and stated evaluator bias; mark it
+  unavailable otherwise. Competent pronunciation/listening review is required
+  and is not replaced by the same ASR model judging its own repair text.
 - Randomize base/adapted sample order for a small listening check; report the
   number of raters/items and limitations. Keep test results out of selection.
 - Record improvement, no meaningful change, or degradation as measured
@@ -1669,6 +1857,10 @@ two causes of an audible seam.
 > evidence (including a valid null or worse result), or training is explicitly
 > deferred with its blocking evidence. Feasibility-only work does not satisfy
 > training completion and cannot be described as measured adaptation.
+> An executed comparison covers both frozen language slices, names its training
+> languages, and exposes regressions and evaluation limits rather than only a
+> pooled score. A blocked language target remains incomplete independently of
+> the conditional training decision.
 
 ### Day 47: Speaker representation and preservation
 
@@ -1784,6 +1976,19 @@ claiming identity preservation from listening alone.
   decisions, predicted-text reconstruction, and consent/capability status.
 - Show preserved and reconstructed intervals with distinct visualization.
 - Add a V1 label in results so the Week 8 direct audio repair comparison is explicit.
+- Carry language support, decoder/calibration provenance, and actual TTS
+  delivery mode into the one app. Unsupported language/conditioning cases
+  abstain with a reason; language support in ASR does not imply TTS support.
+  Gold evaluation text is not reconstruction input, and speaker conditioning
+  never uses the hidden target recording. Keep code-mixed support unclaimed
+  unless separately evaluated; two monolingual slices do not establish it.
+- Reuse Day 45 timing code to instrument `results/day49_repair_latency.csv`.
+  Define repair timing from availability of the incoming damaged span through
+  playable repaired output, including required context wait, ASR/decision,
+  synthesis, boundary checks, and stitching. Record these stages, input replay
+  cadence, buffer/lookahead, network inclusion and playback mode. If a whole
+  span must finish before matching/stitching, native TTS chunks cannot be
+  counted as playable repaired output prematurely.
 
 #### Experiment and Measure
 - Run at least ten cases, including deliberate false repair, missed repair, seam artifacts, and one case where the policy abstains.
@@ -1791,6 +1996,11 @@ claiming identity preservation from listening alone.
 - Test low-evidence and permission-blocked abstention, clean no-repair cases,
   and unchanged samples outside declared edit/crossfade bounds. Keep oracle
   diagnostics separate and accept measured null/worse seam outcomes.
+- Report per-language/mode repair quality and timing on supported ASR/TTS
+  overlap, including failures and stage/total p50/p95 with sample counts.
+  Link both-language TTS-only evidence separately when ASR coverage differs;
+  do not claim multilingual end-to-end repair from synthesis alone. Compare
+  synthesis-only Day 45 timings with actual complete-repair delay.
 
 #### Required Output
 - `app/audio_lab.py`
@@ -1798,12 +2008,17 @@ claiming identity preservation from listening alone.
 - `demos/week7_before_after/`
 - `results/week7_stitching_ablation.csv`
 - `reports/week7_cascaded_repair.md`
+- `results/day49_repair_latency.csv`
 
 #### Completion Check
 > **Definition of Done for Day 49:**
 > MendSpeech V1 has tested abstention in the one app and measured predicted-text
 > repair/seam evidence. Strengths, failures, deferred adaptation, and live versus
 > simulated execution are documented; there is no deadline-based completion.
+> The report links both-language synthesis/prosody/adaptation evidence and
+> distinguishes supported end-to-end languages and actual delivery modes.
+> Complete-repair latency includes buffering and stitching, not merely TTS time.
+> A blocked required language target remains incomplete pending scope review.
 
 ---
 
@@ -1833,6 +2048,14 @@ dry run`
 
 #### Build in MendSpeech
 - Freeze code revision, model revisions, datasets, hardware, corruption configs, and metrics.
+- Freeze the acoustic head, decoder configuration, LM/text-manifest hashes,
+  normalization, and matching Day 41 calibration. Link Day 26's three-way
+  decoding evidence without treating cached offline decoding as live streaming.
+- Freeze the separate Day 43 two-language TTS manifest, base/adapted checkpoint,
+  conditioning consent, native-versus-DSP controls, and generation mode. Link
+  Days 44–46 quality/latency evidence per language; unknown native streaming
+  capability and incomplete language targets stay explicit, never filled by a
+  second stack. Record synthesis-only versus complete-repair timing boundaries.
 - Freeze raw damaged audio, full resynthesis, naive selective repair, and
   boundary-matched selective repair, with predicted text as the normal path.
   Hold text/spans fixed for stitching comparisons; segregate oracle rows.
@@ -1865,6 +2088,8 @@ dry run`
 > Another engineer can reproduce the supported comparisons and distinguish
 > selected from tested support, external/inpainting deferral, oracle diagnostics,
 > and live versus simulated context results without inventing missing evidence.
+> Decoder/calibration provenance, language coverage, prosody controls, and actual
+> TTS delivery modes are frozen; incompatible or missing evidence is not complete.
 
 ### Day 51: Release SpeechDamageBench v1 and freeze evaluation
 
@@ -1917,6 +2142,10 @@ usable without MendSpeech.
 #### Build in MendSpeech
 - Run every streaming condition on the exact same benchmark subset.
 - Repeat timing runs enough to estimate variance.
+- Hold the acoustic model, precision, decoder, LM, and matching calibration
+  fixed across context conditions. Reference the Day 26 decoder ablation
+  separately rather than confounding an LM change with a context improvement;
+  an offline-only decoder stays out of measured streaming comparisons.
 - Record GPU type and environment automatically through the Modal runner.
 - Record `execution_mode=live|simulated` for every context policy. A live
   adaptive claim requires runtime context changes in the recognizer, not
@@ -2062,6 +2291,15 @@ recognition, reconstruction, and stitching effects.
 - State Day 46's base/adapted evidence or training deferral, gold-text/oracle
   exclusions, and live versus simulated context labels. Simulation cannot
   establish measured runtime gains; blocked training is not measured adaptation.
+- Trace greedy/beam/LM claims to Day 26, including harmful changes and separate
+  decoder-only/fresh end-to-end timings. Trace each TTS language and prosody
+  claim to Days 43–46, with held-out counts, reviewer/listener limits, and
+  regression results rather than a pooled score that hides one language.
+- State whether TTS is native streaming, phrase-chunked, or full-waveform
+  delivery, whether full text is required up front, and what must finish before
+  repaired audio can play. Native streaming, code-mixed synthesis, and emotion
+  control are not implied by multilingual output or network chunking. Include
+  Day 49 complete-repair timing separately from Day 45 synthesis latency.
 - Reproduce the existing `app/audio_lab.py`; do not introduce a second app.
 - Include plots with captions that state what changed and what stayed fixed.
 

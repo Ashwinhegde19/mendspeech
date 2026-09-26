@@ -29,6 +29,19 @@
   decisions, predicted-text reconstruction, and consent/capability status.
 - Show preserved and reconstructed intervals with distinct visualization.
 - Add a V1 label in results so the Week 8 direct audio repair comparison is explicit.
+- Carry language support, decoder/calibration provenance, and actual TTS
+  delivery mode into the one app. Unsupported language/conditioning cases
+  abstain with a reason; language support in ASR does not imply TTS support.
+  Gold evaluation text is not reconstruction input, and speaker conditioning
+  never uses the hidden target recording. Keep code-mixed support unclaimed
+  unless separately evaluated; two monolingual slices do not establish it.
+- Reuse Day 45 timing code to instrument `results/day49_repair_latency.csv`.
+  Define repair timing from availability of the incoming damaged span through
+  playable repaired output, including required context wait, ASR/decision,
+  synthesis, boundary checks, and stitching. Record these stages, input replay
+  cadence, buffer/lookahead, network inclusion and playback mode. If a whole
+  span must finish before matching/stitching, native TTS chunks cannot be
+  counted as playable repaired output prematurely.
 
 ---
 
@@ -38,6 +51,11 @@
 - Test low-evidence and permission-blocked abstention, clean no-repair cases,
   and unchanged samples outside declared edit/crossfade bounds. Keep oracle
   diagnostics separate and accept measured null/worse seam outcomes.
+- Report per-language/mode repair quality and timing on supported ASR/TTS
+  overlap, including failures and stage/total p50/p95 with sample counts.
+  Link both-language TTS-only evidence separately when ASR coverage differs;
+  do not claim multilingual end-to-end repair from synthesis alone. Compare
+  synthesis-only Day 45 timings with actual complete-repair delay.
 
 ---
 
@@ -47,6 +65,7 @@
 - `demos/week7_before_after/`
 - `results/week7_stitching_ablation.csv`
 - `reports/week7_cascaded_repair.md`
+- `results/day49_repair_latency.csv`
 
 ---
 
@@ -55,6 +74,10 @@
 > MendSpeech V1 has tested abstention in the one app and measured predicted-text
 > repair/seam evidence. Strengths, failures, deferred adaptation, and live versus
 > simulated execution are documented; there is no deadline-based completion.
+> The report links both-language synthesis/prosody/adaptation evidence and
+> distinguishes supported end-to-end languages and actual delivery modes.
+> Complete-repair latency includes buffering and stitching, not merely TTS time.
+> A blocked required language target remains incomplete pending scope review.
 
 ---
 

@@ -27,7 +27,7 @@ evidence. | `Modal L4` | [Open Day 36](days/day_36.md) |
 | **Day 38** | Fine tune for damaged speech robustness | One reproducible base/adapted experiment with clean regression and validation-only selection. | `Modal L4` | [Open Day 38](days/day_38.md) |
 | **Day 39** | SpecAugment and augmentation ablation | You can separate the effect of augmentation from the effect of extra training time. | `Modal L4` | [Open Day 39](days/day_39.md) |
 | **Day 40** | RNN-T concepts and quantization lab | Export parity and supported same-L4 precision measurements, or explicit blockers; calibration never uses test. | `Modal L4` | [Open Day 40](days/day_40.md) |
-| **Day 41** | Confidence calibration for repair decisions | Repair thresholds are now justified from held out evidence rather than guessed. | `Modal L4 for logits, local CPU for
+| **Day 41** | Confidence calibration for repair decisions | Validation-based confidence for the selected model/decoder/precision; fused LM scores are not probabilities. | `Modal L4 for logits, local CPU for
 analysis` | [Open Day 41](days/day_41.md) |
 | **Day 42** | Week 6 robustness milestone | Single-app measured adaptation/calibration, clean controls and honest precision status. | `Modal L4` | [Open Day 42](days/day_42.md) |
 
@@ -36,6 +36,8 @@ reused for the Day 39 augmentation control; optional compatible Indic data does
 not create another training track. Add-on C uses its separate manifest prepared
 after Gate 2 and completes later metrics/report at Gate 7. Blocked optimization
 is not successful quantization, and no session is complete without its evidence.
+Day 41 carries Day 26 decoder provenance into calibration; altered hypotheses
+or score definitions cannot inherit greedy thresholds without revalidation.
 
 ---
 
@@ -257,21 +259,35 @@ no unsupported INT8, speedup or calibration claim is presented as complete.
 ---
 
 ### DAY 41: Confidence calibration for repair decisions
+
 - **Compute:** `Modal L4 for logits, local CPU for
 analysis`
 - **Dedicated Daily File:** [`docs/days/day_41.md`](days/day_41.md)
+
+> **v2 STATUS: CORE — calibration follows the selected model, decoder, and precision.** External LM search scores do not automatically become repair confidence.
 
 #### Learn
 - Reliability diagrams.
 - Expected calibration error intuition.
 - Threshold selection from validation data.
+- Decoder-dependent hypotheses, alignment, and acoustic versus LM score meaning.
 
 #### Build in MendSpeech
 - Build a simple calibration analysis for confidence versus correctness.
 - Choose policy thresholds on validation, not test.
+- Record model/head/tokenizer, precision, decoder configuration and LM revision
+  from Days 24/26/40. Define and test how confidence attaches to the actual
+  decoded words/spans; a fused beam score is not a probability, and greedy
+  thresholds cannot silently transfer to LM-altered hypotheses. Validate token/
+  timestamp alignment or retain the verified greedy path for repair.
+- Refit/check calibration when model, precision or decoder changes. Preserve
+  the exact score definition and fitting split in `configs/repair_modes_calibrated.yaml`.
 
 #### Experiment and Measure
 - Compare raw and calibrated confidence if a simple method is feasible.
+- Evaluate correctness and reliability for the chosen configuration on held-out
+  clean/damaged cases, including LM-induced errors if LM output enters repair.
+  Keep validation-selected thresholds fixed; report failed calibration honestly.
 
 #### Required Output
 - `src/asr/calibration.py`
@@ -279,7 +295,9 @@ analysis`
 - `configs/repair_modes_calibrated.yaml`
 
 #### Completion Check
-> Repair thresholds are now justified from held out evidence rather than guessed.
+> Repair thresholds are justified from held-out evidence for the actual
+> model/decoder/precision, with tested hypothesis alignment and an explicit
+> confidence definition. Search scores are not relabeled calibrated confidence.
 
 ---
 

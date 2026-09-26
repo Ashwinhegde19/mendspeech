@@ -38,6 +38,10 @@
   held-out sentences.
 - Keep checkpoints, generated audio, and run logs in ignored storage. Track
   only code/config, provenance hashes, measured summaries, and the report.
+- Record which of Day 43's two languages enter training and validation; reuse
+  the frozen TTS evaluation manifest for both languages without retuning on it.
+  One language's adaptation must not erase the other language from evaluation.
+  No second fine-tuning project or a second checkpoint family is required.
 - If the gate or run is blocked, record `deferred` with the reason in
   `docs/tts_pipeline.md` and the comparison/listening artifacts. Do not create
   placeholder training artifacts or claim adaptation was executed. Retain
@@ -50,6 +54,12 @@
   sentences, speaker embeddings, generation settings, and L4 hardware.
   Measure intelligibility proxy, duration error, speaker proxy when supported,
   inference latency/RTF, trainable count, training time, memory, and actual cost.
+- Report results per language, including regression in any language not used
+  for adaptation. Keep generation modes and speaker conditions matched. Use
+  ASR WER/CER only as an intelligibility proxy with verified evaluator-language
+  coverage, pinned model/normalization, and stated evaluator bias; mark it
+  unavailable otherwise. Competent pronunciation/listening review is required
+  and is not replaced by the same ASR model judging its own repair text.
 - Randomize base/adapted sample order for a small listening check; report the
   number of raters/items and limitations. Keep test results out of selection.
 - Record improvement, no meaningful change, or degradation as measured
@@ -77,6 +87,10 @@
 > evidence (including a valid null or worse result), or training is explicitly
 > deferred with its blocking evidence. Feasibility-only work does not satisfy
 > training completion and cannot be described as measured adaptation.
+> An executed comparison covers both frozen language slices, names its training
+> languages, and exposes regressions and evaluation limits rather than only a
+> pooled score. A blocked language target remains incomplete independently of
+> the conditional training decision.
 
 ---
 

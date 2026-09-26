@@ -28,6 +28,14 @@ dry run`
 
 ### 2. Build in MendSpeech
 - Freeze code revision, model revisions, datasets, hardware, corruption configs, and metrics.
+- Freeze the acoustic head, decoder configuration, LM/text-manifest hashes,
+  normalization, and matching Day 41 calibration. Link Day 26's three-way
+  decoding evidence without treating cached offline decoding as live streaming.
+- Freeze the separate Day 43 two-language TTS manifest, base/adapted checkpoint,
+  conditioning consent, native-versus-DSP controls, and generation mode. Link
+  Days 44–46 quality/latency evidence per language; unknown native streaming
+  capability and incomplete language targets stay explicit, never filled by a
+  second stack. Record synthesis-only versus complete-repair timing boundaries.
 - Freeze raw damaged audio, full resynthesis, naive selective repair, and
   boundary-matched selective repair, with predicted text as the normal path.
   Hold text/spans fixed for stitching comparisons; segregate oracle rows.
@@ -66,6 +74,8 @@ dry run`
 > Another engineer can reproduce the supported comparisons and distinguish
 > selected from tested support, external/inpainting deferral, oracle diagnostics,
 > and live versus simulated context results without inventing missing evidence.
+> Decoder/calibration provenance, language coverage, prosody controls, and actual
+> TTS delivery modes are frozen; incompatible or missing evidence is not complete.
 
 ---
 

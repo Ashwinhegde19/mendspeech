@@ -32,6 +32,15 @@
 - State Day 46's base/adapted evidence or training deferral, gold-text/oracle
   exclusions, and live versus simulated context labels. Simulation cannot
   establish measured runtime gains; blocked training is not measured adaptation.
+- Trace greedy/beam/LM claims to Day 26, including harmful changes and separate
+  decoder-only/fresh end-to-end timings. Trace each TTS language and prosody
+  claim to Days 43–46, with held-out counts, reviewer/listener limits, and
+  regression results rather than a pooled score that hides one language.
+- State whether TTS is native streaming, phrase-chunked, or full-waveform
+  delivery, whether full text is required up front, and what must finish before
+  repaired audio can play. Native streaming, code-mixed synthesis, and emotion
+  control are not implied by multilingual output or network chunking. Include
+  Day 49 complete-repair timing separately from Day 45 synthesis latency.
 - Reproduce the existing `app/audio_lab.py`; do not introduce a second app.
 - Include plots with captions that state what changed and what stayed fixed.
 
