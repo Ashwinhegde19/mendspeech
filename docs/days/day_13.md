@@ -1,67 +1,44 @@
-# Day 13: Define selective repair policy v0
+# Day 13: Confidence thresholds and error triage policy
 
 > **Week 2 • Day 6 of 7**  
 > **Navigation:** [← Day 12](day_12.md) | [Week 2 Plan](../Week_2_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 14 →](day_14.md)
 
-> **v2 STATUS: CORE.** Define safe action semantics now; exercise synthesis-time
-> abstention by Day 49, not first at the final comparison.
-
+> **v3 STATUS: CORE — triage, not repair.** Replaces the old repair-policy session. A downstream consumer needs to know accept, low-confidence, or reject; it does not need a synthesis policy.
 ---
 
 ### Compute Target
-`Local CPU after ASR outputs are
-cached`
+`Local CPU`
 
 ---
 
 ### 1. Learn
-- Threshold policies.
-- Hysteresis to avoid rapid toggling.
-- Minimum repair span and padding.
-- False repair versus missed repair tradeoff.
-- Uncertainty indicates a need for evidence, not permission to invent content.
+- Choosing a threshold from validation data rather than test data.
+- Risk-coverage: what fraction of traffic a threshold accepts and at what error rate.
+- Why a single threshold is a policy decision, not a modelling result.
 
 ---
 
 ### 2. Build in MendSpeech
-- Keep Preserve, Balanced, and Rescue as sensitivity presets, not action labels.
-  Each returns timed decisions with an action and reason code:
-  - `preserve`: reliable audio remains unchanged.
-  - `inspect`: flag uncertain content for review; do not synthesize it.
-  - `repair`: propose a bounded edit only when content evidence, speaker-use
-    permission, alignment and supported synthesis constraints are sufficient.
-  - `abstain`: an unsafe or unsupported repair is refused; retain original audio
-    and disclose why no reconstruction was produced.
-- Missing evidence or unavailable synthesis support cannot silently become a
-  repair. Week 2 tests decisions without claiming generated audio. Carry these
-  semantics into `src/controller/abstain.py` and exercise them on Day 49.
+- Implement three triage policies — accept, low-confidence, reject — in `src/controller/triage.py`.
+- Each policy maps confidence to an action with a reason code in `src/controller/triage.py`.
 
 ---
 
 ### 3. Experiment and Measure
-- Sweep thresholds on speaker-separated validation data only; log selected
-  values in `configs/repair_modes.yaml` and freeze them before test scoring.
-- Measure proposed repair coverage and overlap with known damage, false repair
-  on clean speech, missed repair, and inspect/abstain rates. Ground-truth damage
-  masks score decisions; they are not policy inputs in normal evaluation.
-- Include reliable clean audio, uncertain text, missing permission, missing
-  capability and invalid alignment cases; verify all non-repair actions leave
-  audio unchanged. Raw confidence remains provisional until Day 41 calibration.
+- Sweep thresholds on the validation split and plot risk against coverage.
+- Report the accepted fraction and the error rate inside the accepted set per corruption type.
+- Freeze the chosen thresholds in `configs/triage_thresholds.yaml` using validation only.
 
 ---
 
 ### 4. Required Output Artifacts
-- `src/controller/policy.py`
-- `configs/repair_modes.yaml`
-- `results/day13_policy_sweep.csv`
+['- `src/controller/triage.py`', '- `tests/test_triage.py`', '- `results/day13_risk_coverage.csv`', '- `configs/triage_thresholds.yaml`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 13:**  
-> You can explain and demonstrate preserve/inspect/repair/abstain decisions,
-including refusal to synthesize unsupported content. Thresholds come only from
-validation; false repairs and abstentions are visible rather than hidden.
+> Thresholds are chosen from held-out validation evidence and you can state the error rate you accept in exchange for the coverage you keep.
 
 ---
 
@@ -73,5 +50,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- CTC primary paper or a reliable derivation
-- Framework ASR documentation for logits, timestamps, and confidence
+- - Risk-coverage and selective prediction
+- - Calibration threshold selection

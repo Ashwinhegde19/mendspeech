@@ -3,8 +3,7 @@
 > **Week 4 • Day 1 of 7**  
 > **Navigation:** [← Day 21](day_21.md) | [Week 4 Plan](../Week_4_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 23 →](day_23.md)
 
-> **v1 STATUS: LEARN-ONLY — merged into [Day 23](day_23.md).** Paper notes and compute estimates only; no separate session.
-
+> **v3 STATUS: LEARN-ONLY** Merged into Day 23; paper notes and compute estimates only.
 ---
 
 ### Compute Target
@@ -21,26 +20,23 @@
 ---
 
 ### 2. Build in MendSpeech
-- Read the FastConformer paper with a comparison checklist.
-- Write a diagram showing what changes relative to Conformer.
+- No standalone build. Day 23 incorporates the comparison checklist and diagram.
 
 ---
 
 ### 3. Experiment and Measure
-- Estimate attention matrix size before and after aggressive temporal subsampling.
+- Day 23 incorporates attention-matrix estimates before and after temporal subsampling.
 
 ---
 
 ### 4. Required Output Artifacts
-- `docs/day22_fastconformer_notes.md`
-- `results/day22_compute_estimates.csv`
+['None for this learn-only session; retained notes and estimate paths are produced within Day 23.']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 22:**  
-> You can explain FastConformer as a set of concrete efficiency choices, not just a
-faster model name.
+> You can explain FastConformer as a set of concrete efficiency choices, not just a faster model name.
 
 ---
 
@@ -52,5 +48,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- FastConformer primary paper
-- NVIDIA NeMo FastConformer model documentation
+- Rekesh et al., FastConformer
+- NVIDIA NeMo FastConformer documentation

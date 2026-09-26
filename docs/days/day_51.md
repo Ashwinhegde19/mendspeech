@@ -1,8 +1,9 @@
-# Day 51: Release SpeechDamageBench v1 and freeze evaluation
+# Day 51: Release SpeechDamageBench v1 and freeze the evaluation set
 
 > **Week 8 • Day 2 of 7**  
 > **Navigation:** [← Day 50](day_50.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 52 →](day_52.md)
 
+> **v3 STATUS: CORE** The frozen set is the project's anchor; new experiments get new configs, never a new test set.
 ---
 
 ### Compute Target
@@ -12,40 +13,33 @@
 
 ### 1. Learn
 - Severity grids.
-- Speaker separated evaluation.
+- Speaker-separated evaluation.
 - Seed control and deterministic manifests.
-- Package versioning and reproducibility.
-- Clean regression cases that must remain untouched.
+- Package versioning and checksum verification.
 
 ---
 
 ### 2. Build in MendSpeech
-- Finalize the independent SpeechDamageBench package with noise, clipping, bandwidth, dropout, and reverberation presets.
-- Generate the frozen test matrix and lock manifest checksums.
-- Add an installation command and a one command example that reproduces one benchmark item.
+- Finalize the standalone package and lock manifest checksums in `benchmarks/`.
+- Document a one-command example that reproduces one benchmark item in `speechdamagebench/README.md`.
 
 ---
 
 ### 3. Experiment and Measure
 - Reinstall the package in a clean environment.
 - Regenerate a sample from the manifest and verify its checksum.
-- Validate that clean references remain unchanged.
+- Verify clean references are byte-identical after regeneration.
 
 ---
 
 ### 4. Required Output Artifacts
-- `speechdamagebench/`
-- `speechdamagebench/README.md`
-- `speechdamagebench/CHANGELOG.md`
-- `benchmarks/speechdamagebench_manifest.csv`
-- `benchmarks/README.md`
+['- `speechdamagebench/CHANGELOG.md`', '- `benchmarks/manifest.csv`', '- `benchmarks/README.md`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 51:**  
-> SpeechDamageBench is independently installable, deterministic, versioned, and
-usable without MendSpeech.
+> A clean environment reproduces a benchmark item from the manifest, and clean references are provably unchanged.
 
 ---
 
@@ -57,6 +51,4 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Your frozen protocol and prior results
-- A reproducible pretrained direct latent or codec audio inpainting baseline
-- Primary papers only when needed to interpret a result
+- Reproducible packaging references

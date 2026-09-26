@@ -1,24 +1,26 @@
 # MendSpeech
 
-**Selective semantic speech restoration under real-time constraints.**
+**A real-time voice interface: streaming ASR, latency budget, and personalization.**
 
-Speech recordings get damaged — packet loss, clipping, noise, dropouts.
-MendSpeech does not resynthesize everything. It detects *which spans* are
-untrustworthy using calibrated ASR uncertainty, decides whether to
-**preserve, inspect, repair, or abstain**, and reconstructs only what the
-evidence justifies.
+Live dictation is not clean audio. It arrives with noise, clipping, missing
+packets, background speech, and words the model has never heard. MendSpeech is
+a real-time voice interface built to survive that: cache-aware streaming ASR,
+calibrated confidence, one LLM post-processing stage, and bounded RL
+personalization.
 
-Everything is measured: word error, latency percentiles, real-time factor,
-calibration error, how much original audio was kept, and how clean the
-seams are.
+Everything is measured: word error, entity error, latency percentiles,
+real-time factor, calibration, and peak memory.
 
-The project also answers a concrete architectural question on the same
-damaged spans:
+The project answers three questions, in order:
 
-**selective ASR → TTS repair vs. full resynthesis and a verified audio-restoration
-comparator** — where does each path win, and what does each throw away?
-Masked-inpainting claims require an actually verified mask-aware baseline;
-blocked external comparisons are reported as limitations, not results.
+1. **Where does the end-to-end latency budget actually live?** Decompose
+   waveform to polished text stage by stage, find what owns the tail, improve
+   it, and show the before/after.
+2. **How far can a speech model be pushed for a given acoustic condition?**
+   Measure controlled fine-tuning and RL post-training, including where they
+   fail.
+3. **When is confidence safe to act on?** Calibrate it against correctness and
+   find the cases where a high score is still wrong.
 
 ---
 
@@ -26,12 +28,12 @@ blocked external comparisons are reported as limitations, not results.
 
 | Product | Role |
 | :--- | :--- |
-| **MendSpeech** | Streaming recognition, calibrated uncertainty, a preserve / inspect / repair / abstain policy, and selective reconstruction with boundary-matched stitching (`src/`). |
-| **SpeechDamageBench** | A standalone, versioned damage generator (noise, clipping, bandwidth limits, dropouts, reverberation). Every sample records corruption, severity, seed, and source. Usable without MendSpeech. |
+| **MendSpeech** | Streaming recognition, calibrated confidence, a triage policy, bounded fine-tuning and RL personalization, an LLM post-processing stage, and a measured latency budget (`src/`). |
+| **SpeechDamageBench** | A standalone, versioned robustness suite (noise, clipping, bandwidth limits, dropouts, reverberation). Every sample records corruption, severity, seed, and source. Usable without MendSpeech. |
 
-The focused release uses one ASR pipeline, one selected TTS stack, one evolving
-application, and one shared evaluation suite. Architecture learning exercises
-support this system; they do not create parallel products.
+The release is one streaming pipeline, one serving endpoint, one LLM stage,
+and one evaluation harness. Architecture learning exercises support this system;
+they do not create parallel products.
 
 Working format: 16 kHz mono float32. Speech defaults for analysis windows
 are 25 ms FFT / 10 ms hop.
@@ -51,10 +53,10 @@ definition of done live in the
 | `src/audio` | Waveform I/O, resampling, STFT, log-Mel features | **exists** (tested) |
 | SpeechDamageBench | Deterministic damage generation + frozen evaluation sets | in progress |
 | `src/asr` | FastConformer, CTC, token confidence, calibration | planned |
-| `src/streaming` | Cache-aware real-time inference, lookahead control | planned |
-| `src/controller` | Preserve / inspect / repair / abstain policy | planned |
-| `src/tts`, `src/repair` | Speaker-conditioned synthesis, boundary matching, seam diagnostics | planned |
-| `src/baselines`, `src/metrics` | Verified restoration comparison; WER, RTF, ECE, seam scores | planned |
+| `src/streaming` | Cache-aware real-time inference, lookahead, endpointing | planned |
+| `src/controller` | Triage policy, bounded adaptive context | planned |
+| `src/rl`, `src/llm` | RL reward and policy-gradient update; LLM post-processing adapter | planned |
+| `src/serve`, `src/bench` | Async service, load harness; WER, RTF, percentiles, ECE | planned |
 
 Audio files and checkpoints are gitignored. Manifests and measured
 results are tracked. The [results index](results/README.md) ties every
@@ -97,12 +99,12 @@ pacing and gate contract.
 | Phase | What gets built |
 | :--- | :--- |
 | Audio lab | Loaders, STFT, log-Mel, SpeechDamageBench v0, frozen labeled eval set |
-| Recognition | Pretrained ASR, CTC, confidence, time-aligned uncertain spans |
-| Encoders | One tested Conformer block from first principles; measured FastConformer baseline |
-| Streaming | Cache-aware inference, VAD/endpointing, adaptive lookahead |
-| Robustness | Fine-tuning on damage, quantization, calibration |
-| Repair | One speaker-conditioned TTS stack, bounded adaptation, boundary matching, seam diagnostics |
-| Comparison | Controlled repair baselines and one feasibility-checked restoration comparator |
+| Recognition | WER/CER, confidence, timestamps, triage policy, decoding comparison |
+| Streaming | Cache-aware inference, VAD/endpointing, lookahead cost, cache-failure evidence |
+| Optimization | Profiling, `torch.compile`, CUDA graphs, batching, quantization, scorecard |
+| Personalization | Leakage audit, fine-tuning, augmentation ablation, RL reward and run |
+| Serving | Async WebSocket service, load to saturation, LLM stage, **latency budget** |
+| Release | Frozen evaluation, ablations, technical report, reproduction, demo |
 
 Session notes and experiment specs live under [`docs/`](docs/INDEX.md).
 Contributor rules — code style, determinism, git, compute — are in

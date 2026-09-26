@@ -1,8 +1,9 @@
-# Day 39: SpecAugment and augmentation ablation
+# Day 39: Augmentation ablation
 
 > **Week 6 • Day 4 of 7**  
 > **Navigation:** [← Day 38](day_38.md) | [Week 6 Plan](../Week_6_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 40 →](day_40.md)
 
+> **v3 STATUS: CORE** Confound control: augmentation must be separated from extra training time.
 ---
 
 ### Compute Target
@@ -18,18 +19,18 @@
 ---
 
 ### 2. Build in MendSpeech
-- Add one augmentation intervention to a controlled short run.
+- Add one augmentation intervention to a controlled short run in `experiments/specaugment_ablation.py`.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare no augmentation versus selected augmentation with the same seed and training budget.
+- Compare no augmentation versus selected augmentation with the same seed and the same step budget.
+- Report whether the gain survives when the extra steps are given to the unaugmented baseline.
 
 ---
 
 ### 4. Required Output Artifacts
-- `experiments/specaugment_ablation.py`
-- `results/day39_augmentation.csv`
+['- `experiments/specaugment_ablation.py`', '- `results/day39_augmentation.csv`']
 
 ---
 
@@ -47,6 +48,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- NVIDIA NeMo ASR training documentation
-- RNNT primary references
-- Calibration and reliability diagram references
+- SpecAugment paper
+- NVIDIA NeMo augmentation documentation

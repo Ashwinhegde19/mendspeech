@@ -26,7 +26,6 @@ small runs`
 - Run a pretrained ASR model on clean and damaged SpeechDamageBench clips.
 - Store transcript, token outputs if available, and timing metadata.
 - Add a reusable Modal entry point so the same command can run ASR experiments on an L4 without editing deployment code each day.
-- Check the single general-restoration candidate in `docs/baseline_install_notes.md`.
   VoiceFixer's documented interface is not evidence of mask-aware inpainting;
   label only verified capabilities. Use one setup session plus at most one
   focused compatibility retry, then stop. No model search or scratch fallback.
@@ -53,7 +52,6 @@ small runs`
 - `src/asr/baseline.py`
 - `infra/modal_asr.py`
 - `results/day08_baseline_transcripts.csv`
-- `docs/baseline_install_notes.md` (one candidate, capability/provenance record,
   setup/retry evidence, `feasible` or `deferred`; no overwritten historical results)
 
 ---

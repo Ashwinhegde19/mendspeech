@@ -1,60 +1,43 @@
-# Day 56: Final product, demo, and clean reproduction
+# Day 56: Final demo, clean reproduction, and release
 
 > **Week 8 • Day 7 of 7**  
-> **Navigation:** [← Day 55](day_55.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Summary →](../INDEX.md)
+> **Navigation:** [← Day 55](day_55.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Index →](../INDEX.md)
 
-> **v2 STATUS: CORE — absorbs Day 55.** Gate 7 closes on report, artifact, and reproduction evidence, not a date or guaranteed session count.
-
+> **v3 STATUS: CORE** Release gate. The demo must show measured numbers, not a scripted success path.
 ---
 
 ### Compute Target
-`Modal L4 for inference, local CPU for
-interface and analysis`
+`Modal L4 plus local interface`
 
 ---
 
 ### 1. Learn
-- Review the complete path from waveform and controlled corruption to streaming encoder, uncertainty, repair policy, cascaded reconstruction, direct audio baseline, and evaluation.
+- Demonstrating a system honestly, including its failure modes.
+- Releasing with a stable, reproducible artifact.
 
 ---
 
 ### 2. Build in MendSpeech
-- Extend only `app/audio_lab.py` with upload or consented microphone input,
-  controlled damage, transcript, uncertainty heatmap, Preserve / Inspect /
-  Repair / Abstain, before/after playback, and measured metrics. Reuse Day 49
-  abstention; do not create a separate final or voice-agent app.
-- Label live input/control, prerecorded benchmark playback, simulated context,
-  and oracle diagnostics distinctly. Expose only supported external conditions
-  in benchmark playback; show unavailable comparator/inpainting as deferred.
-- Show measured changed/preserved samples, including crossfade margins. Do not
-  claim a full-waveform restoration model preserved everything outside a mask.
+- Extend only `app/audio_lab.py` with live or prerecorded audio, partial/final transcripts, confidence, triage actions, and the measured latency budget.
 - Reproduce one frozen benchmark from a fresh environment and tag a stable release.
 
 ---
 
 ### 3. Experiment and Measure
-- Record a concise demo and create a final architecture diagram.
-- Reproduce one benchmark end to end from the documented command.
-- Verify that every public chart can be regenerated from saved result files.
+- Verify every public chart regenerates from saved result files.
+- Demonstrate at least one failure case, not only the success path.
+- Confirm the demo's displayed numbers match the committed result files.
 
 ---
 
 ### 4. Required Output Artifacts
-- `app/audio_lab.py`
-- `README.md`
-- `demos/final_demo.mp4`
-- `docs/architecture.png`
-- `release_notes.md`
-- `results/reproduction_check.txt`
+['- `app/audio_lab.py`', '- `REPRODUCE.md`', '- `demos/final_demo.mp4`', '- `docs/architecture.md`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 56:**  
-> A new user can reproduce MendSpeech and SpeechDamageBench, evaluate the
-> internal baselines and any supported external comparison, and distinguish
-> measured results from unsupported/deferred capabilities. The one app and
-> technical report agree on abstention, consent, and live/simulated labels.
+> A new user can run, evaluate, and reproduce the system, and every number shown traces to a committed artifact.
 
 ---
 
@@ -66,6 +49,4 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Your frozen protocol and prior results
-- The one comparator's verified support record or explicit deferral
-- Primary papers only when needed to interpret a result
+- Reproducible release practice

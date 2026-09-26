@@ -1,11 +1,9 @@
-# Day 40: RNN-T concepts and quantization lab
+# Day 40: RL reward design
 
 > **Week 6 • Day 5 of 7**  
 > **Navigation:** [← Day 39](day_39.md) | [Week 6 Plan](../Week_6_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 41 →](day_41.md)
 
-> **v2 STATUS: CORE.** Retain the quantization lab behind a compatibility check.
-> Unsupported precision is a documented blocker, not a completed optimization.
-
+> **v3 STATUS: CORE** The reward must be falsifiable, or the run proves nothing. This is the most novel session in the plan.
 ---
 
 ### Compute Target
@@ -14,64 +12,34 @@
 ---
 
 ### 1. Learn
-- Encoder.
-- Prediction network.
-- Joint network.
-- Blank handling.
-- Streaming emission behavior.
-- Difference from CTC independence.
-- Post-training quantization: dynamic vs static INT8, and why static needs a calibration set.
-- What quantization can and cannot preserve in an ASR model (logit sharpness, confidence behavior).
+- Policy-gradient and PPO intuition for sequence output.
+- Reward hacking: what a model does when the reward is exploitable.
+- Designing a reward that is falsifiable in advance.
 
 ---
 
 ### 2. Build in MendSpeech
-- Smoke-check the selected ASR model's export and precision support on one
-  compatible L4 backend. Pin model/backend revisions and verify supported
-  operators, dynamic lengths, decoding and actual device/kernel placement.
-  Do not add a provider sweep or silently compare CPU INT8 with GPU inference.
-- Export the Day 38 checkpoint only through the supported path. Check the
-  original model versus exported model at the same precision on validation
-  clips before quantization: output/logit tolerances where exposed, decoded
-  text, lengths and decoding settings. Record and resolve parity failures first.
-- Compare FP16 and INT8 only where the same backend supports their intended
-  execution on L4. For static INT8, select and record a representative calibration
-  slice from validation, disjoint by source/speaker from test; never calibrate
-  using the frozen test benchmark. State if the backend does not need calibration.
-- If export, parity or precision support blocks measurement, retain working
-  inference and record the exact failed check, error and unsupported precision.
-  Do not change models/backends repeatedly to manufacture an INT8 result.
+- Define the reward in `src/rl/reward.py`: penalize fluent output that the acoustics do not support.
+- Write the falsifiable prediction in `configs/rl.yaml` BEFORE running anything.
+- Implement a minimal policy-gradient or PPO-style update in `src/rl/ppo.py`.
 
 ---
 
 ### 3. Experiment and Measure
-- After parity passes, measure original/exported baseline and supported FP16/INT8
-  variants on identical frozen cases, decoder, batch size, timing boundaries,
-  warm-up and L4 hardware. Report actual WER/CER, latency/RTF and peak memory;
-  INT8 may be slower or less accurate and need not be selected for deployment.
-- Record logit/confidence shifts for Day 41 validation-based calibration. Report
-  precision coverage and CPU fallbacks explicitly; a mixed-device run is not
-  a controlled GPU speed comparison.
-- Give each variant `measured` or `blocked` status with reasons and blank
-  unavailable metrics. Gate 5 can carry an explicit blocked optimization status,
-  but cannot claim successful quantization or a speedup without measurements.
+- Show the reward can be gamed: construct at least one input where a naive reward rewards a wrong transcript.
+- Verify the reward is computable offline from cached logits before spending GPU time.
+- Unit-test reward components in `tests/test_reward.py`.
 
 ---
 
 ### 4. Required Output Artifacts
-- `docs/rnnt_walkthrough.md` (theory summary from the Learn block)
-- `docs/day40_quantization_notes.md` (compatibility, parity, calibration source,
-  backend/precision settings and blockers)
-- `results/day40_quantization_tradeoffs.csv` (actual metrics or blocked rows)
+['- `src/rl/reward.py`', '- `src/rl/ppo.py`', '- `configs/rl.yaml`', '- `tests/test_reward.py`', '- `docs/day40_reward_design.md`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 40:**  
-> You can explain RNN-T streaming behavior and demonstrate original/export
-parity plus measured supported-precision tradeoffs on L4, or identify the exact
-compatibility/parity blocker. A blocked branch stays explicitly unimplemented;
-no unsupported INT8, speedup or calibration claim is presented as complete.
+> You have a written falsifiable prediction, a reward shown to be gameable in at least one case, and a tested implementation.
 
 ---
 
@@ -83,6 +51,6 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- NVIDIA NeMo ASR training documentation
-- RNN-T primary references
-- ONNX Runtime quantization documentation or torch.ao quantization overview
+- PPO and policy gradient references
+- Reward design and specification gaming literature
+- RLHF and ASR post-training

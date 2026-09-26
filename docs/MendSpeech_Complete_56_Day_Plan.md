@@ -1,11 +1,10 @@
 # MendSpeech Complete 56-Day Plan
 
-> **v2 current operational reference.** Compiled from the individual day specs.
-> Read the [execution plan](REVISED_EXECUTION_PLAN.md) for scope, gates, and
-> session accounting. Status banners override bodies: merged and dropped days
-> do not create extra sessions or artifact obligations. Day numbers are stable
-> identifiers, not calendar deadlines. Each link leads to the full source spec,
-> including study protocol and references. Archived PDFs are unchanged.
+> **v3 operational reference.** Compiled from the individual day specs.
+> Read the [execution plan](REVISED_EXECUTION_PLAN.md) for scope, phases, and gates.
+> Status banners override bodies: merged and dropped days do not create
+> sessions or artifact obligations. Day numbers are stable identifiers, not
+> calendar deadlines. Archived PDFs are unchanged.
 
 ---
 
@@ -261,10 +260,6 @@ feature tensor.
 **Compute:** `Modal L4 optional, CPU acceptable for
 small runs`
 
-> **v2 STATUS: CORE.** The external comparator requires a bounded feasibility
-> record, not successful neural masked inpainting. This revision does not alter
-> historical result evidence or assert that a new check has passed.
-
 #### Learn
 - Why acoustic frames outnumber output tokens.
 - Encoder outputs, vocabulary logits, and decoding.
@@ -274,7 +269,6 @@ small runs`
 - Run a pretrained ASR model on clean and damaged SpeechDamageBench clips.
 - Store transcript, token outputs if available, and timing metadata.
 - Add a reusable Modal entry point so the same command can run ASR experiments on an L4 without editing deployment code each day.
-- Check the single general-restoration candidate in `docs/baseline_install_notes.md`.
   VoiceFixer's documented interface is not evidence of mask-aware inpainting;
   label only verified capabilities. Use one setup session plus at most one
   focused compatibility retry, then stop. No model search or scratch fallback.
@@ -297,7 +291,6 @@ small runs`
 - `src/asr/baseline.py`
 - `infra/modal_asr.py`
 - `results/day08_baseline_transcripts.csv`
-- `docs/baseline_install_notes.md` (one candidate, capability/provenance record,
   setup/retry evidence, `feasible` or `deferred`; no overwritten historical results)
 
 #### Completion Check
@@ -342,183 +335,147 @@ is sufficient for this external branch, but is not successful inpainting.
 
 **Compute:** `Local CPU`
 
+> **v3 STATUS: CORE — recognition quality.** This is the accuracy axis every later trade-off is measured against.
+
 #### Learn
 - Word error rate: substitutions, deletions, insertions.
 - Character error rate and when it helps.
 - Why WER alone hides error severity.
+- Names and numbers as a separate error class.
 
 #### Build in MendSpeech
-- Implement or verify WER and CER calculations.
-- Add an error analyzer that labels substitution, deletion, and insertion spans.
+- Implement or verify WER and CER calculations in `src/metrics/wer.py`.
+- Add an error analyzer labelling substitution, deletion, and insertion spans in `src/metrics/wer.py`.
+- Add a names-and-numbers extractor so entity errors are counted separately in `src/metrics/wer.py`.
 
 #### Experiment and Measure
-- Score clean versus every SpeechDamageBench severity.
-- Find which corruption type causes deletion errors fastest.
+- Score clean audio versus every SpeechDamageBench severity.
+- Find which corruption type drives deletion errors fastest.
+- Write tests for empty references, identical strings, and empty hypotheses in `tests/test_wer.py`.
 
 #### Required Output
-- `src/metrics/wer.py`
-- `results/day10_wer_by_damage.csv`
-- `results/day10_error_types.csv`
+['- `src/metrics/wer.py`', '- `tests/test_wer.py`', '- `results/day10_wer_by_damage.csv`', '- `results/day10_error_types.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 10:**
-> You can calculate WER by hand for a short example and explain each error.
+> You can compute WER by hand for a short example and explain each error class, and entity errors are reported separately from the blended rate.
 
-### Day 11: Token confidence and uncertainty
+### Day 11: Token confidence and where it fails
 
 [Full Day 11 spec](days/day_11.md)
 
-**Compute:** `Modal L4 recommended`
+**Compute:** `Local CPU`
+
+> **v3 STATUS: CORE — confidence is a signal, not a truth.** This session exists to find the cases where confidence is confidently wrong.
 
 #### Learn
-- Softmax confidence and why it can be miscalibrated.
-- Frame confidence versus token confidence versus word confidence.
-- Entropy as an uncertainty signal.
-- Confidence calibration intuition.
+- Frame softmax probability versus token confidence.
+- Why mean confidence hides per-token failures.
+- Confident-but-wrong: the failure mode that breaks a confidence-gated system.
 
 #### Build in MendSpeech
-- Extract confidence or approximate it from model outputs.
-- Create a word level confidence timeline aligned to the transcript.
+- Extract per-token confidence and align it to emitted tokens in `src/asr/confidence.py`.
+- Build a word-level confidence timeline aligned to the transcript in `src/asr/confidence.py`.
 
 #### Experiment and Measure
-- Compare confidence on clean, noisy, clipped, and dropout audio.
-- Find confident but wrong examples and document them.
+- Compare confidence across clean, noisy, clipped, and dropout audio.
+- Collect at least ten confident-but-wrong examples and write them up in `docs/day11_confident_wrong.md`.
+- Record the rate at which a fixed confidence threshold would have accepted a wrong token.
 
 #### Required Output
-- `src/asr/confidence.py`
-- `results/day11_confidence_cases.csv`
-- `docs/confidence_failure_modes.md`
+['- `src/asr/confidence.py`', '- `tests/test_confidence.py`', '- `results/day11_confidence_by_damage.csv`', '- `docs/day11_confident_wrong.md`']
 
 #### Completion Check
 > **Definition of Done for Day 11:**
-> You understand why low confidence can be useful but cannot be treated as truth.
+> You can state when low confidence is informative, and you have documented concrete cases where high confidence was wrong.
 
-### Day 12: Time alignment and uncertain spans
+### Day 12: Time alignment and word timestamps
 
 [Full Day 12 spec](days/day_12.md)
 
-**Compute:** `Modal L4 recommended`
+**Compute:** `Modal L4`
 
-> **v2 STATUS: CORE.** Reuse the uncertainty overlay inside the single application.
+> **v3 STATUS: CORE — timestamps for latency attribution and interface feedback.** Word timing is what lets a streaming UI and a latency report say where time went.
 
 #### Learn
-- Frame time conversion.
-- Token timestamps and word timestamps.
-- Alignment boundaries around corrupted regions.
+- Frame index to wall-clock mapping.
+- Token timestamps versus forced alignment.
+- Why timestamps must be validated before they are trusted downstream.
 
 #### Build in MendSpeech
-- Map low confidence tokens back to audio time spans.
-- Overlay uncertain intervals on waveform and spectrogram.
-- Keep `app/uncertainty_overlay.py` as a reusable visualization module imported
-  by `app/audio_lab.py`, not a separately maintained runnable application.
+- Map emitted tokens to audio time spans in `src/asr/timestamps.py`.
+- Validate timestamps against a synthetic event at a known offset.
 
 #### Experiment and Measure
-- Inject known 100 ms and 250 ms dropouts and test whether uncertainty overlaps them.
+- Inject dropouts at known offsets and check that surrounding token boundaries stay stable.
+- Report timestamp error in milliseconds per corruption type in `results/day12_timestamp_error.csv`.
+- Confirm that a decoding change does not silently shift timestamps.
 
 #### Required Output
-- `src/asr/alignment.py`
-- `app/uncertainty_overlay.py` (reusable module for `app/audio_lab.py`)
-- `results/day12_overlap_metrics.csv`
+['- `src/asr/timestamps.py`', '- `tests/test_timestamps.py`', '- `results/day12_timestamp_error.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 12:**
-> The shared UI can highlight an uncertain audio interval and show the associated
-word or token without creating another application.
+> Token timestamps are accurate to a stated millisecond tolerance and survive a decoding change, or the failure is documented.
 
-### Day 13: Define selective repair policy v0
+### Day 13: Confidence thresholds and error triage policy
 
 [Full Day 13 spec](days/day_13.md)
 
-**Compute:** `Local CPU after ASR outputs are
-cached`
+**Compute:** `Local CPU`
 
-> **v2 STATUS: CORE.** Define safe action semantics now; exercise synthesis-time
-> abstention by Day 49, not first at the final comparison.
+> **v3 STATUS: CORE — triage, not repair.** Replaces the old repair-policy session. A downstream consumer needs to know accept, low-confidence, or reject; it does not need a synthesis policy.
 
 #### Learn
-- Threshold policies.
-- Hysteresis to avoid rapid toggling.
-- Minimum repair span and padding.
-- False repair versus missed repair tradeoff.
-- Uncertainty indicates a need for evidence, not permission to invent content.
+- Choosing a threshold from validation data rather than test data.
+- Risk-coverage: what fraction of traffic a threshold accepts and at what error rate.
+- Why a single threshold is a policy decision, not a modelling result.
 
 #### Build in MendSpeech
-- Keep Preserve, Balanced, and Rescue as sensitivity presets, not action labels.
-  Each returns timed decisions with an action and reason code:
-  - `preserve`: reliable audio remains unchanged.
-  - `inspect`: flag uncertain content for review; do not synthesize it.
-  - `repair`: propose a bounded edit only when content evidence, speaker-use
-    permission, alignment and supported synthesis constraints are sufficient.
-  - `abstain`: an unsafe or unsupported repair is refused; retain original audio
-    and disclose why no reconstruction was produced.
-- Missing evidence or unavailable synthesis support cannot silently become a
-  repair. Week 2 tests decisions without claiming generated audio. Carry these
-  semantics into `src/controller/abstain.py` and exercise them on Day 49.
+- Implement three triage policies — accept, low-confidence, reject — in `src/controller/triage.py`.
+- Each policy maps confidence to an action with a reason code in `src/controller/triage.py`.
 
 #### Experiment and Measure
-- Sweep thresholds on speaker-separated validation data only; log selected
-  values in `configs/repair_modes.yaml` and freeze them before test scoring.
-- Measure proposed repair coverage and overlap with known damage, false repair
-  on clean speech, missed repair, and inspect/abstain rates. Ground-truth damage
-  masks score decisions; they are not policy inputs in normal evaluation.
-- Include reliable clean audio, uncertain text, missing permission, missing
-  capability and invalid alignment cases; verify all non-repair actions leave
-  audio unchanged. Raw confidence remains provisional until Day 41 calibration.
+- Sweep thresholds on the validation split and plot risk against coverage.
+- Report the accepted fraction and the error rate inside the accepted set per corruption type.
+- Freeze the chosen thresholds in `configs/triage_thresholds.yaml` using validation only.
 
 #### Required Output
-- `src/controller/policy.py`
-- `configs/repair_modes.yaml`
-- `results/day13_policy_sweep.csv`
+['- `src/controller/triage.py`', '- `tests/test_triage.py`', '- `results/day13_risk_coverage.csv`', '- `configs/triage_thresholds.yaml`']
 
 #### Completion Check
 > **Definition of Done for Day 13:**
-> You can explain and demonstrate preserve/inspect/repair/abstain decisions,
-including refusal to synthesize unsupported content. Thresholds come only from
-validation; false repairs and abstentions are visible rather than hidden.
+> Thresholds are chosen from held-out validation evidence and you can state the error rate you accept in exchange for the coverage you keep.
 
-### Day 14: Week 2 integration and review
+### Day 14: Decoding comparison: greedy, beam, and beam plus LM
 
 [Full Day 14 spec](days/day_14.md)
 
-**Compute:** `Modal L4 recommended`
+**Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — Gate 2 advances on evidence, not a date.** Extend
-> `app/audio_lab.py`; external-comparator deferral does not block the core ASR work.
+> **v3 STATUS: CORE** Week 2 integration and the accuracy-versus-latency trade-off. A lower WER is not automatically better: a fluent but acoustically wrong transcript is the failure this project must catch.
 
 #### Learn
-- Review CTC, WER, confidence, timestamp alignment, and repair decisions.
+- Greedy versus beam search: accuracy gained against search cost.
+- External n-gram language models: why a plausible transcript can be acoustically wrong.
+- Cache reuse for isolating decoder cost from acoustic cost.
 
 #### Build in MendSpeech
-- Extend `app/audio_lab.py`: damaged audio to transcript to confidence to timed
-  preserve/inspect/repair/abstain proposals. Reuse the Day 12 overlay; do not
-  create a separate milestone app or claim synthesis before it exists.
-- Add clean JSON output for every run: source/corruption/seed, model revision,
-  policy preset/version, thresholds, intervals, actions and reason codes.
-- Verify the Modal wrapper records model revision, GPU type, software versions, and run id automatically.
-- Carry forward `docs/baseline_install_notes.md`: one comparator's `feasible`
-  or `deferred` status and verified capabilities. A blocker report is enough
-  for this conditional branch; it must not be labeled masked-inpainting success.
+- Extend the baseline runner to support greedy, beam, and beam plus one small n-gram LM in `src/asr/decoding.py`.
+- Record LM text provenance, normalization, and split roles in `data/lm_text_manifest.csv`; exclude evaluation references and duplicates.
+- Freeze one LM order and a small validation-only beam/LM-weight candidate list in `configs/decoding.yaml`.
 
 #### Experiment and Measure
-- Run at least twenty corrupted utterances with matched clean/raw-damaged
-  controls and fixed validation-selected thresholds; inspect false repair,
-  missed repair, inspect and abstain cases. Preserve model-version provenance.
-- Report ASR WER/CER, uncertainty overlap, proposed repair coverage and clean
-  false repairs; do not imply generated-audio improvement. Keep L4 comparisons
-  separate from functional CPU smoke runs.
+- Report WER/CER and names-and-numbers error for all three decoders on identical held-out cases.
+- Collect cases where the LM helped and cases where it hurt; a lower WER does not prove safety.
+- Measure decoder-only time on cached acoustic outputs separately from fresh audio-to-transcript latency.
 
 #### Required Output
-- `app/audio_lab.py`
-- `infra/modal_asr.py`
-- `results/week2_casebook.md`
-- `reports/week2_asr_uncertainty.md`
+['- `src/asr/decoding.py`', '- `tests/test_asr_decoding.py`', '- `configs/decoding.yaml`', '- `data/lm_text_manifest.csv`', '- `results/day14_decoding_comparison.csv`', '- `docs/day14_harmful_lm_changes.md`', '- `app/audio_lab.py`']
 
 #### Completion Check
 > **Definition of Done for Day 14:**
-> The one app shows what the ASR heard and the exact proposed actions, with
-unchanged audio for inspect/abstain. The casebook/report retain controls, model
-and policy versions, errors and comparator feasibility status. Gate 2 does not
-require a successful external neural restoration model.
+> All three decoders are measured on the same held-out cases with separated decoder and end-to-end timing, and the LM's harmful changes are documented as first-class evidence.
 
 ---
 
@@ -532,27 +489,28 @@ require a successful external neural restoration model.
 
 **Compute:** `Local CPU, L4 optional for scaling`
 
+> **v3 STATUS: CORE** Attention cost is why streaming needs a stateful encoder rather than a windowed one.
+
 #### Learn
 - Query, key, value projections.
 - Scaled dot product attention.
 - Attention masks.
-- Sequence length cost.
+- Quadratic cost in sequence length and why long-form audio suffers.
 
 #### Build in MendSpeech
-- Implement single head attention and then multi head attention in PyTorch.
-- Add shape assertions and gradient tests.
+- Implement single-head then multi-head attention in `src/models/attention.py`.
+- Add shape assertions and gradient tests in `tests/test_attention.py`.
 
 #### Experiment and Measure
-- Change sequence length and measure forward time and memory.
+- Change sequence length and measure forward time and peak memory.
+- Plot the quadratic cost you predicted against the cost you measured.
 
 #### Required Output
-- `src/models/attention.py`
-- `tests/test_attention.py`
-- `results/day15_attention_scaling.csv`
+['- `src/models/attention.py`', '- `tests/test_attention.py`', '- `results/day15_attention_cost.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 15:**
-> You can derive every major tensor shape and explain quadratic sequence cost.
+> You can derive every major tensor shape from memory and explain the quadratic term streaming must avoid.
 
 ### Day 16: Conformer convolution module
 
@@ -560,29 +518,27 @@ require a successful external neural restoration model.
 
 **Compute:** `Local CPU`
 
+> **v3 STATUS: CORE** Depthwise convolution is what makes a Conformer cheaper than attention alone at long sequence lengths.
+
 #### Learn
-- Pointwise convolution.
-- GLU gating.
-- Depthwise convolution.
-- Batch normalization and activation.
-- Why local patterns matter in speech.
+- Depthwise separable convolution.
+- Receptive field and locality.
+- Causality assumptions for a streaming encoder.
 
 #### Build in MendSpeech
-- Implement a Conformer style convolution module.
-- Test causality assumptions and receptive field.
+- Implement a Conformer-style convolution module in `src/models/conv_module.py`.
+- Test causality assumptions and receptive field growth in `tests/test_conv_module.py`.
 
 #### Experiment and Measure
 - Feed synthetic impulses and inspect how local information spreads.
+- Measure receptive field against layer count and compare with the analytic prediction.
 
 #### Required Output
-- `src/models/conformer_conv.py`
-- `tests/test_conformer_conv.py`
-- `notebooks/day16_receptive_field.ipynb`
+['- `src/models/conv_module.py`', '- `tests/test_conv_module.py`', '- `results/day16_receptive_field.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 16:**
-> You can explain why depthwise convolution is computationally attractive and what
-local context it captures.
+> You can explain why depthwise convolution is cheap and what local context it captures relative to attention.
 
 ### Day 17: Macaron feed forward and residual scaling
 
@@ -590,24 +546,21 @@ local context it captures.
 
 **Compute:** `Local CPU`
 
-> **v1 STATUS: LEARN-ONLY — no build session.** Complete the Learn block during theory time; the macaron build work moves into [Day 18](days/day_18.md).
+> **v3 STATUS: LEARN-ONLY** No build session; the macaron build moves into Day 18.
 
 #### Learn
-- Feed forward expansion.
-- Swish or SiLU activation.
-- Dropout.
-- Half step residual weighting in Conformer.
+- Macaron structure.
+- Layer normalization placement.
+- Residual scaling and why half-step helps deep stacks.
 
 #### Build in MendSpeech
-- Implement the feed forward module and residual wrapper.
-- Add numerical tests for shape and gradient flow.
+- No standalone build. Day 18 implements the macaron feed-forward.
 
 #### Experiment and Measure
-- Compare output statistics with and without residual scaling.
+- No standalone measurement. Day 18 compares output statistics with and without residual scaling.
 
 #### Required Output
-- `src/models/conformer_ffn.py`
-- `tests/test_conformer_ffn.py`
+['None for this learn-only session; artifacts are produced within Day 18.']
 
 #### Completion Check
 > **Definition of Done for Day 17:**
@@ -619,117 +572,103 @@ local context it captures.
 
 **Compute:** `Local CPU`
 
-> **v2 STATUS: CORE — absorbs Days 17 and 19.** Implement the macaron feed-forward, assemble one tested Conformer block, and pass real log-Mel features through that same block with input projection and mask propagation. No separate encoder or depth sweep.
+> **v3 STATUS: CORE** Absorbs Days 17 and 19: one tested block, with real log-Mel features passing through it.
 
 #### Learn
 - Macaron structure.
-- Layer normalization placement.
 - Attention plus convolution interaction.
 - Input projection, padding masks, and temporal dimensions for real log-Mel features.
 
 #### Build in MendSpeech
-- Implement the macaron feed-forward and half-step residual wrapper absorbed from Day 17, with shape and gradient tests.
-- Assemble feed forward, the scratch attention and convolution modules, second feed forward, and final normalization into one block.
-- Add input projection from real log-Mel features and propagate padding masks through this same block; assert input, output, and valid-length shapes.
+- Implement the macaron feed-forward and half-step residual wrapper in `src/models/conformer_ffn.py`.
+- Assemble feed-forward, attention, convolution, second feed-forward, and normalization in `src/models/conformer_block.py`.
+- Add log-Mel input projection and propagate padding masks; assert input, output, and valid-length shapes.
 
 #### Experiment and Measure
 - Run forward and backward tests on several sequence lengths.
-- Trace a real log-Mel tensor through projection and every stage; test mask handling and finite, nonzero gradients on valid inputs.
-- Compare output statistics with and without half-step residual scaling in the same tests. A second toy-training ablation is not a release requirement.
+- Trace a real log-Mel tensor through projection and every stage; assert finite, nonzero gradients.
+- Compare output statistics with and without half-step residual scaling.
 
 #### Required Output
-- `src/models/conformer_ffn.py` — Day 17's absorbed macaron implementation
-- `tests/test_conformer_ffn.py`
-- `src/models/conformer_block.py`
-- `tests/test_conformer_block.py`
-- `docs/conformer_block_walkthrough.md`
-- `results/day19_shape_trace.md` — retained Day 19 path, produced here
+['- `src/models/conformer_ffn.py`', '- `tests/test_conformer_ffn.py`', '- `src/models/conformer_block.py`', '- `tests/test_conformer_block.py`', '- `docs/conformer_block_walkthrough.md`', '- `results/day19_shape_trace.md`']
 
 #### Completion Check
 > **Definition of Done for Day 18:**
-> You can explain every operation in one tested block. A real log-Mel tensor
-> passes through its projection and mask handling with documented shapes and
-> valid gradients; the retained Day 19 shape trace records the evidence.
+> You can point to every operation in one tested block and say why it exists, and a real log-Mel tensor passes through it with valid gradients.
 
-### Day 19: Real-log-Mel block validation (merged into Day 18)
+### Day 19: Real-log-Mel block validation
 
 [Full Day 19 spec](days/day_19.md)
 
 **Compute:** `Local CPU — within Day 18`
 
-> **v2 STATUS: MERGED into Day 18.** No standalone session. Validate input projection, mask propagation, shapes, and gradients on Day 18's same Conformer block; do not build a separate encoder or run a depth sweep.
+> **v3 STATUS: MERGED** into Day 18. No standalone session.
 
 #### Learn
-- Input projection.
-- Mask propagation.
-- Temporal dimensions.
+- Input projection and mask propagation.
 
 #### Build in MendSpeech
-- In Day 18, connect real log-Mel features through input projection to the same tested Conformer block.
-- Propagate padding masks and validate temporal dimensions; no separate implementation.
+- Validate projection, masks, shapes, and gradients on Day 18's same block; do not build a separate encoder.
 
 #### Experiment and Measure
-- In Day 18, trace shapes through every stage on real speech and test masks and finite, nonzero gradients on valid inputs.
+- No depth sweep. The shape trace in `results/day19_shape_trace.md` is produced within Day 18.
 
 #### Required Output
-- `results/day19_shape_trace.md` — produced in Day 18; no standalone code artifact
+['- `results/day19_shape_trace.md` — produced in Day 18']
 
 #### Completion Check
 > **Definition of Done for Day 19:**
-> Absorbed into Day 18: a real log-Mel tensor passes through the same block's
-> projection and mask handling with a documented shape trace and valid gradients.
+> A real log-Mel tensor passes through the block with documented shapes and valid gradients.
 
-### Day 20: Compare your block with a production
+### Day 20: Compare your block with a production implementation
 
 [Full Day 20 spec](days/day_20.md)
 
 **Compute:** `Local CPU`
 
-> **v1 STATUS: DROPPED — no session.** Optional spare-time reading only: orient in production Conformer code. Do not schedule an evening session for this day.
+> **v3 STATUS: DROPPED** Reading assignment only; do not schedule a session.
 
 #### Learn
-- Read the original Conformer paper sections relevant to block design.
-- Inspect a mature implementation such as NeMo.
-- Identify differences caused by engineering and efficiency.
+- Production Conformer code structure.
 
 #### Build in MendSpeech
-- Create an annotated comparison table: your component, paper definition, production implementation.
+- No build. Optional reading time only.
 
 #### Experiment and Measure
-- Choose one difference and reproduce its effect on a small benchmark if feasible (optional — Week 3 is a learning artifact; the production encoder is NeMo FastConformer from Week 4).
+- No measurement.
 
 #### Required Output
-- `docs/day20_implementation_comparison.md`
+['None.']
 
 #### Completion Check
 > **Definition of Done for Day 20:**
-> You can read production Conformer code and orient yourself without treating it as
-magic.
+> You have skimmed a production implementation and can name what your scratch block omits.
 
-### Day 21: Week 3 architecture review
+### Day 21: Architecture review: what dominates streaming latency
 
 [Full Day 21 spec](days/day_21.md)
 
 **Compute:** `Local CPU`
 
-> **v2 STATUS: CORE — static architecture review.** Keep the review milestone and shape evidence; no architecture-inspector UI.
+> **v3 STATUS: CORE** The review now asks a systems question rather than a memorization question.
 
 #### Learn
-- Review attention, convolution, feed forward, normalization, residual paths, and sequence cost.
+- Review attention, convolution, feed-forward, normalization, and residual paths.
+- Which operations scale with sequence length, and which are constant per chunk.
 
 #### Build in MendSpeech
-- Write a static architecture report showing the single block's stage shapes, mask propagation, and context assumptions, using `results/day19_shape_trace.md` from Day 18.
+- Write `reports/week3_conformer.md` naming the operations that dominate streaming cost, using the shape trace as evidence.
+- No separate inspector UI; the report is the artifact.
 
 #### Experiment and Measure
-- Give yourself a ten minute whiteboard explanation from waveform features through one Conformer block.
+- Give a ten-minute whiteboard explanation from waveform features through one block to a latency claim.
 
 #### Required Output
-- `reports/week3_conformer.md`
+['- `reports/week3_conformer.md`', '- `results/day19_shape_trace.md`']
 
 #### Completion Check
 > **Definition of Done for Day 21:**
-> You can explain which parts are local, which are global, and which become
-> problematic for streaming, with the static report linked to the tested shape trace.
+> You can explain which parts are local, which are global, and which become the bottleneck under streaming.
 
 ---
 
@@ -743,7 +682,7 @@ magic.
 
 **Compute:** `Local CPU`
 
-> **v1 STATUS: LEARN-ONLY — merged into [Day 23](days/day_23.md).** Paper notes and compute estimates only; no separate session.
+> **v3 STATUS: LEARN-ONLY** Merged into Day 23; paper notes and compute estimates only.
 
 #### Learn
 - Sequence length as an attention cost driver.
@@ -752,20 +691,17 @@ magic.
 - Local and limited context attention.
 
 #### Build in MendSpeech
-- Read the FastConformer paper with a comparison checklist.
-- Write a diagram showing what changes relative to Conformer.
+- No standalone build. Day 23 incorporates the comparison checklist and diagram.
 
 #### Experiment and Measure
-- Estimate attention matrix size before and after aggressive temporal subsampling.
+- Day 23 incorporates attention-matrix estimates before and after temporal subsampling.
 
 #### Required Output
-- `docs/day22_fastconformer_notes.md`
-- `results/day22_compute_estimates.csv`
+['None for this learn-only session; retained notes and estimate paths are produced within Day 23.']
 
 #### Completion Check
 > **Definition of Done for Day 22:**
-> You can explain FastConformer as a set of concrete efficiency choices, not just a
-faster model name.
+> You can explain FastConformer as a set of concrete efficiency choices, not just a faster model name.
 
 ### Day 23: Temporal subsampling experiment
 
@@ -773,7 +709,7 @@ faster model name.
 
 **Compute:** `Modal L4 useful`
 
-> **v1 STATUS: CORE — absorbs Day 22.** Also cover Day 22's FastConformer-vs-Conformer comparison checklist and compute estimates in this session.
+> **v3 STATUS: CORE** Absorbs Day 22: quantify how much sequence length subsampling removes, and what that saves.
 
 #### Learn
 - Convolutional subsampling.
@@ -781,98 +717,80 @@ faster model name.
 - Information loss versus compute reduction.
 
 #### Build in MendSpeech
-- Implement a small subsampling front end or isolate one from a framework.
+- Implement a small subsampling front end in `src/models/subsampling.py`.
 - Track frames per second before and after each stage.
-- Incorporate Day 22's comparison checklist and diagram of FastConformer efficiency choices.
+- Incorporate Day 22's comparison checklist into `docs/day22_fastconformer_notes.md`.
 
 #### Experiment and Measure
 - Compare 2x, 4x, and 8x temporal reduction on tensor length, runtime, and rough output behavior.
-- Estimate attention-matrix size before and after subsampling; record the absorbed Day 22 evidence.
+- Estimate attention-matrix size before and after subsampling.
 
 #### Required Output
-- `src/models/subsampling.py`
-- `results/day23_subsampling.csv`
-- `docs/day22_fastconformer_notes.md` — absorbed Day 22 evidence
-- `results/day22_compute_estimates.csv` — absorbed Day 22 evidence
+['- `src/models/subsampling.py`', '- `results/day23_subsampling.csv`', '- `docs/day22_fastconformer_notes.md`', '- `results/day22_compute_estimates.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 23:**
-> You can quantify how subsampling changes sequence length and downstream
-attention cost.
+> You can quantify how subsampling changes sequence length and downstream attention cost.
 
-### Day 24: Pretrained FastConformer baseline
+### Day 24: Pretrained streaming ASR baseline and capability check
 
 [Full Day 24 spec](days/day_24.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — baseline and early capability check.** Verify decoding/LM, streaming, and export support on the selected checkpoint; unsupported capabilities are documented, not replaced by a model search or new architecture.
+> **v3 STATUS: CORE** Record what the selected checkpoint actually supports before later phases depend on it.
 
 #### Learn
 - Model checkpoint loading.
 - Tokenizer and decoder configuration.
 - Batch versus single utterance inference.
-- Checkpoint-specific cache-aware inference, right-context controls, export support, and tokenizer language coverage.
-- CTC versus transducer search, token/blank mapping, and external LM fusion.
+- Cache-aware inference, right-context controls, export support, and tokenizer language coverage.
 
 #### Build in MendSpeech
-- Run a current NeMo FastConformer checkpoint on your clean and damaged sets.
+- Run a current streaming-capable ASR checkpoint on clean and damaged sets in `src/asr/streaming_runner.py`.
 - Record model revision and all inference settings.
-- Pin the acoustic head and tokenizer expected by Day 26's greedy/beam/LM
-  experiment. Verify a supported beam backend, optional dependencies and
-  small n-gram LM format against the pinned framework; do not assume these
-  extras are installed or that a CTC recipe works with a transducer head.
-  Record offline versus incremental support separately. Use this same acoustic
-  checkpoint, not another model just to obtain a decoder comparison.
-- In `configs/model_baseline.yaml`, record capability status and evidence for cache-aware inference, supported right-context values and units, runtime context switching, the intended export path, and tokenizer language support for the planned evaluation languages. Distinguish verified, unsupported, and unverified behavior.
-- Check the pinned model/framework documentation and use minimal supported smoke checks where feasible. Record failures and limitations early; do not start a model hunt, retrain an encoder, or add custom infrastructure to manufacture support.
+- Record capability status for cache-aware inference, supported right-context values and units, runtime context switching, intended export path, and language coverage in `configs/model_baseline.yaml`.
 
 #### Experiment and Measure
 - Benchmark WER, latency, and GPU memory by damage type.
-- Carry the capability record into Days 25, 31–35 and later export work. Unsupported adaptive switching defers the adaptive claim, not unrelated gate evidence; unsupported cache-aware inference or export remains an explicit dependency issue, not a completed requirement.
-- Include decoder compatibility smoke evidence and estimate Day 26's text
-  preparation/integration effort. A blocked required comparison remains
-  incomplete pending scope review; no scratch backend or open-ended model hunt.
+- Use minimal supported smoke checks where feasible and record failures early.
+- Estimate later-phase effort from the capability record; do not start a model hunt to fill a gap.
 
 #### Required Output
-- `src/asr/fastconformer_runner.py`
-- `results/day24_fastconformer_baseline.csv`
-- `configs/model_baseline.yaml`
+['- `src/asr/streaming_runner.py`', '- `results/day24_baseline.csv`', '- `configs/model_baseline.yaml`']
 
 #### Completion Check
 > **Definition of Done for Day 24:**
-> You have a reproducible baseline with model, data, hardware, and settings fixed,
-> plus an evidence-backed capability record covering cache-aware inference,
-> right context, export, tokenizer language support, and decoder/head/LM backend
-> compatibility. Unsupported or unverified
-> capabilities and their downstream implications are explicit.
+> You have a reproducible baseline with model, data, hardware, and settings fixed, plus an evidence-backed capability record.
 
-### Day 25: Context and attention limits
+### Day 25: Context and lookahead cost
 
 [Full Day 25 spec](days/day_25.md)
 
 **Compute:** `Modal L4`
 
+> **v3 STATUS: CORE** Lookahead is a latency knob; this session measures what it costs and buys.
+
 #### Learn
-- Full context attention.
-- Limited context attention.
-- Left and right context.
-- Accuracy versus latency intuition.
+- Right context versus left context.
+- Algorithmic latency versus accuracy.
+- Why future context cannot be free.
 
 #### Build in MendSpeech
-- Inspect context settings in the model configuration.
-- Create a visual timeline explaining visible past and future context.
+- Implement fixed left/right context settings in `src/streaming/context.py`.
+- Log the context configuration with every result.
 
 #### Experiment and Measure
-- If supported, compare at least two context settings on the same subset.
+- Compare at least two supported context settings on the same subset.
+- Plot WER against measured algorithmic latency and mark the Pareto-efficient points.
+- Report where errors cluster near chunk boundaries.
 
 #### Required Output
-- `docs/day25_context_timeline.md`
-- `results/day25_context_compare.csv`
+['- `src/streaming/context.py`', '- `tests/test_context.py`', '- `results/day25_context_tradeoff.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 25:**
-> You can explain exactly why future context creates algorithmic latency.
+> You can explain exactly why future context creates latency, with a measured curve rather than an assertion.
 
 ### Day 26: Efficiency benchmark harness
 
@@ -880,7 +798,7 @@ attention cost.
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — efficiency and three-way offline decoding.** Extend the shared harness; one acoustic model and one small n-gram LM. Extra integration work is not assumed to fit the original session slot.
+> **v3 STATUS: CORE** One harness serves every later measurement. A benchmark built twice is a benchmark you cannot trust.
 
 #### Learn
 - Warmup runs.
@@ -888,133 +806,80 @@ attention cost.
 - Median and percentile latency.
 - Real time factor.
 - Peak memory.
-- Greedy search versus beam search; LM weight, insertion terms, and pruning.
-- External LM preferences can alter content: lower WER alone is not proof that
-  repair decisions are safer. Fused search scores are not calibrated probabilities.
 
 #### Build in MendSpeech
-- Create one benchmark function used by every later experiment.
-- Log environment and model metadata automatically.
-- Use the compatible acoustic head/backend verified in Day 24. Compare greedy,
-  beam without an external LM, and beam plus one small n-gram LM in
-  `src/asr/decoding.py`; no second acoustic checkpoint or scratch search engine.
-- Freeze text provenance, permitted use, source IDs, normalization, hashes,
-  deduplication and split roles in `data/lm_text_manifest.csv`. Exclude all
-  evaluation references/duplicates from LM training; document unknown base-model
-  pretraining overlap. Keep raw corpora and LM binaries in ignored storage.
-- Freeze one small LM order and corpus budget plus a small validation-only
-  beam-width/LM-weight candidate list in `configs/decoding.yaml`. Keep lexicon,
-  insertion bonuses, tokenizer and normalization controlled; beam-only disables
-  the external LM. Select once on validation, never using test errors as prompts
-  for vocabulary additions, tuning, or retraining. No broad parameter sweep.
-- Reuse the same acoustic outputs when the selected head/backend permits it;
-  otherwise rerun identical frozen acoustic settings and label cache use. Test
-  empty inputs, token mapping, and LM influence in `tests/test_asr_decoding.py`;
-  CTC tests include blank/repeated-token collapse. Test timing/alignment mapping
-  before decoded hypotheses can enter repair. Document backend score semantics.
-- Keep offline decoding separate from the streaming runner. If compatibility is
-  blocked, retain the greedy baseline and report the failed required comparison
-  for scope review, not completed beam/LM integration.
+- Create one benchmark function used by every later experiment in `src/bench/benchmark_asr.py`.
+- Log environment, model, batch, and precision metadata automatically in `src/bench/environment.py`.
 
 #### Experiment and Measure
 - Run repeated inference and calculate variance.
-- Detect and discard obviously invalid cold start comparisons.
-- Report WER/CER, predeclared names/numbers errors, and both helpful and harmful
-  transcript changes on identical held-out clean/damaged cases. A null or worse
-  LM result is valid; invented improvement or omitted failed cases are not.
-- Measure decoder-only elapsed time using cached acoustic outputs separately
-  from fresh audio-to-transcript latency, RTF and peak memory. Use repeated warm
-  runs on fixed L4/batch/precision, separate cold measurements, and record CPU
-  decoder host, thread/worker counts, cache status, timing boundaries and counts.
-  Cached decoder speed is not live ASR latency; no streaming LM claim yet.
+- Detect and discard obviously invalid cold start comparisons, reporting what was discarded and why.
+- Record the timing boundary explicitly: where measurement starts and ends.
 
 #### Required Output
-- `src/bench/benchmark_asr.py`
-- `src/bench/environment.py`
-- `results/day26_repeatability.csv`
-- `src/asr/decoding.py`
-- `tests/test_asr_decoding.py`
-- `configs/decoding.yaml`
-- `data/lm_text_manifest.csv`
-- `results/day26_decoding_comparison.csv`
-- `docs/day26_decoding.md` (reproduction, tuning/split audit, score semantics,
-  backend/head compatibility, help/hurt cases, and streaming limitations)
+['- `src/bench/benchmark_asr.py`', '- `src/bench/environment.py`', '- `results/day26_repeatability.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 26:**
-> Repeated runs support reproducible greedy/beam/LM accuracy and cost comparisons
-> with validation-only selection and tests. The evidence distinguishes cached
-> decoder time from fresh end-to-end latency and search scores from confidence.
-> A blocked beam or LM branch leaves this comparison incomplete; independent
-> work may continue, but Gate 3 requires evidence or an approved scope revision.
+> Repeated runs produce stable enough numbers to support comparisons, and the timing boundary is documented.
 
-### Day 27: FastConformer failure casebook
+### Day 27: Profiling the streaming model
 
 [Full Day 27 spec](days/day_27.md)
 
 **Compute:** `Modal L4`
 
-> **v1 STATUS: MERGED into [Day 28](days/day_28.md).** Keep only the top-3 failure patterns; no separate session.
+> **v3 STATUS: CORE** Phase P4 begins. Measure before optimizing, or you optimize the wrong thing.
 
 #### Learn
-- Error slicing by corruption type and severity.
-- Short versus long utterance effects.
-- Confidence versus error.
+- Where time actually goes in a streaming forward pass.
+- CPU launch overhead versus GPU compute time.
+- Kernel-level versus end-to-end timing.
 
 #### Build in MendSpeech
-- Build a casebook of at least fifteen interesting failures.
-- Link each case to audio, transcript, confidence, and damage metadata.
+- Add per-operator profiling to the Day 26 harness in `src/bench/profile_ops.py`.
+- Produce a ranked operator table for one fixed configuration.
 
 #### Experiment and Measure
-- Look for systematic error patterns rather than isolated anecdotes.
+- Rank operators by measured time and separate launch overhead from compute.
+- Identify the top three candidates for optimization and state the expected ceiling for each.
+- Write the baseline row into `results/day27_operator_profile.csv`.
 
 #### Required Output
-- `results/fastconformer_failure_casebook.md`
+['- `src/bench/profile_ops.py`', '- `results/day27_operator_profile.csv`', '- `docs/day27_optimization_targets.md`']
 
 #### Completion Check
 > **Definition of Done for Day 27:**
-> You can name at least three repeatable failure patterns and propose a testable
-reason for each.
+> You can name the top three time consumers with measured evidence and an expected gain for each.
 
-### Day 28: Week 4 integration
+### Day 28: torch.compile and graph capture
 
 [Full Day 28 spec](days/day_28.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — absorbs Day 27.** Integration plus the top-3 failure casebook in one session, using the shared `app/audio_lab.py` entrypoint.
+> **v3 STATUS: CORE** First optimization technique, measured against the Day 27 profile rather than assumed.
 
 #### Learn
-- Review efficiency choices and baseline results.
+- torch.compile: graph capture, fusion, and recompilation triggers.
+- Dynamic shapes and why recompilation is silent and expensive.
+- CUDA graphs for static-shape workloads.
 
 #### Build in MendSpeech
-- Replace the generic ASR runner in MendSpeech with the reproducible FastConformer path.
-- Extend `app/audio_lab.py`, the single app entrypoint, to expose latency, RTF, WER when reference text exists, and GPU memory. Do not create a versioned demo app.
-- Capture Day 27's top three repeatable failure patterns with transcript, confidence, and damage metadata in the retained casebook.
-- Link Day 26's decoding comparison with head/tokenizer/LM/config provenance
-  in `reports/week4_fastconformer.md`. Show offline beam/LM output only as
-  offline evidence. Retain a verified streaming-compatible decoder (greedy if
-  needed); do not replace it with an offline-only backend or treat LM-fused
-  scores as confidence. Changes to text/timestamps require alignment checks
-  and Day 41 decoder-specific calibration before calibrated repair claims.
+- Apply torch.compile to the hot path in `src/asr/optimized_runner.py`, pinning shapes to avoid recompilation.
+- Add a CUDA-graph fast path only for static-shape inputs in `src/asr/optimized_runner.py`.
 
 #### Experiment and Measure
-- Run the same ten reference clips through the full Week 2 uncertainty policy using FastConformer.
-- Record the actual decoder for every run. Include helpful/harmful Day 26
-  examples; preserve the original greedy results instead of overwriting them.
+- Measure WER, p50/p95/p99 latency, RTF, and memory against the Day 27 baseline on identical inputs.
+- Record compile time and warmup separately from steady-state latency.
+- Verify output parity against the unoptimized path; a speedup with different transcripts is not a speedup.
 
 #### Required Output
-- `app/audio_lab.py`
-- `results/fastconformer_failure_casebook.md` — absorbed Day 27 evidence
-- `reports/week4_fastconformer.md`
+['- `src/asr/optimized_runner.py`', '- `tests/test_optimized_parity.py`', '- `results/day28_compile_speedup.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 28:**
-> The shared audio lab exposes a measured, inspectable FastConformer recognition
-> core, and the report links the top-three failure casebook and completed
-> three-way decoding evidence. Offline and streaming capabilities, score
-> semantics and pending calibration are explicit; blocked decoding needs scope
-> review rather than a completed Gate 3 label.
+> You have a measured before/after for compilation with verified output parity, or the failure and its cause documented.
 
 ---
 
@@ -1022,122 +887,119 @@ reason for each.
 
 [Week 5 guide](Week_5_MendSpeech_Daily_Plan.md)
 
-### Day 29: Offline versus streaming ASR
+### Day 29: Batching and throughput
 
 [Full Day 29 spec](days/day_29.md)
 
 **Compute:** `Modal L4`
 
+> **v3 STATUS: CORE** Throughput and latency are different axes; this session keeps them separate.
+
 #### Learn
-- Audio chunks.
-- Algorithmic latency.
-- Partial hypotheses.
-- Endpointing and finalization.
+- Static versus dynamic batching.
+- Queueing delay versus service time.
+- Why throughput gains can hurt single-stream latency.
 
 #### Build in MendSpeech
-- Create a chunk simulator that feeds audio incrementally.
-- Log when each chunk becomes available and when text changes.
+- Implement batched inference in `src/serve/batching.py` with a configurable batch policy.
+- Expose batch size and queue wait as separately logged quantities.
 
 #### Experiment and Measure
-- Compare offline transcript with naive chunk by chunk transcription.
+- Sweep batch size and report throughput and per-request latency separately.
+- Find the batch size where queueing delay starts to dominate.
+- Report RTF at the best throughput point and the latency at the lowest-concurrency point.
 
 #### Required Output
-- `src/streaming/chunker.py`
-- `results/day29_offline_vs_naive.csv`
+['- `src/serve/batching.py`', '- `results/day29_batch_sweep.csv`', '- `docs/day29_queueing.md`']
 
 #### Completion Check
 > **Definition of Done for Day 29:**
-> You can explain why naive chunking creates boundary errors and redundant compute.
+> You can state the throughput/latency knee with measured evidence and explain what happens past it.
 
-### Day 30: Buffered streaming
+### Day 30: Quantization: INT8 and FP16
 
 [Full Day 30 spec](days/day_30.md)
 
 **Compute:** `Modal L4`
 
+> **v3 STATUS: CORE** Quantization is the technique most likely to be misreported, so parity comes before speed.
+
 #### Learn
-- Overlapping windows.
-- Buffer size.
-- Stride.
-- Repeated computation.
+- Dynamic versus static INT8.
+- Why static quantization needs a calibration set.
+- What quantization can and cannot preserve in a speech model.
 
 #### Build in MendSpeech
-- Implement or run buffered streaming with configurable overlap.
-- Measure how much audio is recomputed.
+- Smoke-check export and precision support on one compatible backend; pin revisions in `docs/day30_quant_notes.md`.
+- Verify original-versus-exported parity at equal precision on validation clips before quantizing.
+- Apply supported INT8/FP16 variants through `src/asr/quantized_runner.py`.
 
 #### Experiment and Measure
-- Sweep buffer and stride settings.
-- Measure WER and latency tradeoffs.
+- Measure WER/CER, p50/p95/p99, RTF, and peak memory for baseline and each supported precision.
+- Record confidence and logit shifts caused by quantization.
+- State explicitly whether a variant is faster. A slower variant is a valid finding.
 
 #### Required Output
-- `src/streaming/buffered.py`
-- `results/day30_buffered_sweep.csv`
+['- `src/asr/quantized_runner.py`', '- `docs/day30_quant_notes.md`', '- `results/day30_quantization_tradeoffs.csv`', '- `app/audio_lab.py`']
 
 #### Completion Check
 > **Definition of Done for Day 30:**
-> You can quantify the compute waste caused by overlapping history.
+> You have measured accuracy, latency, and memory for every supported precision, or a documented compatibility blocker. No speedup is claimed without a measurement.
 
-### Day 31: Cache aware streaming internals
+### Day 31: Streaming fast path
 
 [Full Day 31 spec](days/day_31.md)
 
 **Compute:** `Modal L4`
 
+> **v3 STATUS: CORE** Optimized offline inference does not automatically make streaming fast; this session checks.
+
 #### Learn
-- Cached activations.
-- Past context state.
-- Streaming masks.
-- Right context and lookahead.
+- State reuse versus recomputation across chunks.
+- Where redundant computation remains in a cache-aware encoder.
 
 #### Build in MendSpeech
-- Use NeMo cache aware streaming inference on a supported FastConformer checkpoint.
-- Log cache related configuration and chunk boundaries.
-- If cache-aware inference is unsupported for the chosen checkpoint, document the limitation and fall back to buffered streaming; the buffered vs cache comparison still runs.
+- Add a streaming-specific fast path in `src/streaming/fast_path.py` reusing Day 30's best variant.
+- Assert cached and uncached streaming produce equivalent transcripts.
 
 #### Experiment and Measure
-- Compare buffered and cache aware inference on the same audio and same hardware.
+- Measure steady-state per-chunk latency after warmup, separately from the first chunk.
+- Report the speedup of the fast path against the Day 30 baseline, or state that it did not help.
 
 #### Required Output
-- `src/streaming/cache_aware_runner.py`
-- `results/day31_buffered_vs_cache.csv`
+['- `src/streaming/fast_path.py`', '- `tests/test_fast_path_parity.py`', '- `results/day31_fast_path.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 31:**
-> You can explain what is cached, what is recomputed, and why cache aware inference
-can be more efficient.
+> You can state measured steady-state streaming latency and whether the fast path earned its complexity.
 
-### Day 32: Supported fixed-context lookahead ablation
+### Day 32: Optimization scorecard
 
 [Full Day 32 spec](days/day_32.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — fixed context only.** Use only configurations verified for the Day 24 checkpoint. This session does not require live context switching.
+> **v3 STATUS: CORE** One table decides what ships. Techniques that did not help are reported with the same prominence.
 
 #### Learn
-- Right context.
-- Lookahead.
-- Commit delay.
-- WER and latency as competing objectives.
+- Presenting negative results without overclaiming.
+- Why an optimization table is a design document, not a log.
 
 #### Build in MendSpeech
-- Run the supported fixed-context configurations recorded in Day 24, using a separate run per setting and holding model, audio, hardware, batching, and decoding fixed.
-- Store per-utterance and aggregate metrics, exact context values and units, and capability status. Do not coerce unsupported values or build a new streaming path.
+- Build the scorecard generator in `src/bench/scorecard.py`.
+- Produce the scorecard in `results/day32_optimization_scorecard.csv`.
 
 #### Experiment and Measure
-- Plot measured WER versus measured L4 latency and identify dominated operating points only when multiple supported settings exist.
-- If only one setting is supported, retain its measured point and label the comparison unavailable; if none is runnable, record the reason and leave metrics missing. Keep the CSV and figure paths, with an explicitly annotated unavailable comparison rather than fabricated points or latency.
+- Tabulate WER, p50/p95/p99, RTF, and memory for baseline and every technique tried.
+- Add a `what_did_not_help` section to `docs/day32_optimization_report.md`.
+- Select the shipping configuration from the scorecard and justify it on measured grounds.
 
 #### Required Output
-- `experiments/lookahead_ablation.py`
-- `results/day32_lookahead.csv`
-- `results/day32_pareto.png`
+['- `src/bench/scorecard.py`', '- `results/day32_optimization_scorecard.csv`', '- `docs/day32_optimization_report.md`']
 
 #### Completion Check
 > **Definition of Done for Day 32:**
-> You can defend a supported fixed operating point using measured data, or show
-> why the comparison is unavailable. A single point is not a Pareto frontier;
-> unsupported context variation defers that claim, not the rest of Gate 4.
+> You can defend the shipping configuration from a table, including the techniques that failed.
 
 ### Day 33: Break the cache on purpose
 
@@ -1145,25 +1007,26 @@ can be more efficient.
 
 **Compute:** `Modal L4`
 
+> **v3 STATUS: CORE** A streaming system that silently mishandles state is worse than a slow correct one.
+
 #### Learn
 - State continuity.
 - Chunk boundary dependencies.
 - Cache reset and truncation.
 
 #### Build in MendSpeech
-- Add controlled experiments that reset or shorten cache at selected boundaries.
+- Add controlled experiments that reset or shorten the cache at chosen boundaries in `src/streaming/cache_stress.py`.
 
 #### Experiment and Measure
 - Measure WER changes around the reset point.
-- Inspect whether errors cluster near boundaries or propagate later.
+- Determine whether errors cluster at boundaries or propagate, and write it up in `results/day33_cache_failures.md`.
 
 #### Required Output
-- `experiments/cache_break_test.py`
-- `results/day33_cache_failures.md`
+['- `src/streaming/cache_stress.py`', '- `tests/test_cache_reset.py`', '- `results/day33_cache_failures.md`']
 
 #### Completion Check
 > **Definition of Done for Day 33:**
-> You can explain a concrete failure caused by incorrect state handling.
+> You can explain a concrete failure caused by incorrect state handling and where it appears.
 
 ### Day 34: Bounded adaptive-context comparison
 
@@ -1171,70 +1034,58 @@ can be more efficient.
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — capability-bounded comparison.** Use only Day 24/32 supported settings. Live adaptation is conditional; unavailable support defers the adaptive claim, not the remaining streaming, endpointing, cache, or serving requirements.
+> **v3 STATUS: CORE** , capability-bounded. Live switching only if the checkpoint supports it; otherwise report the deferral honestly.
 
 #### Learn
-- Policy driven context selection.
+- Policy-driven context selection.
 - Confidence smoothing.
 - Latency budget.
 - Stability versus oscillation.
 
 #### Build in MendSpeech
-- Implement a small capability-guarded policy that classifies chunks as easy or uncertain using the existing uncertainty signal and fixed decision rules.
-- Compare at most two supported right-context settings from Day 32. Use live switching only when the checkpoint supports it; otherwise simulate policy choices from separate fixed-setting runs on the same controlled subset.
-- If fewer than two settings are supported, return an explicit unavailable status and reason. No custom serving infrastructure, new model, or architecture change to force adaptation.
+- Implement a capability-guarded policy in `src/controller/adaptive_context.py` that classifies chunks as easy or uncertain.
+- Compare at most two supported right-context settings from Day 25.
+- Return an explicit unavailable status when fewer than two settings are supported.
 
 #### Experiment and Measure
-- Compare the two fixed policies and the bounded adaptive policy where supported, with an explicit `live`, `simulated`, or `unavailable` status for the adaptive comparison.
-- A simulated comparison is offline policy evidence, not live adaptive latency. Keep measured fixed-run timings separate; leave adaptive latency missing unless measured on a real live switching run. Do not fabricate measurements or claim a benefit from a simulation alone.
+- Compare fixed-fast, fixed-accurate, and the bounded adaptive policy with an explicit `live`, `simulated`, or `unavailable` status.
+- Keep simulated estimates separate from measured latency; do not count cached reuse as a runtime gain.
 
 #### Required Output
-- `src/controller/adaptive_context.py` — bounded policy and capability guard; reports unavailable when unsupported
-- `results/day34_adaptive_context.csv` — retain this path even when unavailable; include status, supported settings, evidence/reason, and missing values for unmeasured metrics
+['- `src/controller/adaptive_context.py`', '- `results/day34_adaptive_context.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 34:**
-> You have a measured live comparison, an explicitly limited simulated policy
-> comparison, or an evidence-backed unavailable result. Unsupported behavior
-> honestly defers the adaptive claim without waiving the rest of Gate 4.
+> You have a measured live comparison, a clearly limited simulated comparison, or an evidence-backed unavailable result.
 
-### Day 35: Week 5 live streaming milestone
+### Day 35: Endpointing and the VAD baseline
 
 [Full Day 35 spec](days/day_35.md)
 
-**Compute:** `Modal L4`
+**Compute:** `Local CPU plus Modal L4`
 
-> **v2 STATUS: CORE — shared audio lab streaming milestone.** Streaming, VAD/endpointing, cache-state handling, and Gate 4 Add-on B serving/load evidence remain required. Adaptive context is displayed only where supported.
+> **v3 STATUS: CORE** Add-on A, absorbed here. Endpointing decides when a final answer is sent, so its errors are latency errors.
 
 #### Learn
-- Review buffered streaming, cache aware inference, lookahead, cache failures,
-  adaptive context, VAD-driven endpointing, and partial-versus-final latency.
+- Energy versus spectral VAD.
+- Onset and offset error in milliseconds.
+- False alarms versus missed speech in a streaming setting.
 
 #### Build in MendSpeech
-- Extend the existing `app/audio_lab.py` entrypoint to connect microphone or simulated live audio to the streaming recognizer; do not create another app.
-- Reuse Add-on A VAD for endpointing and log speech start, speech end, and
-  finalization timestamps.
-- Show partial text, confidence timeline, VAD/endpointing state, cache state, queue depth, and measured latency. Show current context mode only when the runner exposes it; distinguish fixed from live adaptive behavior and never present a simulated policy as live.
-- Keep Gate 4 Add-on B async serving, per-stream isolation, backpressure, and load/failure evidence required. Link those artifacts rather than building context-specific serving infrastructure.
+- Implement a deterministic frame-level VAD in `src/vad/baseline.py` with framing, timestamp, and silence tests.
+- Compare it with one local reference VAD on identical clean and damaged inputs.
 
 #### Experiment and Measure
-- Record a short demo with clean and damaged speech.
-- Measure time to first partial transcript, endpoint delay, false starts, and
-  missed endpoints on the same cases.
-- Document remaining technical limitations honestly.
-- Link Day 31/33 cache evidence, Day 34's live/simulated/unavailable status, and Add-on B serving/load results. Unsupported adaptive context does not waive endpointing, cache correctness, or serving checks.
+- Measure precision, recall, F1, false alarms, missed speech, and onset/offset error in ms.
+- Report CPU RTF separately from GPU measurements.
+- Carry the measured choice into Day 41 and record it in `results/day35_vad_benchmark.csv`.
 
 #### Required Output
-- `app/audio_lab.py`
-- `demos/week5_streaming_demo.mp4`
-- `reports/week5_streaming.md`
+['- `src/vad/baseline.py`', '- `tests/test_vad.py`', '- `results/day35_vad_benchmark.csv`', '- `docs/day35_vad_notes.md`']
 
 #### Completion Check
 > **Definition of Done for Day 35:**
-> A person can speak and watch MendSpeech transcribe incrementally while exposing
-> VAD, endpointing, cache, and uncertainty state, with context mode shown only
-> where available. The report links required serving/load and cache evidence;
-> any adaptive deferral is explicit and does not substitute for those checks.
+> Endpointing error is quantified in milliseconds and the chosen detector's failure modes are documented.
 
 ---
 
@@ -1248,88 +1099,67 @@ can be more efficient.
 
 **Compute:** `Modal L4`
 
+> **v3 STATUS: CORE** Phase P5 begins. You cannot fine-tune responsibly if you cannot read a loss curve.
+
 #### Learn
 - Manifest format.
-- Batching variable duration audio.
+- Batching variable-duration audio.
 - Loss curves.
-- Learning rate.
-- Validation split.
-- Checkpointing.
+- Learning rate, validation split, checkpointing.
 
 #### Build in MendSpeech
-- Create a tiny reproducible training configuration.
-- Run a short smoke training job and verify loss decreases.
+- Create one reproducible training configuration in `configs/train_smoke.yaml`.
+- Implement the training loop in `training/train.py` with checkpointing and validation hooks.
 
 #### Experiment and Measure
-- Deliberately use a bad learning rate and record the failure signature.
+- Run a short smoke job and verify the loss decreases.
+- Deliberately use a bad learning rate and record the failure signature in `results/day36_training_smoke.csv`.
+- Verify checkpoints reload and reproduce the same validation number.
 
 #### Required Output
-- `configs/train_smoke.yaml`
-- `results/day36_training_smoke.csv`
-- `docs/training_debug_notes.md`
+['- `configs/train_smoke.yaml`', '- `training/train.py`', '- `tests/test_train_loop.py`', '- `results/day36_training_smoke.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 36:**
-> You can diagnose whether a run is learning, diverging, or overfitting from basic
-evidence.
+> You can diagnose whether a run is learning, diverging, or overfitting from basic evidence, and a checkpoint reloads reproducibly.
 
-### Day 37: Build a robust fine tuning dataset
+### Day 37: Adaptation dataset and leakage audit
 
 [Full Day 37 spec](days/day_37.md)
 
 **Compute:** `Local CPU`
 
-> **v2 STATUS: CORE.** Prepare one ASR adaptation dataset. The frozen core
-> evaluation set is immutable; any Indic extension stays separate.
+> **v3 STATUS: CORE** Leaked data makes every later number meaningless, so this session precedes training.
 
 #### Learn
-- Train, validation, test separation.
+- Train, validation, and test separation.
 - Speaker leakage.
 - Synthetic corruption sampling.
 - Balanced severity distribution.
 
 #### Build in MendSpeech
-- Prepare train/validation manifests pairing verified transcripts with clean
-  and corrupted audio for one adaptation experiment. Record source/speaker IDs,
-  language, license/consent, transcript verification and normalization, corruption,
-  severity, seed, parameters and package version; retain clean examples.
-- Preserve the already frozen test membership and speaker-separated splits.
-  All clean/corrupted copies of a source stay in one split. A test manifest is
-  a reference to the frozen evaluation set, never a new sample or rewritten set.
-- Optionally reuse the separate `data/indic_codemix_manifest.csv` prepared after
-  Gate 2 for the same adaptation experiment only if the checkpoint/tokenizer
-  supports the language and a competent transcript verifier is available.
-  Keep extension train/validation/test speakers disjoint from each other and
-  the core evaluation speakers. Otherwise retain it as evaluation-only and
-  record the limitation; do not add a second training track.
+- Build manifests pairing clean transcripts with corrupted audio for one adaptation experiment in `data/`.
+- Preserve the already-frozen test membership and speaker-separated splits.
+- Audit source duplicates and speaker leakage, and write the audit to `reports/data_audit.md`.
 
 #### Experiment and Measure
-- Audit source-level duplicates, speaker leakage and corruption provenance.
-  Report split counts, clean/severity balance and immutable core test membership.
-- Record extension language support/verification evidence and inclusion or
-  evaluation-only status. Add-on C streaming metrics remain for later evaluation,
-  not invented data-preparation results.
+- Prove no source or speaker appears in more than one split, including via corrupted copies.
+- Report the severity distribution and correct any imbalance before training.
 
 #### Required Output
-- `data/train_manifest.jsonl`
-- `data/val_manifest.jsonl`
-- `data/test_manifest.jsonl` (frozen-set reference; preserve existing contents)
-- `reports/data_audit.md`
+['- `data/train_manifest.jsonl`', '- `data/val_manifest.jsonl`', '- `data/test_manifest.jsonl`', '- `reports/data_audit.md`']
 
 #### Completion Check
 > **Definition of Done for Day 37:**
-> The audit demonstrates no source or speaker leakage into training/validation,
-preserves the frozen core evaluation set and documents provenance. Any optional
-extension is separately identified and does not create another training track.
+> The evaluation set cannot appear in training through clean or corrupted duplicates, and the audit shows how you know.
 
-### Day 38: Fine tune for damaged speech robustness
+### Day 38: Fine-tune for damaged-speech robustness
 
 [Full Day 38 spec](days/day_38.md)
 
-**Compute:** `Modal L4; use a manageable training configuration within budget`
+**Compute:** `Modal L4`
 
-> **v2 STATUS: CORE.** One bounded ASR adaptation experiment with a clean-speech
-> regression control; negative results count as evidence, failed runs do not.
+> **v3 STATUS: CORE** The personalization experiment: base versus adapted, measured with a clean-speech regression check.
 
 #### Learn
 - Transfer learning.
@@ -1338,44 +1168,28 @@ extension is separately identified and does not create another training track.
 - Gradient accumulation.
 
 #### Build in MendSpeech
-- Adapt the existing compatible ASR checkpoint once using Day 37's audited data.
-  Fix trainable layers, learning rate, steps, seed, clean/damaged sampling,
-  precision, gradient accumulation and budget before running; choose the best
-  checkpoint using validation only, never frozen test outcomes.
-- If the optional Indic data passes Day 37's support and verification checks,
-  include it in this same experiment and report its slice separately. Otherwise
-  retain evaluation-only coverage; do not install/train a second recognizer.
-- Save the reproducible configuration and provenance: base code/weight revisions,
-  manifest hashes, source permissions, software/hardware and selection rule.
-  Keep checkpoints and raw training logs local/gitignored. Day 39's augmentation
-  ablation reuses this recipe; it is not a separate adaptation track.
+- Fine-tune the Day 24 checkpoint on the Day 37 dataset using `training/finetune.py`.
+- Freeze trainable layers, learning rate, steps, seed, and sampling in `configs/finetune.yaml`.
 
 #### Experiment and Measure
-- Compare base and adapted checkpoints on identical frozen clean/damaged cases
-  with the same decoder and normalization. Report WER/CER by condition, clean
-  regression, confidence shifts and failures, not only aggregate improvement.
-- Report any extension results separately from the frozen core benchmark. All
-  comparable latency/RTF/peak-memory measurements use the same L4 configuration.
-  Record actual cost and a failed run honestly instead of claiming adaptation.
+- Compare base and adapted models on the frozen test set, reporting WER per corruption and severity.
+- Measure clean-speech regression explicitly; an adaptation that helps damaged speech but harms clean speech is a documented tradeoff, not a win.
+- Record actual training time and cost.
 
 #### Required Output
-- `training/finetune.py`
-- `configs/finetune.yaml`
-- `checkpoints/week6_best/` (local/gitignored weights and raw logs)
-- `results/day38_base_vs_adapted.csv`
-- `reports/day38_adaptation.md` (provenance, selection rule, cost and limitations)
+['- `training/finetune.py`', '- `configs/finetune.yaml`', '- `reports/day38_adaptation.md`', '- `results/day38_base_vs_adapted.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 38:**
-> The single base-versus-adapted experiment is reproducible and states what
-improved, what did not and whether clean speech regressed. Test data never
-selects the checkpoint, and optional language coverage is labeled separately.
+> You can state exactly what improved, what did not, and whether clean speech regressed.
 
-### Day 39: SpecAugment and augmentation ablation
+### Day 39: Augmentation ablation
 
 [Full Day 39 spec](days/day_39.md)
 
 **Compute:** `Modal L4`
+
+> **v3 STATUS: CORE** Confound control: augmentation must be separated from extra training time.
 
 #### Learn
 - Time masking.
@@ -1383,159 +1197,105 @@ selects the checkpoint, and optional language coverage is labeled separately.
 - Data augmentation as invariance training.
 
 #### Build in MendSpeech
-- Add one augmentation intervention to a controlled short run.
+- Add one augmentation intervention to a controlled short run in `experiments/specaugment_ablation.py`.
 
 #### Experiment and Measure
-- Compare no augmentation versus selected augmentation with the same seed and training budget.
+- Compare no augmentation versus selected augmentation with the same seed and the same step budget.
+- Report whether the gain survives when the extra steps are given to the unaugmented baseline.
 
 #### Required Output
-- `experiments/specaugment_ablation.py`
-- `results/day39_augmentation.csv`
+['- `experiments/specaugment_ablation.py`', '- `results/day39_augmentation.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 39:**
 > You can separate the effect of augmentation from the effect of extra training time.
 
-### Day 40: RNN-T concepts and quantization lab
+### Day 40: RL reward design
 
 [Full Day 40 spec](days/day_40.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE.** Retain the quantization lab behind a compatibility check.
-> Unsupported precision is a documented blocker, not a completed optimization.
+> **v3 STATUS: CORE** The reward must be falsifiable, or the run proves nothing. This is the most novel session in the plan.
 
 #### Learn
-- Encoder.
-- Prediction network.
-- Joint network.
-- Blank handling.
-- Streaming emission behavior.
-- Difference from CTC independence.
-- Post-training quantization: dynamic vs static INT8, and why static needs a calibration set.
-- What quantization can and cannot preserve in an ASR model (logit sharpness, confidence behavior).
+- Policy-gradient and PPO intuition for sequence output.
+- Reward hacking: what a model does when the reward is exploitable.
+- Designing a reward that is falsifiable in advance.
 
 #### Build in MendSpeech
-- Smoke-check the selected ASR model's export and precision support on one
-  compatible L4 backend. Pin model/backend revisions and verify supported
-  operators, dynamic lengths, decoding and actual device/kernel placement.
-  Do not add a provider sweep or silently compare CPU INT8 with GPU inference.
-- Export the Day 38 checkpoint only through the supported path. Check the
-  original model versus exported model at the same precision on validation
-  clips before quantization: output/logit tolerances where exposed, decoded
-  text, lengths and decoding settings. Record and resolve parity failures first.
-- Compare FP16 and INT8 only where the same backend supports their intended
-  execution on L4. For static INT8, select and record a representative calibration
-  slice from validation, disjoint by source/speaker from test; never calibrate
-  using the frozen test benchmark. State if the backend does not need calibration.
-- If export, parity or precision support blocks measurement, retain working
-  inference and record the exact failed check, error and unsupported precision.
-  Do not change models/backends repeatedly to manufacture an INT8 result.
+- Define the reward in `src/rl/reward.py`: penalize fluent output that the acoustics do not support.
+- Write the falsifiable prediction in `configs/rl.yaml` BEFORE running anything.
+- Implement a minimal policy-gradient or PPO-style update in `src/rl/ppo.py`.
 
 #### Experiment and Measure
-- After parity passes, measure original/exported baseline and supported FP16/INT8
-  variants on identical frozen cases, decoder, batch size, timing boundaries,
-  warm-up and L4 hardware. Report actual WER/CER, latency/RTF and peak memory;
-  INT8 may be slower or less accurate and need not be selected for deployment.
-- Record logit/confidence shifts for Day 41 validation-based calibration. Report
-  precision coverage and CPU fallbacks explicitly; a mixed-device run is not
-  a controlled GPU speed comparison.
-- Give each variant `measured` or `blocked` status with reasons and blank
-  unavailable metrics. Gate 5 can carry an explicit blocked optimization status,
-  but cannot claim successful quantization or a speedup without measurements.
+- Show the reward can be gamed: construct at least one input where a naive reward rewards a wrong transcript.
+- Verify the reward is computable offline from cached logits before spending GPU time.
+- Unit-test reward components in `tests/test_reward.py`.
 
 #### Required Output
-- `docs/rnnt_walkthrough.md` (theory summary from the Learn block)
-- `docs/day40_quantization_notes.md` (compatibility, parity, calibration source,
-  backend/precision settings and blockers)
-- `results/day40_quantization_tradeoffs.csv` (actual metrics or blocked rows)
+['- `src/rl/reward.py`', '- `src/rl/ppo.py`', '- `configs/rl.yaml`', '- `tests/test_reward.py`', '- `docs/day40_reward_design.md`']
 
 #### Completion Check
 > **Definition of Done for Day 40:**
-> You can explain RNN-T streaming behavior and demonstrate original/export
-parity plus measured supported-precision tradeoffs on L4, or identify the exact
-compatibility/parity blocker. A blocked branch stays explicitly unimplemented;
-no unsupported INT8, speedup or calibration claim is presented as complete.
+> You have a written falsifiable prediction, a reward shown to be gameable in at least one case, and a tested implementation.
 
-### Day 41: Confidence calibration for repair decisions
+### Day 41: RL post-training run
 
 [Full Day 41 spec](days/day_41.md)
 
-**Compute:** `Modal L4 for logits, local CPU for
-analysis`
+**Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — calibration follows the selected model, decoder, and precision.** External LM search scores do not automatically become repair confidence.
+> **v3 STATUS: CORE** Base versus fine-tuned versus RL, on the same held-out data. A null result here is still a result.
 
 #### Learn
-- Reliability diagrams.
-- Expected calibration error intuition.
-- Threshold selection from validation data.
-- Decoder-dependent hypotheses, alignment, and acoustic versus LM score meaning.
+- Reward/advantage computation.
+- KL regularization against the reference model.
+- Why RL can degrade a well-calibrated model.
 
 #### Build in MendSpeech
-- Build a simple calibration analysis for confidence versus correctness.
-- Choose policy thresholds on validation, not test.
-- Record model/head/tokenizer, precision, decoder configuration and LM revision
-  from Days 24/26/40. Define and test how confidence attaches to the actual
-  decoded words/spans; a fused beam score is not a probability, and greedy
-  thresholds cannot silently transfer to LM-altered hypotheses. Validate token/
-  timestamp alignment or retain the verified greedy path for repair.
-- Refit/check calibration when model, precision or decoder changes. Preserve
-  the exact score definition and fitting split in `configs/repair_modes_calibrated.yaml`.
+- Run the bounded RL post-training from `training/rl_train.py` using the Day 38 checkpoint as reference.
+- Track reward, KL, and held-out WER together; reward rising while WER worsens is the key diagnostic.
 
 #### Experiment and Measure
-- Compare raw and calibrated confidence if a simple method is feasible.
-- Evaluate correctness and reliability for the chosen configuration on held-out
-  clean/damaged cases, including LM-induced errors if LM output enters repair.
-  Keep validation-selected thresholds fixed; report failed calibration honestly.
+- Compare base, fine-tuned, and RL variants on held-out data.
+- Re-run the Day 13 risk-coverage analysis for the RL model; improved WER does not imply improved triage safety.
+- Record total GPU cost against the declared budget in `results/day41_rl_vs_baseline.csv`.
 
 #### Required Output
-- `src/asr/calibration.py`
-- `results/day41_reliability.png`
-- `configs/repair_modes_calibrated.yaml`
+['- `training/rl_train.py`', '- `results/day41_rl_vs_baseline.csv`', '- `docs/day41_rl_findings.md`', '- `results/day41_risk_coverage.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 41:**
-> Repair thresholds are justified from held-out evidence for the actual
-> model/decoder/precision, with tested hypothesis alignment and an explicit
-> confidence definition. Search scores are not relabeled calibrated confidence.
+> You can state whether RL helped, did nothing, or hurt, with evidence, and you checked triage safety rather than WER alone.
 
-### Day 42: Week 6 robustness milestone
+### Day 42: Personalization comparison and robustness milestone
 
 [Full Day 42 spec](days/day_42.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — Gate 5 is evidence-based.** Extend the one app; preserve
-> explicit blocked precision status rather than claiming unmeasured optimization.
+> **v3 STATUS: CORE** One table answers the personalization question and closes Phase P5.
 
 #### Learn
-- Review fine tuning, augmentation, RNNT, and calibration.
+- Separating adaptation effects from training-time effects.
+- Reporting a null result without overclaiming.
 
 #### Build in MendSpeech
-- Extend `app/audio_lab.py` to switch between base and adapted recognizer;
-  retain the existing ASR/streaming/policy controls rather than create another app.
-- Show clean WER, damaged WER, confidence calibration, and repair percentage.
-- Show model/policy versions, raw versus calibrated confidence, validation-selected
-  thresholds, safe action/reason codes and Day 40 measured/blocked precision
-  status. Do not offer an unavailable export as if it were implemented.
+- Produce the final base/fine-tuned/RL comparison in `reports/day42_personalization.md`.
+- Extend `app/audio_lab.py` to switch between the base, fine-tuned, and RL checkpoints.
 
 #### Experiment and Measure
-- Run one fixed benchmark suite and freeze results for Week 8 comparisons.
-- Keep matched clean/raw-damaged controls and separate optional Indic extension
-  results from the immutable core test set. Report regression, negative outcomes,
-  inspect/abstain behavior, adaptation provenance and actual L4 configurations.
+- Report WER per corruption and severity for all three checkpoints, plus clean-speech regression.
+- Report the risk-coverage curve for each checkpoint.
+- State plainly which checkpoint ships and why the choice rests on measured evidence.
 
 #### Required Output
-- `app/audio_lab.py`
-- `results/week6_frozen_baseline.csv`
-- `reports/week6_training.md`
+['- `reports/day42_personalization.md`', '- `results/day42_personalization_matrix.csv`', '- `app/audio_lab.py`']
 
 #### Completion Check
 > **Definition of Done for Day 42:**
-> The one app and report demonstrate measured adaptation and calibration results,
-including clean regression or a negative result. Precision tradeoffs are supported
-by controlled L4 measurements or explicitly blocked, never falsely completed.
+> The personalization question is answered with a table and a shipping recommendation, including any null results.
 
 ---
 
@@ -1543,482 +1303,198 @@ by controlled L4 measurements or explicitly blocked, never falsely completed.
 
 [Week 7 guide](Week_7_MendSpeech_Daily_Plan.md)
 
-### Day 43: TTS system anatomy
+### Day 43: Serving contract and message schema
 
 [Full Day 43 spec](days/day_43.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — one TTS stack, two-language evaluation, and bounded adaptation feasibility.** Inference, language, prosody, training and native streaming are separate capabilities; no second synthesis installation.
+> **v3 STATUS: CORE** Phase P6 begins. Design the contract before implementing, or latency semantics get baked in wrong.
 
 #### Learn
-- Text or phoneme representation.
-- Acoustic model.
-- Mel spectrogram or latent representation.
-- Vocoder.
-- Speaker conditioning.
-- Prosody.
-- Language/frontend coverage, held-out synthesis evaluation, and native audio
-  generation versus phrase chunking or delivery of an already completed waveform.
-- Content, speaker, and style representations; why useful factorization is not
-  proof of perfect disentanglement.
+- WebSocket message schemas for streaming audio and incremental transcripts.
+- What belongs in a partial result versus a final result.
+- Backpressure semantics at the protocol level.
 
 #### Build in MendSpeech
-- Select exactly one feasible, permitted TTS stack at this gate and reuse it
-  throughout Week 7, including its existing pretrained vocoder. Check the
-  planned stack's speaker/language, data, adaptation, and compute requirements
-  before selection; do not prescribe an unverified new model/framework or
-  install alternatives. A documented recipe is not measured L4 feasibility.
-- In `docs/tts_pipeline.md`, pin checkpoint and processor/tokenizer revisions,
-  library versions, sample rate, text normalization and token coverage, and
-  speaker-embedding shape/provenance. Use only owned or explicitly consented
-  speaker references; public availability alone is not consent.
-- Target exactly two supported languages, including at least one Indian
-  language, preferably the Add-on C language if verified. Do not assume English
-  or code-mixed support. Freeze `data/tts_eval_manifest.csv` with at least ten
-  held-out sentences per language, including names and numbers. Record original
-  and normalized text, language, source/license, speaker/reference consent,
-  hashes, split roles, and competent language review. This is a diagnostic set,
-  not evidence of population-level or many-language generalization.
-- Keep the TTS set separate from the immutable core benchmark and Add-on C's
-  ASR manifest. Exclude its sentences/reference recordings from adaptation and
-  tuning; do not condition on the held-out target recording. A separate consented
-  same-speaker reference is allowed if labeled, not claimed as unseen-speaker
-  transfer. Record unknown pretraining overlap rather than claiming its absence.
-- In the pipeline record, verify each language's frontend/tokenizer and native
-  output rate with synthesis smoke tests. Record exposed rate/pitch/style
-  controls and native incremental audio APIs, if any, with revision-specific
-  evidence. Distinguish `verified`, `unsupported`, and `unverified` per capability;
-  language inference, adaptation and streaming are not one combined status.
-  State whether full input text is required before generation starts.
-- Record legal paired training-data provenance and permitted uses, duration,
-  transcript quality, speaker/reference IDs, and disjoint train/validation/
-  held-out sentence splits. Exclude frozen evaluation audio, transcripts, and
-  speakers from training and tuning; no duplicate text/audio leakage.
-- Choose and justify one supported bounded adaptation method for that stack;
-  record its exact trainable parameter names/counts and frozen components.
-  Keep the vocoder frozen and verify finite gradient flow on the selected
-  revision instead of assuming an adapter API exists.
-- Before Day 46, declare step, wall-time, data-duration, and spend ceilings
-  from remaining resources. Run at most one small L4 forward/backward pilot;
-  record batch size, precision, peak memory, seconds/step, current L4 price,
-  estimated capped cost, and stop reason. A failed install, permissions/data
-  gap, invalid gradients, or budget overrun means `adaptation_status=deferred`.
-  Only a supported pilot within the declared bounds means `feasible`.
-- Record inference feasibility separately. Do not model-hunt, train from
-  scratch, add a second project, or promise a session/compute budget; if
-  inference is blocked, dependent synthesis work remains deferred.
-- If two-language inference is blocked, keep the requirement incomplete and
-  seek scope review; a deferral note does not complete the language target.
-  Unsupported native streaming instead falls back to Day 45's measured
-  full-waveform baseline. Neither case authorizes another stack, mobile port,
-  or a separate emotion-generation subsystem.
-- Save generated waveforms locally in ignored storage and exposed intermediate
-  representations; tracked sample directories contain only manifests/notes.
-- Record where the selected system injects linguistic content, speaker
-  identity, and style or prosody conditioning.
+- Define the WebSocket message schema in `src/serve/schema.py`: audio chunks in, partial and final transcripts with confidence and latency out.
+- Define timeout, disconnect, and cancellation behaviour in `src/serve/schema.py`.
 
 #### Experiment and Measure
-- Compare several sentences with punctuation and pacing changes.
-- Generate the held-out two-language samples, record unsupported items and
-  pronunciation/intelligibility observations with competent language review,
-  and freeze the set before Day 44 comparisons. Native streaming verification
-  uses a minimal exposed-API check; waveform splitting is not that evidence.
-- FastSpeech 2 and VITS are short theoretical contrasts, not additional models
-  to install or benchmark. Record unresolved capabilities explicitly.
+- Write the contract as a testable specification in `docs/day43_serving_contract.md`.
+- Verify the schema round-trips in `tests/test_serve_schema.py`.
 
 #### Required Output
-- `src/tts/baseline.py`
-- `results/day43_tts_samples/`
-- `docs/tts_pipeline.md`
-- `data/tts_eval_manifest.csv`
-- `results/day43_tts_language_quality.csv` (per-item language, configuration,
-  reference role, reviewer assessment, and supported/missing status)
+['- `src/serve/schema.py`', '- `tests/test_serve_schema.py`', '- `docs/day43_serving_contract.md`']
 
 #### Completion Check
 > **Definition of Done for Day 43:**
-> You can explain the selected text-to-waveform path and speaker conditioning,
-> and `docs/tts_pipeline.md` records checked licenses, data/split provenance,
-> exact trainable parameters, L4 pilot evidence or a blocking reason, cost
-> bounds, and a feasible or deferred adaptation decision. No training success
-> is claimed by this gate; unresolved fields remain explicitly unverified.
-> Two supported languages have held-out synthesis/review evidence and a frozen
-> separate manifest. If this target is blocked, it stays incomplete pending scope
-> review. Native streaming can be unsupported without being mislabeled implemented.
+> The message contract is explicit about partial versus final results, latency fields, and failure semantics.
 
-### Day 44: Selected-stack duration and prosody
+### Day 44: Async streaming service
 
 [Full Day 44 spec](days/day_44.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — repair-focused prosody in Day 43's selected stack.** Evaluate both language slices; FastSpeech 2 is theory only, not a second installation or an emotion-control claim.
+> **v3 STATUS: CORE** One provider, one endpoint. The service must be measurable, not merely working.
 
 #### Learn
-- Duration prediction.
-- Pitch and energy predictors.
-- Parallel generation intuition.
-- Voiced/unvoiced pitch masking, duration error in seconds, energy continuity
-  at a repair boundary, and listener assessment versus objective proxies.
+- FastAPI and async WebSocket handling.
+- Per-stream state isolation.
+- Correct cancellation when a client disconnects mid-utterance.
 
 #### Build in MendSpeech
-- Contrast FastSpeech 2 duration/pitch/energy predictors with the selected
-  stack's generation path in `docs/day44_fastspeech2.md` (theory artifact).
-- Reuse `src/tts/baseline.py`; inspect only controls actually exposed by the
-  pinned revision. Do not invent native duration or pitch controls.
-- Measure duration, pitch/energy summaries, and punctuation effects on fixed
-  sentences and fixed consented speaker embeddings. A bounded post-synthesis
-  duration adjustment must be labeled DSP, not learned prosody control.
-- Use Day 43's held-out manifest in both languages. Compare baseline to one
-  supported native control, or one bounded DSP adjustment if native control is
-  unavailable, holding text, speaker reference, seed and output format fixed.
-  Use only permitted surrounding context for timing/style targets, not the
-  missing clean target span. Any privileged target access is a separate oracle.
-- Freeze control limits on validation material, never the evaluation sentences.
-  Test duration/sample-count and finite-metric handling; report pitch only for
-  valid voiced frames, with coverage and unvoiced/failed estimates marked
-  missing rather than forced to zero. Add these checks alongside the public
-  implementation when built, in `tests/test_tts_prosody.py`.
+- Implement the service in `src/serve/app.py` around the optimized Day 32 configuration.
+- Containerize reproducibly in `infra/serve/`.
 
 #### Experiment and Measure
-- Compare generated length against target intervals. If native rate control
-  is unavailable, record `unsupported` and measure punctuation or DSP effects
-  instead. Store waveforms ignored; commit only sample manifests/measurements.
-- In `results/day44_prosody_metrics.csv`, record per-language duration error,
-  voiced pitch mismatch, energy discontinuity at context boundaries, and
-  pronunciation/intelligibility observations for base and controlled conditions.
-  Keep text/punctuation changes in separate rows from fixed-text control tests.
-- Run a small randomized/blinded base-versus-controlled listening check with
-  competent language review. Record item/rater counts, order seed, naturalness
-  and intelligibility judgments, and single-rater limits where applicable in
-  `results/day44_listening_sheet.md`. Improved seams are not guaranteed; reject
-  a nicer-sounding timing change that materially damages intelligibility.
+- Verify concurrent streams do not share or corrupt cache state.
+- Confirm a mid-utterance disconnect leaves no orphaned GPU work.
+- Report cold start separately from warm latency.
 
 #### Required Output
-- `docs/day44_fastspeech2.md`
-- `results/day44_prosody_samples/`
-- `results/day44_prosody_metrics.csv`
-- `results/day44_listening_sheet.md`
-- `tests/test_tts_prosody.py`
+['- `src/serve/app.py`', '- `tests/test_serve_isolation.py`', '- `infra/serve/Dockerfile`', '- `infra/serve/README.md`']
 
 #### Completion Check
 > **Definition of Done for Day 44:**
-> You can explain short-span timing constraints using measured selected-stack
-> behavior, distinguish native controls from DSP, and label unsupported controls.
-> Both language slices have fixed-condition prosody and listening evidence with
-> units, voiced coverage, target provenance and limitations. Missing native pitch
-> control is not learned emotion control; no positive result is required.
+> Concurrent streams are isolated, disconnects are clean, and cold start is reported separately from warm latency.
 
-### Day 45: Vocoder realism and acoustic boundary diagnostics
+### Day 45: Load test to saturation
 
 [Full Day 45 spec](days/day_45.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — short-span latency, boundary diagnostics, and the selected stack's vocoder.** Native streaming is conditional on verified support; full-waveform latency is required. No extra stack or vocoder training.
+> **v3 STATUS: CORE** The knee, not the maximum, is the number that matters.
 
 #### Learn
-- Mel to waveform generation.
-- HiFi GAN style generator and discriminator intuition.
-- Phase, bandwidth, and vocoder artifacts.
-- Short time energy, local loudness, spectral balance, and room tone as boundary signals.
-- First playable audio versus completed synthesis, input/output streaming
-  distinctions, buffering, and chunk seams in short repair spans.
+- Load testing methodology: fixed hardware, fixed input, fixed configuration.
+- Saturation behaviour and queue growth.
+- Why throughput at saturation is not a user experience.
 
 #### Build in MendSpeech
-- Reuse only Day 43's selected stack's matched pretrained vocoder; keep
-  weights frozen. GAN anatomy is theory, not a separate training experiment.
-- Add boundary diagnostics that measure short time energy and simple spectral statistics before and after a candidate repair span.
-- Save a local room tone estimate where possible.
-- Extend the existing benchmark approach with `src/bench/benchmark_tts.py`
-  and `tests/test_tts_latency.py`, using Day 43's pinned stack and held-out
-  languages. Define the timing start (normalized text/reference ready), minimum
-  playable audio buffer, synchronization and termination before measuring.
-  Record text length, generated duration, seed, native sample rate, batch size,
-  precision, CPU host/workers, L4 environment and warm-up/repeat counts.
-- Label actual generation behavior `native_streaming`, `phrase_chunked`, or
-  `full_waveform_delivery`. Native streaming must emit usable audio before full
-  synthesis completes; state whether it needs full text up front. Delivery of
-  an already generated waveform in chunks is full-waveform generation, not
-  evidence of streaming synthesis. Phrase chunking is labeled only if actually
-  implemented; no separate phrase-chunking feature is required here.
-- If Day 43 verifies a native API, test chunk ordering, finalization, sample
-  coverage without duplication or loss, short/silent outputs, and boundary
-  discontinuities with deterministic fixtures. Otherwise record the unsupported
-  branch and benchmark real full-waveform short-span output. Do not install a
-  second model to obtain streaming. Keep network playback outside this timing.
+- Implement the load harness in `src/serve/loadtest.py` with configurable concurrency and fixed input.
 
 #### Experiment and Measure
-- Measure inference speed and real time factor on L4 with fixed batch size,
-  warm-up, and sample rate. Distinguish isolated vocoder from end-to-end time;
-  mark isolated timing unavailable if the interface does not expose it.
-- Create intentionally mismatched generated spans and verify that the boundary diagnostics flag obvious loudness or spectral discontinuities.
-- Include unchanged/identity stitch controls and tests for sample-count and
-  outside-span preservation. Record both flagged and missed seam artifacts.
-- Measure time to first playable audio, total synthesis time, RTF and peak
-  memory in `results/day45_tts_latency.csv`; separate cold and warm runs and
-  language/length/mode slices. Report p50/p95 with repeat counts and small-sample
-  caveats. For full-waveform generation, first playable cannot predate complete
-  generation. Mark unavailable modes/isolated stages missing, not zero.
-- For supported native streaming, compare the same language/text/reference
-  cases to full-waveform output where exposed, measuring chunk quality as well
-  as speed. Do not claim end-to-end repair latency from synthesis-only numbers:
-  context waiting, validation, stitching and serving are measured at Day 49.
+- Sweep concurrency until latency degrades; report the knee in `results/day45_load_curve.csv`.
+- Report per-stream p50/p95/p99, queue depth, and dropped or delayed chunks at each level.
+- Reproduce one controlled overload failure and one recovery in `docs/day45_failure_recovery.md`.
 
 #### Required Output
-- `results/day45_vocoder_benchmark.csv`
-- `src/repair/boundary_metrics.py`
-- `docs/vocoder_and_boundary_notes.md`
-- `src/bench/benchmark_tts.py`
-- `tests/test_tts_latency.py`
-- `results/day45_tts_latency.csv`
-- Update `docs/tts_pipeline.md` with verified delivery modes and limitations.
+['- `src/serve/loadtest.py`', '- `results/day45_load_curve.csv`', '- `docs/day45_failure_recovery.md`', '- `reports/day45_serving.md`']
 
 #### Completion Check
 > **Definition of Done for Day 45:**
-> You can separate acoustic model errors from vocoder artifacts and quantify at least
-two causes of an audible seam.
-> Short-span latency has reproducible per-language evidence and explicit timing
-> boundaries. Native streaming is tested only when supported, otherwise clearly
-> unsupported; completed-waveform delivery is never labeled streaming generation.
+> You can name the concurrency knee with measured evidence and show a reproduced failure and recovery.
 
-### Day 46: Bounded TTS adaptation — base versus adapted
+### Day 46: LLM post-processing stage
 
 [Full Day 46 spec](days/day_46.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — conditional adaptation of the one selected TTS stack.** Training is permitted only after Day 43's feasibility gate; blocked training is `deferred`, not measured adaptation.
+> **v3 STATUS: CORE** One small pinned model, behind an adapter, so the ASR result stays reproducible without it.
 
 #### Learn
-- Small-data adaptation, frozen versus trainable parameters, overfitting,
-  and held-out sentence evaluation with consented speaker conditioning.
-- VITS latent variables, flows, and adversarial waveform synthesis may be
-  compared theoretically; do not install or run a second TTS model.
+- Time-to-first-token versus full response.
+- Streaming versus batched generation.
+- Prefix caching and why repeated system context should be free.
 
 #### Build in MendSpeech
-- Consume `docs/tts_pipeline.md` without reopening stack selection. If its
-  adaptation gate is `feasible`, implement one bounded selected-stack
-  fine-tune in `training/tts_finetune.py` using `configs/tts_finetune.yaml`.
-  Use only the supported adaptation method frozen at Day 43; assert trainable
-  names/counts, frozen components, and finite gradients match its feasibility
-  record. The existing pretrained vocoder remains frozen.
-- Freeze seed, base revision, optimizer, batch size, precision, learning rate,
-  data/split hashes, maximum steps, wall time, and L4 spend before the run.
-  Stop at the first limit; no sweep, scratch training, or second project.
-- Use only legally permitted paired data and consented speaker references.
-  Hold out sentences and source recordings before training, check duplicate
-  text/audio and speaker leakage, and keep frozen benchmark speakers/audio/
-  transcripts out of training and tuning. Match speaker conditions across
-  base/adapted outputs; do not claim unseen-speaker transfer from same-speaker
-  held-out sentences.
-- Keep checkpoints, generated audio, and run logs in ignored storage. Track
-  only code/config, provenance hashes, measured summaries, and the report.
-- Record which of Day 43's two languages enter training and validation; reuse
-  the frozen TTS evaluation manifest for both languages without retuning on it.
-  One language's adaptation must not erase the other language from evaluation.
-  No second fine-tuning project or a second checkpoint family is required.
-- If the gate or run is blocked, record `deferred` with the reason in
-  `docs/tts_pipeline.md` and the comparison/listening artifacts. Do not create
-  placeholder training artifacts or claim adaptation was executed. Retain
-  the usable base model for repair; if base inference is blocked, defer it too.
+- Add one small pinned LLM post-processing adapter in `src/llm/polish.py`; the core ASR path must run without it.
+- Pin model, revision, quantization, and prompt template in `configs/llm.yaml`.
 
 #### Experiment and Measure
-- Compare the frozen base and one adapted checkpoint on identical held-out
-  sentences, speaker embeddings, generation settings, and L4 hardware.
-  Measure intelligibility proxy, duration error, speaker proxy when supported,
-  inference latency/RTF, trainable count, training time, memory, and actual cost.
-- Report results per language, including regression in any language not used
-  for adaptation. Keep generation modes and speaker conditions matched. Use
-  ASR WER/CER only as an intelligibility proxy with verified evaluator-language
-  coverage, pinned model/normalization, and stated evaluator bias; mark it
-  unavailable otherwise. Competent pronunciation/listening review is required
-  and is not replaced by the same ASR model judging its own repair text.
-- Randomize base/adapted sample order for a small listening check; report the
-  number of raters/items and limitations. Keep test results out of selection.
-- Record improvement, no meaningful change, or degradation as measured
-  outcomes. Non-improvement is valid; incomplete or blocked training is not
-  a negative result and must remain `deferred` with missing metrics, not zeros.
+- Measure TTFT and full-response latency separately.
+- Measure prefix-cache hit rate across repeated requests and its effect on TTFT.
+- Report quality change on the polished output, not only latency.
 
 #### Required Output
-- Feasible branch only: `training/tts_finetune.py`
-- Feasible branch only: `configs/tts_finetune.yaml`
-- Feasible branch only: `reports/day46_tts_adaptation.md` (including failures
-  after starting; never claim a completed comparison if the run was blocked)
-- `results/day46_tts_comparison.csv`
-- `results/day46_listening_sheet.md`
-- Update `docs/tts_pipeline.md` with the final measured/deferred status. On
-  the deferred branch, the retained comparison/listening paths contain only
-  available base evidence and explicit unavailable adapted-condition status.
+['- `src/llm/polish.py`', '- `configs/llm.yaml`', '- `tests/test_llm_polish.py`', '- `results/day46_llm_latency.csv`']
 
 #### Completion Check
 > **Definition of Done for Day 46:**
-> Either one bounded base-versus-adapted experiment has reproducible held-out
-> evidence (including a valid null or worse result), or training is explicitly
-> deferred with its blocking evidence. Feasibility-only work does not satisfy
-> training completion and cannot be described as measured adaptation.
-> An executed comparison covers both frozen language slices, names its training
-> languages, and exposes regressions and evaluation limits rather than only a
-> pooled score. A blocked language target remains incomplete independently of
-> the conditional training decision.
+> The LLM stage is measured for TTFT and full response, and the ASR result is still reproducible with it disabled.
 
-### Day 47: Speaker representation and preservation
+### Day 47: Per-stage latency budget decomposition
 
 [Full Day 47 spec](days/day_47.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — consented conditioning within the selected stack.** No second TTS installation.
+> **v3 STATUS: CORE** The headline artifact of the whole project. The question is where the time actually goes, not what feels slow.
 
 #### Learn
-- Speaker embeddings.
-- Reference conditioned synthesis.
-- Speaker similarity as a measurable but imperfect proxy.
-- Consent and voice identity boundaries.
+- Separating queueing, model, decoding, network, and serialization time.
+- Why a blended average hides the tail that users feel.
 
 #### Build in MendSpeech
-- Reuse the selected stack's verified speaker-conditioning path and Day 43 provenance
-  checks. Use only owned or explicitly consented references, separate from
-  held-out target recordings; do not derive conditioning from a clean test
-  reference unavailable at inference time.
-- Compute speaker embeddings before and after synthesis if supported by the
-  pinned tooling. Mark unavailable proxies `unsupported`; do not add another
-  synthesis stack or infer identity preservation from naturalness alone.
-- Record permitted voice uses, conditioning access, and limitations in
-  `docs/voice_use_policy.md`; abstain when consent or required conditioning
-  is missing. Use the base checkpoint if adaptation was deferred.
+- Instrument every stage in `src/bench/budget.py` using the Day 26 harness conventions.
 
 #### Experiment and Measure
-- Compare full resynthesis with short span reconstruction for speaker similarity.
+- Decompose waveform-to-polished-text into VAD/endpointing, ASR, decode, LLM TTFT, LLM full response, and network/serialization.
+- Report p50/p95/p99 per stage in `results/day47_latency_budget.csv`.
+- Name the single stage that owns the p99 and state the largest available optimization target in `docs/day47_latency_budget.md`.
 
 #### Required Output
-- `src/tts/speaker_conditioning.py`
-- `results/day47_speaker_similarity.csv`
-- `docs/voice_use_policy.md`
+['- `src/bench/budget.py`', '- `results/day47_latency_budget.csv`', '- `docs/day47_latency_budget.md`', '- `results/day47_latency_budget.png`']
 
 #### Completion Check
 > **Definition of Done for Day 47:**
-> You can discuss speaker similarity measurements and their limitations without
-claiming identity preservation from listening alone.
+> You can point at the stage that owns the tail with per-stage percentiles, and the claim is reproducible from one command.
 
-### Day 48: Selective reconstruction with boundary matched stitching
+### Day 48: End-to-end latency optimization round
 
 [Full Day 48 spec](days/day_48.md)
 
-**Compute:** `Modal L4 plus local CPU for stitching`
+**Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — predicted-text selective repair with measured seam outcomes.** Oracle text is a separate diagnostic, never the normal path.
+> **v3 STATUS: CORE** One targeted change, chosen by the Day 47 budget, then measured.
 
 #### Learn
-- Repair span text selection.
-- Timing constraints and duration control.
-- Boundary padding and silence handling.
-- Short time energy matching and local loudness matching.
-- Linear versus equal power crossfades.
-- Spectral and room tone mismatch.
-- Why ASR to text to TTS can lose pitch, emotion, breathing, and coarticulation.
+- Choosing one optimization from measured evidence rather than preference.
+- Verifying that an end-to-end gain is real and not measurement drift.
 
 #### Build in MendSpeech
-- For normal runs, use the controller-selected interval and predicted ASR
-  text, not the gold/reference transcript. Reuse the selected TTS stack;
-  reject unsafe spans when inferred content or speaker permissions are weak.
-- Gold text or known damage boundaries may be used only in separately labeled
-  `oracle_text` / `oracle_span` diagnostics. Record text source and span source
-  independently and exclude oracle rows from end-to-end performance claims.
-- Match generated duration to the target interval without changing untouched speech.
-- Match local energy before stitching and implement both linear and equal power crossfades.
-- Add optional room tone under the regenerated span when the original context supports it.
-- Log preserved samples, reconstructed samples, boundary length, and all matching parameters.
-- Test identity/no-repair behavior, exact sample counts, and unchanged samples
-  outside the target interval plus explicitly declared crossfade margins.
+- Apply the change the Day 47 budget identified as the largest target in `src/`.
+- Re-run the full Day 47 decomposition after the change.
 
 #### Experiment and Measure
-- Compare full utterance TTS, naive selective repair, and boundary matched selective repair.
-- Measure preservation percentage, latency, energy discontinuity, and speaker similarity proxy.
-- Run a small blinded seam audibility check with randomized sample order.
-- Hold predicted text and intervals fixed for stitching comparisons. Report
-  smoother, unchanged, or worse seams; do not select cases to force an improvement.
+- Report before/after p50/p95/p99 for the whole pipeline in `results/day48_e2e_optimization.csv`.
+- Re-run enough repetitions to separate a real gain from noise.
+- If the change did not help, say so and record the negative result.
 
 #### Required Output
-- `src/repair/reconstruct.py`
-- `src/repair/stitch.py`
-- `src/repair/boundary_metrics.py`
-- `results/day48_selective_samples/`
-- `results/day48_seam_ablation.csv`
+['- `results/day48_e2e_optimization.csv`', '- `docs/day48_optimization_outcome.md`', '- `app/audio_lab.py`']
 
 #### Completion Check
 > **Definition of Done for Day 48:**
-> Predicted-text runs preserve samples outside declared repair/crossfade bounds,
-> and seam metrics plus blinded checks compare matched and naive stitching on
-> identical spans. Measured non-improvement is valid; oracle-only performance
-> cannot satisfy the normal end-to-end check.
+> You have a measured end-to-end before/after, or a documented negative result with evidence.
 
-### Day 49: Week 7 MendSpeech V1 cascaded repair milestone
+### Day 49: Interim review
 
 [Full Day 49 spec](days/day_49.md)
 
-**Compute:** `Modal L4`
+**Compute:** `Local CPU`
 
-> **v2 STATUS: CORE — Gate 6 is evidence-based.** Implement abstention now and extend the single `app/audio_lab.py`; no separate voice-agent project.
+> **v3 STATUS: DROPPED** in v3. Content absorbed into Days 47 and 48; the latency budget and the optimization outcome now serve as the review.
 
 #### Learn
-- Review TTS, duration, vocoder behavior, speaker conditioning, boundary matching, and information lost through the text bottleneck.
-- Treat the cascaded path as a measured baseline, not a guaranteed real-time
-  system. Label live versus simulated streaming/context control explicitly.
+- No new material; this slot was the old repair milestone.
 
 #### Build in MendSpeech
-- Pipeline: damaged audio to streaming ASR to uncertain span to policy decision to speaker conditioned reconstruction to boundary matched waveform.
-- Implement `src/controller/abstain.py` before this milestone, not on Day 54.
-  Abstain when content evidence is insufficient, speaker use is unauthorized,
-  or duration/boundary constraints cannot be met; preserve original audio and
-  return a reason code. Use validation-set thresholds, never test-tuned ones.
-- Extend only `app/audio_lab.py` for Preserve / Inspect / Repair / Abstain
-  decisions, predicted-text reconstruction, and consent/capability status.
-- Show preserved and reconstructed intervals with distinct visualization.
-- Add a V1 label in results so the Week 8 direct audio repair comparison is explicit.
-- Carry language support, decoder/calibration provenance, and actual TTS
-  delivery mode into the one app. Unsupported language/conditioning cases
-  abstain with a reason; language support in ASR does not imply TTS support.
-  Gold evaluation text is not reconstruction input, and speaker conditioning
-  never uses the hidden target recording. Keep code-mixed support unclaimed
-  unless separately evaluated; two monolingual slices do not establish it.
-- Reuse Day 45 timing code to instrument `results/day49_repair_latency.csv`.
-  Define repair timing from availability of the incoming damaged span through
-  playable repaired output, including required context wait, ASR/decision,
-  synthesis, boundary checks, and stitching. Record these stages, input replay
-  cadence, buffer/lookahead, network inclusion and playback mode. If a whole
-  span must finish before matching/stitching, native TTS chunks cannot be
-  counted as playable repaired output prematurely.
+- No build.
 
 #### Experiment and Measure
-- Run at least ten cases, including deliberate false repair, missed repair, seam artifacts, and one case where the policy abstains.
-- Compare naive stitching and boundary matched stitching on the same repaired spans.
-- Test low-evidence and permission-blocked abstention, clean no-repair cases,
-  and unchanged samples outside declared edit/crossfade bounds. Keep oracle
-  diagnostics separate and accept measured null/worse seam outcomes.
-- Report per-language/mode repair quality and timing on supported ASR/TTS
-  overlap, including failures and stage/total p50/p95 with sample counts.
-  Link both-language TTS-only evidence separately when ASR coverage differs;
-  do not claim multilingual end-to-end repair from synthesis alone. Compare
-  synthesis-only Day 45 timings with actual complete-repair delay.
+- No measurement.
 
 #### Required Output
-- `app/audio_lab.py`
-- `src/controller/abstain.py`
-- `demos/week7_before_after/`
-- `results/week7_stitching_ablation.csv`
-- `reports/week7_cascaded_repair.md`
-- `results/day49_repair_latency.csv`
+['None.']
 
 #### Completion Check
 > **Definition of Done for Day 49:**
-> MendSpeech V1 has tested abstention in the one app and measured predicted-text
-> repair/seam evidence. Strengths, failures, deferred adaptation, and live versus
-> simulated execution are documented; there is no deadline-based completion.
-> The report links both-language synthesis/prosody/adaptation evidence and
-> distinguishes supported end-to-end languages and actual delivery modes.
-> Complete-repair latency includes buffering and stitching, not merely TTS time.
-> A blocked required language target remains incomplete pending scope review.
+> This slot is intentionally unused; the review content lives in Days 47 and 48.
 
 ---
 
@@ -2026,339 +1502,198 @@ claiming identity preservation from listening alone.
 
 [Week 8 guide](Week_8_MendSpeech_Daily_Plan.md)
 
-### Day 50: Freeze research questions and baselines
+### Day 50: Freeze the evaluation protocol
 
 [Full Day 50 spec](days/day_50.md)
 
-**Compute:** `Local CPU for planning, Modal L4 for
-dry run`
+**Compute:** `Local CPU with Modal L4 dry run`
 
-> **v2 STATUS: CORE — freeze evidence and capability limits, not a calendar.** One external restoration comparator at most; consume Week 2's bounded feasibility decision.
+> **v3 STATUS: CORE** Phase P7 begins. Freeze before measuring, or the measurement decides the protocol.
 
 #### Learn
-- Primary question: can selective semantic repair improve intelligibility while preserving more original speech than full resynthesis?
-- Secondary question: can uncertainty guided context allocation improve the latency versus accuracy operating point?
-- Architecture question: on supported conditions, how does cascaded ASR plus
-  TTS compare with the one selected pretrained direct restoration comparator?
-  Denoising/enhancement is not evidence of mask-aware missing-span inpainting.
-- Scope every claim to the frozen benchmark scale (≥30 utterances, ≥5
-  speakers, typically ~5 at this lab) and state the statistical caveat
-  explicitly — do not claim population-level generalization.
-- Define null outcomes, failure criteria, and claims you will not make.
+- What makes an evaluation protocol reproducible.
+- Pre-registering claims so results cannot be reinterpreted afterwards.
 
 #### Build in MendSpeech
-- Freeze code revision, model revisions, datasets, hardware, corruption configs, and metrics.
-- Freeze the acoustic head, decoder configuration, LM/text-manifest hashes,
-  normalization, and matching Day 41 calibration. Link Day 26's three-way
-  decoding evidence without treating cached offline decoding as live streaming.
-- Freeze the separate Day 43 two-language TTS manifest, base/adapted checkpoint,
-  conditioning consent, native-versus-DSP controls, and generation mode. Link
-  Days 44–46 quality/latency evidence per language; unknown native streaming
-  capability and incomplete language targets stay explicit, never filled by a
-  second stack. Record synthesis-only versus complete-repair timing boundaries.
-- Freeze raw damaged audio, full resynthesis, naive selective repair, and
-  boundary-matched selective repair, with predicted text as the normal path.
-  Hold text/spans fixed for stitching comparisons; segregate oracle rows.
-- Reuse `docs/baseline_install_notes.md` from Week 2: record selected checkpoint,
-  revision/license, feasible/deferred state, supported corruptions, mask
-  capability, resampling, and preservation semantics. Implement only one
-  adapter, `src/baselines/direct_audio_restore.py`, if feasible; selection
-  alone is not tested support. Do not assume mask input or inpainting ability.
-- If unavailable, freeze the four internal comparisons above and explicitly
-  defer external restoration/inpainting. No model hunting, second comparator,
-  scratch-restoration fallback, or claim that the external method was tested.
-- Freeze fixed/adaptive context conditions with `execution_mode=live` or
-  `simulated`. Only implemented live control with same-L4 measurements can
-  support runtime-gain claims; cached/oracle scheduling is not deployed speedup.
-- Keep Day 49 abstention active, and record whether the TTS checkpoint is base
-  or adapted plus Day 46's measured/deferred status. No required positive result.
+- Freeze code, model, and data revisions, hardware, corruption configs, and metrics in `configs/frozen.yaml`.
+- Define baselines and claims you will NOT make in `experiments/protocol.md`.
+- Define null outcomes and failure criteria in advance.
 
 #### Experiment and Measure
-- Run a tiny dry run to verify every required field has a measurement or
-  explicit status/reason. Unsupported/deferred conditions have missing metrics,
-  not fabricated zeros; they are excluded from measured rankings and plots.
+- Run a dry run to confirm every required field has a measurement or an explicit status.
+- Scope every claim to the benchmark scale and state the statistical caveat.
 
 #### Required Output
-- `experiments/capstone_protocol.md`
-- `configs/capstone_frozen.yaml`
-- `docs/baseline_definitions.md`
+['- `configs/frozen.yaml`', '- `experiments/protocol.md`', '- `docs/day50_protocol.md`']
 
 #### Completion Check
 > **Definition of Done for Day 50:**
-> Another engineer can reproduce the supported comparisons and distinguish
-> selected from tested support, external/inpainting deferral, oracle diagnostics,
-> and live versus simulated context results without inventing missing evidence.
-> Decoder/calibration provenance, language coverage, prosody controls, and actual
-> TTS delivery modes are frozen; incompatible or missing evidence is not complete.
+> Another engineer can reproduce the supported comparisons and knows exactly which claims are out of scope.
 
-### Day 51: Release SpeechDamageBench v1 and freeze evaluation
+### Day 51: Release SpeechDamageBench v1 and freeze the evaluation set
 
 [Full Day 51 spec](days/day_51.md)
 
 **Compute:** `Local CPU`
 
+> **v3 STATUS: CORE** The frozen set is the project's anchor; new experiments get new configs, never a new test set.
+
 #### Learn
 - Severity grids.
-- Speaker separated evaluation.
+- Speaker-separated evaluation.
 - Seed control and deterministic manifests.
-- Package versioning and reproducibility.
-- Clean regression cases that must remain untouched.
+- Package versioning and checksum verification.
 
 #### Build in MendSpeech
-- Finalize the independent SpeechDamageBench package with noise, clipping, bandwidth, dropout, and reverberation presets.
-- Generate the frozen test matrix and lock manifest checksums.
-- Add an installation command and a one command example that reproduces one benchmark item.
+- Finalize the standalone package and lock manifest checksums in `benchmarks/`.
+- Document a one-command example that reproduces one benchmark item in `speechdamagebench/README.md`.
 
 #### Experiment and Measure
 - Reinstall the package in a clean environment.
 - Regenerate a sample from the manifest and verify its checksum.
-- Validate that clean references remain unchanged.
+- Verify clean references are byte-identical after regeneration.
 
 #### Required Output
-- `speechdamagebench/`
-- `speechdamagebench/README.md`
-- `speechdamagebench/CHANGELOG.md`
-- `benchmarks/speechdamagebench_manifest.csv`
-- `benchmarks/README.md`
+['- `speechdamagebench/CHANGELOG.md`', '- `benchmarks/manifest.csv`', '- `benchmarks/README.md`']
 
 #### Completion Check
 > **Definition of Done for Day 51:**
-> SpeechDamageBench is independently installable, deterministic, versioned, and
-usable without MendSpeech.
+> A clean environment reproduces a benchmark item from the manifest, and clean references are provably unchanged.
 
-### Day 52: Run recognition and context ablations
+### Day 52: Robustness matrix on the frozen set
 
 [Full Day 52 spec](days/day_52.md)
 
-**Compute:** `Modal L4, keep hardware fixed`
+**Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — absorbs [Day 53](days/day_53.md).** Run recognition/context and repair/seam ablations together on the frozen harness; evidence, not elapsed sessions, closes the gate.
+> **v3 STATUS: CORE** The full corruption x severity x decoder grid, on data nobody can now change.
 
 #### Learn
-- Fixed lookahead comparison.
-- Adaptive context policy.
-- WER, latency, RTF, memory, confidence behavior.
+- Why a full matrix beats spot checks.
+- Multiple-comparison discipline when slicing results.
 
 #### Build in MendSpeech
-- Run every streaming condition on the exact same benchmark subset.
-- Repeat timing runs enough to estimate variance.
-- Hold the acoustic model, precision, decoder, LM, and matching calibration
-  fixed across context conditions. Reference the Day 26 decoder ablation
-  separately rather than confounding an LM change with a context improvement;
-  an offline-only decoder stays out of measured streaming comparisons.
-- Record GPU type and environment automatically through the Modal runner.
-- Record `execution_mode=live|simulated` for every context policy. A live
-  adaptive claim requires runtime context changes in the recognizer, not
-  cached-output selection, offline scheduling, or an oracle decision rule.
-- Keep simulated-policy cost estimates separate from measured latency/RTF;
-  do not count cached reuse or a hypothetical context reduction as runtime gains.
+- Run the full matrix through the frozen harness in `src/bench/run_matrix.py`.
 
 #### Experiment and Measure
-- Plot WER versus measured latency and mark Pareto efficient live points.
-  Label simulated analyses separately with their assumptions; do not mix
-  estimates into a measured frontier. Null or worse adaptive outcomes are valid.
+- Report WER/CER and confidence behaviour for every corruption, severity, and decoder combination.
+- Identify the corruption/decoder pair with the worst risk-coverage behaviour.
+- Repeat enough runs to estimate variance on a representative subset.
 
 #### Required Output
-- `results/capstone_streaming.csv`
-- `results/streaming_pareto.png`
+['- `src/bench/run_matrix.py`', '- `results/day52_robustness_matrix.csv`', '- `results/day52_robustness_matrix.png`']
 
 #### Completion Check
 > **Definition of Done for Day 52:**
-> You can say whether implemented adaptive context helped, hurt, or made no
-> meaningful difference. If only simulation is available, state that limitation
-> and defer live runtime claims rather than fabricate speedups.
+> The complete matrix is measured and the worst cell is identified, with variance estimated on a subset.
 
-### Day 53: Run cascaded repair and seam ablations
+### Day 53: Optimization and serving ablations
 
 [Full Day 53 spec](days/day_53.md)
 
 **Compute:** `Modal L4`
 
-> **v2 STATUS: MERGED into [Day 52](days/day_52.md) — single combined ablation session.** Produce all repair/seam controls and artifacts within Day 52; no standalone session.
+> **v3 STATUS: CORE** Fixed inputs, one variable at a time, and Pareto frontiers rather than a single winner.
 
 #### Learn
-- Repair threshold.
-- Repair span padding.
-- Preserve percentage.
-- Full resynthesis baseline.
-- Boundary energy matching, crossfade choice, and seam artifact rate.
+- Pareto frontiers: when no configuration dominates.
+- Holding inputs fixed so comparisons mean something.
 
 #### Build in MendSpeech
-- Run Preserve, Balanced, Rescue, full resynthesis, naive selective stitching, and boundary matched selective stitching.
-- Record original waveform retained, repair percentage, end to end latency, speaker similarity proxy, and seam metrics.
+- Run every optimization variant and serving configuration on the identical frozen subset in `src/bench/run_ablations.py`.
 
 #### Experiment and Measure
-- Test whether repairing more audio always helps intelligibility.
-- Test whether boundary matching reduces seam artifacts without materially increasing latency.
-- Keep recognition outputs fixed for the stitching comparison so only the repair method changes.
+- Plot WER against p99 latency and mark Pareto-efficient points in `results/day53_pareto.png`.
+- Report serving configurations separately from model-level optimizations.
+- Keep live measurements separate from any simulated estimate.
 
 #### Required Output
-- `results/capstone_cascaded_repair.csv`
-- `results/repair_tradeoff.png`
-- `results/seam_ablation.png`
+['- `src/bench/run_ablations.py`', '- `results/day53_ablations.csv`', '- `results/day53_pareto.png`']
 
 #### Completion Check
 > **Definition of Done for Day 53:**
-> You have a defensible result for the cascaded selective repair path and can separate
-recognition, reconstruction, and stitching effects.
+> You can say which configuration to ship and which trade-offs are unavoidable, with measured frontiers.
 
-### Day 54: Capability-scoped direct restoration comparison
+### Day 54: Personalization comparison on the frozen harness
 
 [Full Day 54 spec](days/day_54.md)
 
-**Compute:** `Modal L4 for comparisons; local CPU for analysis`
+**Compute:** `Modal L4`
 
-> **v2 STATUS: CORE — one conditional external comparator, no model hunting.** Week 2 feasibility bounds apply; unavailable external restoration/inpainting is explicitly deferred.
+> **v3 STATUS: CORE** Base, fine-tuned, and RL, measured once on data frozen before any of them ran.
 
 #### Learn
-- Why text is an information bottleneck for prosody and acoustic continuity.
-- Direct audio inpainting in latent or codec token spaces at a conceptual level.
-- Fair baseline design when systems have different latency and compute profiles.
-- Failure taxonomy across semantic correctness, speaker similarity, prosody, seam quality, and compute.
+- Why the final comparison must use the frozen set, not a convenient one.
+- Reporting regression as carefully as improvement.
 
 #### Build in MendSpeech
-- Consume the one selected comparator and bounded feasible/deferred decision
-  in Week 2's `docs/baseline_install_notes.md`. Selection is not a claim of
-  tested support. Do not search for substitutes or train restoration from scratch.
-- If feasible, implement only `src/baselines/direct_audio_restore.py` behind
-  the shared benchmark interface. Record checkpoint/revision/license, sample
-  rate, supported damage conditions, mask support, and whether output changes
-  samples outside a requested interval. Do not pass masks unless supported.
-  This plan chooses one restoration adapter, not a separate inpainting
-  adapter; an inpainting claim requires verified mask-aware
-  missing-span reconstruction, not a suggestive filename or denoising output.
-- Feed identical supported SpeechDamageBench cases, label out-of-scope
-  conditions `unsupported`, and exclude them from aggregate comparisons.
-  A model available only outside L4 is not an L4 efficiency comparison;
-  defer it rather than silently changing hardware or extending the budget.
-- If unavailable, still compare raw damaged audio, full resynthesis, naive
-  selective repair, and boundary-matched selective repair. Record external
-  restoration/inpainting as `deferred`, not tested; no second project/fallback.
-- Reuse the tested `src/controller/abstain.py` from Day 49. Keep abstention
-  active when inferred content, conditioning consent, or seam safety is weak.
+- Run the three checkpoints through the frozen harness in `src/bench/run_personalization.py`.
 
 #### Experiment and Measure
-- Compare the four internal paths and only the supported external conditions
-  on the same cases. Use predicted text for normal TTS paths; separately label
-  oracle text/spans and live versus simulated context policies.
-- Select at least ten worst or most revealing cases and inspect them manually.
-- In `results/capstone_architecture_compare.csv`, include method/checkpoint,
-  corruption, mask capability, text/span source, execution mode, condition
-  status, and reason. Measured rows may show improvement, equality, or harm;
-  `unsupported`/`deferred` rows have missing metrics, never invented numbers.
-- Create a failure casebook and tradeoff plot from measured evidence only.
-  If no supported external run exists, title the plot as internal comparisons
-  and state the deferral; do not imply both architectures were evaluated.
+- Report WER, risk-coverage, and clean-speech regression for base, fine-tuned, and RL.
+- Report what RL cost in GPU time against what it bought.
+- State plainly whether personalization earned its place in the pipeline.
 
 #### Required Output
-- Feasible branch only: `src/baselines/direct_audio_restore.py` (one adapter
-  with capability metadata; no placeholder implementation if deferred)
-- `results/capstone_architecture_compare.csv`
-- `results/capstone_failure_casebook.md`
-- `results/architecture_tradeoff.png`
-- Reuse, do not postpone: `src/controller/abstain.py` (required by Day 49)
+['- `src/bench/run_personalization.py`', '- `results/day54_personalization_final.csv`', '- `reports/day54_personalization.md`']
 
 #### Completion Check
 > **Definition of Done for Day 54:**
-> Supported conditions have reproducible measured comparisons and explicit
-> limitations; unsupported conditions are not fabricated. If the comparator
-> is unavailable, the internal capstone plus external/inpainting deferral is
-> complete, but an external or mask-aware comparison is not claimed as tested.
+> The personalization decision is made on frozen evidence, including the case where it did not pay off.
 
-### Day 55: Write the research report and reproducibility guide
+### Day 55: Technical report and reproduction guide
 
 [Full Day 55 spec](days/day_55.md)
 
 **Compute:** `Local CPU`
 
-> **v2 STATUS: MERGED into [Day 56](days/day_56.md).** Write the technical report alongside the single `app/audio_lab.py` demo; completion is evidence-based.
+> **v3 STATUS: CORE** Every claim points at a table. Every omission appears as a limitation.
 
 #### Learn
-- Abstract, motivation, hypotheses, method, baselines, metrics, results, limitations, ethics, and future work.
-- Difference between observation and causal claim.
-- How to report a negative or mixed architectural comparison honestly.
-- Benchmark scale and its statistical limits: never claim population-level generalization from a ~5-speaker lab set.
+- Separating observation from causal claim.
+- Reporting a mixed or negative result honestly.
+- Why a report nobody can reproduce is not evidence.
 
 #### Build in MendSpeech
-- Write the complete report.
-- Add exact reproduction commands and environment capture.
-- Include a dedicated internal-versus-external comparison section with the
-  one comparator's selected, supported, measured, unsupported, and deferred
-  conditions. If it could not run, report internal comparisons and explicit
-  external/inpainting deferral, not an invented architectural result.
-- Document seam limitations, prosody loss, consent, abstention, and supported
-  conditions where either method is stronger, unchanged, or worse.
-- State Day 46's base/adapted evidence or training deferral, gold-text/oracle
-  exclusions, and live versus simulated context labels. Simulation cannot
-  establish measured runtime gains; blocked training is not measured adaptation.
-- Trace greedy/beam/LM claims to Day 26, including harmful changes and separate
-  decoder-only/fresh end-to-end timings. Trace each TTS language and prosody
-  claim to Days 43–46, with held-out counts, reviewer/listener limits, and
-  regression results rather than a pooled score that hides one language.
-- State whether TTS is native streaming, phrase-chunked, or full-waveform
-  delivery, whether full text is required up front, and what must finish before
-  repaired audio can play. Native streaming, code-mixed synthesis, and emotion
-  control are not implied by multilingual output or network chunking. Include
-  Day 49 complete-repair timing separately from Day 45 synthesis latency.
-- Reproduce the existing `app/audio_lab.py`; do not introduce a second app.
-- Include plots with captions that state what changed and what stayed fixed.
+- Write `REPORT.md` with exact reproduction commands and environment capture.
+- Write `REPRODUCE.md` and verify it from a clean checkout.
 
 #### Experiment and Measure
-- Audit every major claim against a concrete table, figure, or experiment result.
-- Remove or soften any conclusion that is not directly supported by frozen evidence.
-- Verify that the report distinguishes measured facts from hypotheses and future work.
+- Audit every major claim against a concrete table, figure, or experiment.
+- Remove or soften any conclusion not directly supported by frozen evidence.
+- Add a limitations section listing every blocked or deferred capability.
 
 #### Required Output
-- `REPORT.md`
-- `REPRODUCE.md`
-- `results/final_figures/`
-- `docs/limitations_and_claims.md`
+['- `REPORT.md`', '- `REPRODUCE.md`', '- `results/final_figures/`', '- `docs/limitations_and_claims.md`']
 
 #### Completion Check
 > **Definition of Done for Day 55:**
-> A technical reader can understand the contribution, the architectural tradeoff, and the
-limitations without opening the source code first.
+> A technical reader understands the contribution, the trade-offs, and the limitations without opening the source.
 
-### Day 56: Final product, demo, and clean reproduction
+### Day 56: Final demo, clean reproduction, and release
 
 [Full Day 56 spec](days/day_56.md)
 
-**Compute:** `Modal L4 for inference, local CPU for
-interface and analysis`
+**Compute:** `Modal L4 plus local interface`
 
-> **v2 STATUS: CORE — absorbs Day 55.** Gate 7 closes on report, artifact, and reproduction evidence, not a date or guaranteed session count.
+> **v3 STATUS: CORE** Release gate. The demo must show measured numbers, not a scripted success path.
 
 #### Learn
-- Review the complete path from waveform and controlled corruption to streaming encoder, uncertainty, repair policy, cascaded reconstruction, direct audio baseline, and evaluation.
+- Demonstrating a system honestly, including its failure modes.
+- Releasing with a stable, reproducible artifact.
 
 #### Build in MendSpeech
-- Extend only `app/audio_lab.py` with upload or consented microphone input,
-  controlled damage, transcript, uncertainty heatmap, Preserve / Inspect /
-  Repair / Abstain, before/after playback, and measured metrics. Reuse Day 49
-  abstention; do not create a separate final or voice-agent app.
-- Label live input/control, prerecorded benchmark playback, simulated context,
-  and oracle diagnostics distinctly. Expose only supported external conditions
-  in benchmark playback; show unavailable comparator/inpainting as deferred.
-- Show measured changed/preserved samples, including crossfade margins. Do not
-  claim a full-waveform restoration model preserved everything outside a mask.
+- Extend only `app/audio_lab.py` with live or prerecorded audio, partial/final transcripts, confidence, triage actions, and the measured latency budget.
 - Reproduce one frozen benchmark from a fresh environment and tag a stable release.
 
 #### Experiment and Measure
-- Record a concise demo and create a final architecture diagram.
-- Reproduce one benchmark end to end from the documented command.
-- Verify that every public chart can be regenerated from saved result files.
+- Verify every public chart regenerates from saved result files.
+- Demonstrate at least one failure case, not only the success path.
+- Confirm the demo's displayed numbers match the committed result files.
 
 #### Required Output
-- `app/audio_lab.py`
-- `README.md`
-- `demos/final_demo.mp4`
-- `docs/architecture.png`
-- `release_notes.md`
-- `results/reproduction_check.txt`
+['- `app/audio_lab.py`', '- `REPRODUCE.md`', '- `demos/final_demo.mp4`', '- `docs/architecture.md`']
 
 #### Completion Check
 > **Definition of Done for Day 56:**
-> A new user can reproduce MendSpeech and SpeechDamageBench, evaluate the
-> internal baselines and any supported external comparison, and distinguish
-> measured results from unsupported/deferred capabilities. The one app and
-> technical report agree on abstention, consent, and live/simulated labels.
+> A new user can run, evaluate, and reproduce the system, and every number shown traces to a committed artifact.

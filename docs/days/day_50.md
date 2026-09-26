@@ -1,81 +1,43 @@
-# Day 50: Freeze research questions and baselines
+# Day 50: Freeze the evaluation protocol
 
 > **Week 8 • Day 1 of 7**  
 > **Navigation:** [← Day 49](day_49.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 51 →](day_51.md)
 
-> **v2 STATUS: CORE — freeze evidence and capability limits, not a calendar.** One external restoration comparator at most; consume Week 2's bounded feasibility decision.
-
+> **v3 STATUS: CORE** Phase P7 begins. Freeze before measuring, or the measurement decides the protocol.
 ---
 
 ### Compute Target
-`Local CPU for planning, Modal L4 for
-dry run`
+`Local CPU with Modal L4 dry run`
 
 ---
 
 ### 1. Learn
-- Primary question: can selective semantic repair improve intelligibility while preserving more original speech than full resynthesis?
-- Secondary question: can uncertainty guided context allocation improve the latency versus accuracy operating point?
-- Architecture question: on supported conditions, how does cascaded ASR plus
-  TTS compare with the one selected pretrained direct restoration comparator?
-  Denoising/enhancement is not evidence of mask-aware missing-span inpainting.
-- Scope every claim to the frozen benchmark scale (≥30 utterances, ≥5
-  speakers, typically ~5 at this lab) and state the statistical caveat
-  explicitly — do not claim population-level generalization.
-- Define null outcomes, failure criteria, and claims you will not make.
+- What makes an evaluation protocol reproducible.
+- Pre-registering claims so results cannot be reinterpreted afterwards.
 
 ---
 
 ### 2. Build in MendSpeech
-- Freeze code revision, model revisions, datasets, hardware, corruption configs, and metrics.
-- Freeze the acoustic head, decoder configuration, LM/text-manifest hashes,
-  normalization, and matching Day 41 calibration. Link Day 26's three-way
-  decoding evidence without treating cached offline decoding as live streaming.
-- Freeze the separate Day 43 two-language TTS manifest, base/adapted checkpoint,
-  conditioning consent, native-versus-DSP controls, and generation mode. Link
-  Days 44–46 quality/latency evidence per language; unknown native streaming
-  capability and incomplete language targets stay explicit, never filled by a
-  second stack. Record synthesis-only versus complete-repair timing boundaries.
-- Freeze raw damaged audio, full resynthesis, naive selective repair, and
-  boundary-matched selective repair, with predicted text as the normal path.
-  Hold text/spans fixed for stitching comparisons; segregate oracle rows.
-- Reuse `docs/baseline_install_notes.md` from Week 2: record selected checkpoint,
-  revision/license, feasible/deferred state, supported corruptions, mask
-  capability, resampling, and preservation semantics. Implement only one
-  adapter, `src/baselines/direct_audio_restore.py`, if feasible; selection
-  alone is not tested support. Do not assume mask input or inpainting ability.
-- If unavailable, freeze the four internal comparisons above and explicitly
-  defer external restoration/inpainting. No model hunting, second comparator,
-  scratch-restoration fallback, or claim that the external method was tested.
-- Freeze fixed/adaptive context conditions with `execution_mode=live` or
-  `simulated`. Only implemented live control with same-L4 measurements can
-  support runtime-gain claims; cached/oracle scheduling is not deployed speedup.
-- Keep Day 49 abstention active, and record whether the TTS checkpoint is base
-  or adapted plus Day 46's measured/deferred status. No required positive result.
+- Freeze code, model, and data revisions, hardware, corruption configs, and metrics in `configs/frozen.yaml`.
+- Define baselines and claims you will NOT make in `experiments/protocol.md`.
+- Define null outcomes and failure criteria in advance.
 
 ---
 
 ### 3. Experiment and Measure
-- Run a tiny dry run to verify every required field has a measurement or
-  explicit status/reason. Unsupported/deferred conditions have missing metrics,
-  not fabricated zeros; they are excluded from measured rankings and plots.
+- Run a dry run to confirm every required field has a measurement or an explicit status.
+- Scope every claim to the benchmark scale and state the statistical caveat.
 
 ---
 
 ### 4. Required Output Artifacts
-- `experiments/capstone_protocol.md`
-- `configs/capstone_frozen.yaml`
-- `docs/baseline_definitions.md`
+['- `configs/frozen.yaml`', '- `experiments/protocol.md`', '- `docs/day50_protocol.md`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 50:**  
-> Another engineer can reproduce the supported comparisons and distinguish
-> selected from tested support, external/inpainting deferral, oracle diagnostics,
-> and live versus simulated context results without inventing missing evidence.
-> Decoder/calibration provenance, language coverage, prosody controls, and actual
-> TTS delivery modes are frozen; incompatible or missing evidence is not complete.
+> Another engineer can reproduce the supported comparisons and knows exactly which claims are out of scope.
 
 ---
 
@@ -87,6 +49,4 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Your frozen protocol and prior results
-- The one Week 2 restoration comparator's capability and feasibility record
-- Primary papers only when needed to interpret a result
+- Experimental design and pre-registration references

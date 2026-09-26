@@ -3,6 +3,7 @@
 > **Week 3 • Day 1 of 7**  
 > **Navigation:** [← Day 14](day_14.md) | [Week 3 Plan](../Week_3_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 16 →](day_16.md)
 
+> **v3 STATUS: CORE** Attention cost is why streaming needs a stateful encoder rather than a windowed one.
 ---
 
 ### Compute Target
@@ -14,31 +15,30 @@
 - Query, key, value projections.
 - Scaled dot product attention.
 - Attention masks.
-- Sequence length cost.
+- Quadratic cost in sequence length and why long-form audio suffers.
 
 ---
 
 ### 2. Build in MendSpeech
-- Implement single head attention and then multi head attention in PyTorch.
-- Add shape assertions and gradient tests.
+- Implement single-head then multi-head attention in `src/models/attention.py`.
+- Add shape assertions and gradient tests in `tests/test_attention.py`.
 
 ---
 
 ### 3. Experiment and Measure
-- Change sequence length and measure forward time and memory.
+- Change sequence length and measure forward time and peak memory.
+- Plot the quadratic cost you predicted against the cost you measured.
 
 ---
 
 ### 4. Required Output Artifacts
-- `src/models/attention.py`
-- `tests/test_attention.py`
-- `results/day15_attention_scaling.csv`
+['- `src/models/attention.py`', '- `tests/test_attention.py`', '- `results/day15_attention_cost.csv`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 15:**  
-> You can derive every major tensor shape and explain quadratic sequence cost.
+> You can derive every major tensor shape from memory and explain the quadratic term streaming must avoid.
 
 ---
 
@@ -50,5 +50,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Conformer primary paper
-- A mature Conformer implementation such as NVIDIA NeMo
+- Vaswani et al., Attention Is All You Need
+- Annotated transformer implementations

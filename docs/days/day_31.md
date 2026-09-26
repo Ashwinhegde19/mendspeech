@@ -1,8 +1,9 @@
-# Day 31: Cache aware streaming internals
+# Day 31: Streaming fast path
 
 > **Week 5 • Day 3 of 7**  
 > **Navigation:** [← Day 30](day_30.md) | [Week 5 Plan](../Week_5_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 32 →](day_32.md)
 
+> **v3 STATUS: CORE** Optimized offline inference does not automatically make streaming fast; this session checks.
 ---
 
 ### Compute Target
@@ -11,35 +12,31 @@
 ---
 
 ### 1. Learn
-- Cached activations.
-- Past context state.
-- Streaming masks.
-- Right context and lookahead.
+- State reuse versus recomputation across chunks.
+- Where redundant computation remains in a cache-aware encoder.
 
 ---
 
 ### 2. Build in MendSpeech
-- Use NeMo cache aware streaming inference on a supported FastConformer checkpoint.
-- Log cache related configuration and chunk boundaries.
-- If cache-aware inference is unsupported for the chosen checkpoint, document the limitation and fall back to buffered streaming; the buffered vs cache comparison still runs.
+- Add a streaming-specific fast path in `src/streaming/fast_path.py` reusing Day 30's best variant.
+- Assert cached and uncached streaming produce equivalent transcripts.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare buffered and cache aware inference on the same audio and same hardware.
+- Measure steady-state per-chunk latency after warmup, separately from the first chunk.
+- Report the speedup of the fast path against the Day 30 baseline, or state that it did not help.
 
 ---
 
 ### 4. Required Output Artifacts
-- `src/streaming/cache_aware_runner.py`
-- `results/day31_buffered_vs_cache.csv`
+['- `src/streaming/fast_path.py`', '- `tests/test_fast_path_parity.py`', '- `results/day31_fast_path.csv`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 31:**  
-> You can explain what is cached, what is recomputed, and why cache aware inference
-can be more efficient.
+> You can state measured steady-state streaming latency and whether the fast path earned its complexity.
 
 ---
 
@@ -51,5 +48,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Stateful or cache aware Conformer primary material
-- NVIDIA NeMo streaming ASR documentation and examples
+- Stateful Conformer primary material
+- NVIDIA NeMo streaming ASR documentation

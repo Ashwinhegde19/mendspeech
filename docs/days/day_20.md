@@ -1,10 +1,9 @@
-# Day 20: Compare your block with a production
+# Day 20: Compare your block with a production implementation
 
 > **Week 3 • Day 6 of 7**  
 > **Navigation:** [← Day 19](day_19.md) | [Week 3 Plan](../Week_3_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 21 →](day_21.md)
 
-> **v1 STATUS: DROPPED — no session.** Optional spare-time reading only: orient in production Conformer code. Do not schedule an evening session for this day.
-
+> **v3 STATUS: DROPPED** Reading assignment only; do not schedule a session.
 ---
 
 ### Compute Target
@@ -13,31 +12,28 @@
 ---
 
 ### 1. Learn
-- Read the original Conformer paper sections relevant to block design.
-- Inspect a mature implementation such as NeMo.
-- Identify differences caused by engineering and efficiency.
+- Production Conformer code structure.
 
 ---
 
 ### 2. Build in MendSpeech
-- Create an annotated comparison table: your component, paper definition, production implementation.
+- No build. Optional reading time only.
 
 ---
 
 ### 3. Experiment and Measure
-- Choose one difference and reproduce its effect on a small benchmark if feasible (optional — Week 3 is a learning artifact; the production encoder is NeMo FastConformer from Week 4).
+- No measurement.
 
 ---
 
 ### 4. Required Output Artifacts
-- `docs/day20_implementation_comparison.md`
+['None.']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 20:**  
-> You can read production Conformer code and orient yourself without treating it as
-magic.
+> You have skimmed a production implementation and can name what your scratch block omits.
 
 ---
 
@@ -49,5 +45,4 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Conformer primary paper
-- A mature Conformer implementation such as NVIDIA NeMo
+- A mature open-source Conformer implementation

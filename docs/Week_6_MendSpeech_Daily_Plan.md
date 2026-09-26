@@ -17,322 +17,187 @@
 
 ---
 
+---
+
 ## Week Map
 
-| Day | Focus | Minimum Evidence / Artifact | Compute | Daily Link |
+| Day | Focus | Compute | Status | Daily Link |
 | :--- | :--- | :--- | :--- | :--- |
-| **Day 36** | Training pipeline anatomy | You can diagnose whether a run is learning, diverging, or overfitting from basic
-evidence. | `Modal L4` | [Open Day 36](days/day_36.md) |
-| **Day 37** | Build a robust fine tuning dataset | Source/speaker leakage audit, provenance and immutable core evaluation; optional separate verified extension. | `Local CPU` | [Open Day 37](days/day_37.md) |
-| **Day 38** | Fine tune for damaged speech robustness | One reproducible base/adapted experiment with clean regression and validation-only selection. | `Modal L4` | [Open Day 38](days/day_38.md) |
-| **Day 39** | SpecAugment and augmentation ablation | You can separate the effect of augmentation from the effect of extra training time. | `Modal L4` | [Open Day 39](days/day_39.md) |
-| **Day 40** | RNN-T concepts and quantization lab | Export parity and supported same-L4 precision measurements, or explicit blockers; calibration never uses test. | `Modal L4` | [Open Day 40](days/day_40.md) |
-| **Day 41** | Confidence calibration for repair decisions | Validation-based confidence for the selected model/decoder/precision; fused LM scores are not probabilities. | `Modal L4 for logits, local CPU for
-analysis` | [Open Day 41](days/day_41.md) |
-| **Day 42** | Week 6 robustness milestone | Single-app measured adaptation/calibration, clean controls and honest precision status. | `Modal L4` | [Open Day 42](days/day_42.md) |
-
-**Compression map:** all seven sessions remain CORE. One adaptation recipe is
-reused for the Day 39 augmentation control; optional compatible Indic data does
-not create another training track. Add-on C uses its separate manifest prepared
-after Gate 2 and completes later metrics/report at Gate 7. Blocked optimization
-is not successful quantization, and no session is complete without its evidence.
-Day 41 carries Day 26 decoder provenance into calibration; altered hypotheses
-or score definitions cannot inherit greedy thresholds without revalidation.
+| **Day 36** | Training pipeline anatomy | `Modal L4` | CORE | [Open Day 36](days/day_36.md) |
+| **Day 37** | Adaptation dataset and leakage audit | `Local CPU` | CORE | [Open Day 37](days/day_37.md) |
+| **Day 38** | Fine-tune for damaged-speech robustness | `Modal L4` | CORE | [Open Day 38](days/day_38.md) |
+| **Day 39** | Augmentation ablation | `Modal L4` | CORE | [Open Day 39](days/day_39.md) |
+| **Day 40** | RL reward design | `Modal L4` | CORE | [Open Day 40](days/day_40.md) |
+| **Day 41** | RL post-training run | `Modal L4` | CORE | [Open Day 41](days/day_41.md) |
+| **Day 42** | Personalization comparison and robustness milestone | `Modal L4` | CORE | [Open Day 42](days/day_42.md) |
 
 ---
 
-## Reference Spine
-- NVIDIA NeMo ASR training documentation\nRNNT primary references\nCalibration and reliability diagram references
+## Phase Focus
+
+Personalization, fine-tuning, and RL post-training
 
 ---
 
 ## Daily Detailed Operating Plans
-
 ### DAY 36: Training pipeline anatomy
 - **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_36.md`](days/day_36.md)
 
+> **v3 STATUS: CORE** Phase P5 begins. You cannot fine-tune responsibly if you cannot read a loss curve.
 #### Learn
 - Manifest format.
-- Batching variable duration audio.
+- Batching variable-duration audio.
 - Loss curves.
-- Learning rate.
-- Validation split.
-- Checkpointing.
-
+- Learning rate, validation split, checkpointing.
 #### Build in MendSpeech
-- Create a tiny reproducible training configuration.
-- Run a short smoke training job and verify loss decreases.
-
+- Create one reproducible training configuration in `configs/train_smoke.yaml`.
+- Implement the training loop in `training/train.py` with checkpointing and validation hooks.
 #### Experiment and Measure
-- Deliberately use a bad learning rate and record the failure signature.
-
+- Run a short smoke job and verify the loss decreases.
+- Deliberately use a bad learning rate and record the failure signature in `results/day36_training_smoke.csv`.
+- Verify checkpoints reload and reproduce the same validation number.
 #### Required Output
-- `configs/train_smoke.yaml`
-- `results/day36_training_smoke.csv`
-- `docs/training_debug_notes.md`
-
+['- `configs/train_smoke.yaml`', '- `training/train.py`', '- `tests/test_train_loop.py`', '- `results/day36_training_smoke.csv`']
 #### Completion Check
-> You can diagnose whether a run is learning, diverging, or overfitting from basic
-evidence.
+> You can diagnose whether a run is learning, diverging, or overfitting from basic evidence, and a checkpoint reloads reproducibly.
 
 ---
 
-### DAY 37: Build a robust fine tuning dataset
+### DAY 37: Adaptation dataset and leakage audit
 - **Compute:** `Local CPU`
 - **Dedicated Daily File:** [`docs/days/day_37.md`](days/day_37.md)
 
-> **v2 STATUS: CORE.** Prepare one ASR adaptation dataset. The frozen core
-> evaluation set is immutable; any Indic extension stays separate.
-
+> **v3 STATUS: CORE** Leaked data makes every later number meaningless, so this session precedes training.
 #### Learn
-- Train, validation, test separation.
+- Train, validation, and test separation.
 - Speaker leakage.
 - Synthetic corruption sampling.
 - Balanced severity distribution.
-
 #### Build in MendSpeech
-- Prepare train/validation manifests pairing verified transcripts with clean
-  and corrupted audio for one adaptation experiment. Record source/speaker IDs,
-  language, license/consent, transcript verification and normalization, corruption,
-  severity, seed, parameters and package version; retain clean examples.
-- Preserve the already frozen test membership and speaker-separated splits.
-  All clean/corrupted copies of a source stay in one split. A test manifest is
-  a reference to the frozen evaluation set, never a new sample or rewritten set.
-- Optionally reuse the separate `data/indic_codemix_manifest.csv` prepared after
-  Gate 2 for the same adaptation experiment only if the checkpoint/tokenizer
-  supports the language and a competent transcript verifier is available.
-  Keep extension train/validation/test speakers disjoint from each other and
-  the core evaluation speakers. Otherwise retain it as evaluation-only and
-  record the limitation; do not add a second training track.
-
+- Build manifests pairing clean transcripts with corrupted audio for one adaptation experiment in `data/`.
+- Preserve the already-frozen test membership and speaker-separated splits.
+- Audit source duplicates and speaker leakage, and write the audit to `reports/data_audit.md`.
 #### Experiment and Measure
-- Audit source-level duplicates, speaker leakage and corruption provenance.
-  Report split counts, clean/severity balance and immutable core test membership.
-- Record extension language support/verification evidence and inclusion or
-  evaluation-only status. Add-on C streaming metrics remain for later evaluation,
-  not invented data-preparation results.
-
+- Prove no source or speaker appears in more than one split, including via corrupted copies.
+- Report the severity distribution and correct any imbalance before training.
 #### Required Output
-- `data/train_manifest.jsonl`
-- `data/val_manifest.jsonl`
-- `data/test_manifest.jsonl` (frozen-set reference; preserve existing contents)
-- `reports/data_audit.md`
-
+['- `data/train_manifest.jsonl`', '- `data/val_manifest.jsonl`', '- `data/test_manifest.jsonl`', '- `reports/data_audit.md`']
 #### Completion Check
-> The audit demonstrates no source or speaker leakage into training/validation,
-preserves the frozen core evaluation set and documents provenance. Any optional
-extension is separately identified and does not create another training track.
+> The evaluation set cannot appear in training through clean or corrupted duplicates, and the audit shows how you know.
 
 ---
 
-### DAY 38: Fine tune for damaged speech robustness
-- **Compute:** `Modal L4; use a manageable training configuration within budget`
+### DAY 38: Fine-tune for damaged-speech robustness
+- **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_38.md`](days/day_38.md)
 
-> **v2 STATUS: CORE.** One bounded ASR adaptation experiment with a clean-speech
-> regression control; negative results count as evidence, failed runs do not.
-
+> **v3 STATUS: CORE** The personalization experiment: base versus adapted, measured with a clean-speech regression check.
 #### Learn
 - Transfer learning.
 - Frozen versus trainable layers.
 - Mixed precision.
 - Gradient accumulation.
-
 #### Build in MendSpeech
-- Adapt the existing compatible ASR checkpoint once using Day 37's audited data.
-  Fix trainable layers, learning rate, steps, seed, clean/damaged sampling,
-  precision, gradient accumulation and budget before running; choose the best
-  checkpoint using validation only, never frozen test outcomes.
-- If the optional Indic data passes Day 37's support and verification checks,
-  include it in this same experiment and report its slice separately. Otherwise
-  retain evaluation-only coverage; do not install/train a second recognizer.
-- Save the reproducible configuration and provenance: base code/weight revisions,
-  manifest hashes, source permissions, software/hardware and selection rule.
-  Keep checkpoints and raw training logs local/gitignored. Day 39's augmentation
-  ablation reuses this recipe; it is not a separate adaptation track.
-
+- Fine-tune the Day 24 checkpoint on the Day 37 dataset using `training/finetune.py`.
+- Freeze trainable layers, learning rate, steps, seed, and sampling in `configs/finetune.yaml`.
 #### Experiment and Measure
-- Compare base and adapted checkpoints on identical frozen clean/damaged cases
-  with the same decoder and normalization. Report WER/CER by condition, clean
-  regression, confidence shifts and failures, not only aggregate improvement.
-- Report any extension results separately from the frozen core benchmark. All
-  comparable latency/RTF/peak-memory measurements use the same L4 configuration.
-  Record actual cost and a failed run honestly instead of claiming adaptation.
-
+- Compare base and adapted models on the frozen test set, reporting WER per corruption and severity.
+- Measure clean-speech regression explicitly; an adaptation that helps damaged speech but harms clean speech is a documented tradeoff, not a win.
+- Record actual training time and cost.
 #### Required Output
-- `training/finetune.py`
-- `configs/finetune.yaml`
-- `checkpoints/week6_best/` (local/gitignored weights and raw logs)
-- `results/day38_base_vs_adapted.csv`
-- `reports/day38_adaptation.md` (provenance, selection rule, cost and limitations)
-
+['- `training/finetune.py`', '- `configs/finetune.yaml`', '- `reports/day38_adaptation.md`', '- `results/day38_base_vs_adapted.csv`']
 #### Completion Check
-> The single base-versus-adapted experiment is reproducible and states what
-improved, what did not and whether clean speech regressed. Test data never
-selects the checkpoint, and optional language coverage is labeled separately.
+> You can state exactly what improved, what did not, and whether clean speech regressed.
 
 ---
 
-### DAY 39: SpecAugment and augmentation ablation
+### DAY 39: Augmentation ablation
 - **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_39.md`](days/day_39.md)
 
+> **v3 STATUS: CORE** Confound control: augmentation must be separated from extra training time.
 #### Learn
 - Time masking.
 - Frequency masking.
 - Data augmentation as invariance training.
-
 #### Build in MendSpeech
-- Add one augmentation intervention to a controlled short run.
-
+- Add one augmentation intervention to a controlled short run in `experiments/specaugment_ablation.py`.
 #### Experiment and Measure
-- Compare no augmentation versus selected augmentation with the same seed and training budget.
-
+- Compare no augmentation versus selected augmentation with the same seed and the same step budget.
+- Report whether the gain survives when the extra steps are given to the unaugmented baseline.
 #### Required Output
-- `experiments/specaugment_ablation.py`
-- `results/day39_augmentation.csv`
-
+['- `experiments/specaugment_ablation.py`', '- `results/day39_augmentation.csv`']
 #### Completion Check
 > You can separate the effect of augmentation from the effect of extra training time.
 
 ---
 
-### DAY 40: RNN-T concepts and quantization lab
+### DAY 40: RL reward design
 - **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_40.md`](days/day_40.md)
 
-> **v2 STATUS: CORE.** Retain the quantization lab behind a compatibility check.
-> Unsupported precision is a documented blocker, not a completed optimization.
-
+> **v3 STATUS: CORE** The reward must be falsifiable, or the run proves nothing. This is the most novel session in the plan.
 #### Learn
-- Encoder.
-- Prediction network.
-- Joint network.
-- Blank handling.
-- Streaming emission behavior.
-- Difference from CTC independence.
-- Post-training quantization: dynamic vs static INT8, and why static needs a calibration set.
-- What quantization can and cannot preserve in an ASR model (logit sharpness, confidence behavior).
-
+- Policy-gradient and PPO intuition for sequence output.
+- Reward hacking: what a model does when the reward is exploitable.
+- Designing a reward that is falsifiable in advance.
 #### Build in MendSpeech
-- Smoke-check the selected ASR model's export and precision support on one
-  compatible L4 backend. Pin model/backend revisions and verify supported
-  operators, dynamic lengths, decoding and actual device/kernel placement.
-  Do not add a provider sweep or silently compare CPU INT8 with GPU inference.
-- Export the Day 38 checkpoint only through the supported path. Check the
-  original model versus exported model at the same precision on validation
-  clips before quantization: output/logit tolerances where exposed, decoded
-  text, lengths and decoding settings. Record and resolve parity failures first.
-- Compare FP16 and INT8 only where the same backend supports their intended
-  execution on L4. For static INT8, select and record a representative calibration
-  slice from validation, disjoint by source/speaker from test; never calibrate
-  using the frozen test benchmark. State if the backend does not need calibration.
-- If export, parity or precision support blocks measurement, retain working
-  inference and record the exact failed check, error and unsupported precision.
-  Do not change models/backends repeatedly to manufacture an INT8 result.
-
+- Define the reward in `src/rl/reward.py`: penalize fluent output that the acoustics do not support.
+- Write the falsifiable prediction in `configs/rl.yaml` BEFORE running anything.
+- Implement a minimal policy-gradient or PPO-style update in `src/rl/ppo.py`.
 #### Experiment and Measure
-- After parity passes, measure original/exported baseline and supported FP16/INT8
-  variants on identical frozen cases, decoder, batch size, timing boundaries,
-  warm-up and L4 hardware. Report actual WER/CER, latency/RTF and peak memory;
-  INT8 may be slower or less accurate and need not be selected for deployment.
-- Record logit/confidence shifts for Day 41 validation-based calibration. Report
-  precision coverage and CPU fallbacks explicitly; a mixed-device run is not
-  a controlled GPU speed comparison.
-- Give each variant `measured` or `blocked` status with reasons and blank
-  unavailable metrics. Gate 5 can carry an explicit blocked optimization status,
-  but cannot claim successful quantization or a speedup without measurements.
-
+- Show the reward can be gamed: construct at least one input where a naive reward rewards a wrong transcript.
+- Verify the reward is computable offline from cached logits before spending GPU time.
+- Unit-test reward components in `tests/test_reward.py`.
 #### Required Output
-- `docs/rnnt_walkthrough.md` (theory summary from the Learn block)
-- `docs/day40_quantization_notes.md` (compatibility, parity, calibration source,
-  backend/precision settings and blockers)
-- `results/day40_quantization_tradeoffs.csv` (actual metrics or blocked rows)
-
+['- `src/rl/reward.py`', '- `src/rl/ppo.py`', '- `configs/rl.yaml`', '- `tests/test_reward.py`', '- `docs/day40_reward_design.md`']
 #### Completion Check
-> You can explain RNN-T streaming behavior and demonstrate original/export
-parity plus measured supported-precision tradeoffs on L4, or identify the exact
-compatibility/parity blocker. A blocked branch stays explicitly unimplemented;
-no unsupported INT8, speedup or calibration claim is presented as complete.
+> You have a written falsifiable prediction, a reward shown to be gameable in at least one case, and a tested implementation.
 
 ---
 
-### DAY 41: Confidence calibration for repair decisions
-
-- **Compute:** `Modal L4 for logits, local CPU for
-analysis`
+### DAY 41: RL post-training run
+- **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_41.md`](days/day_41.md)
 
-> **v2 STATUS: CORE — calibration follows the selected model, decoder, and precision.** External LM search scores do not automatically become repair confidence.
-
+> **v3 STATUS: CORE** Base versus fine-tuned versus RL, on the same held-out data. A null result here is still a result.
 #### Learn
-- Reliability diagrams.
-- Expected calibration error intuition.
-- Threshold selection from validation data.
-- Decoder-dependent hypotheses, alignment, and acoustic versus LM score meaning.
-
+- Reward/advantage computation.
+- KL regularization against the reference model.
+- Why RL can degrade a well-calibrated model.
 #### Build in MendSpeech
-- Build a simple calibration analysis for confidence versus correctness.
-- Choose policy thresholds on validation, not test.
-- Record model/head/tokenizer, precision, decoder configuration and LM revision
-  from Days 24/26/40. Define and test how confidence attaches to the actual
-  decoded words/spans; a fused beam score is not a probability, and greedy
-  thresholds cannot silently transfer to LM-altered hypotheses. Validate token/
-  timestamp alignment or retain the verified greedy path for repair.
-- Refit/check calibration when model, precision or decoder changes. Preserve
-  the exact score definition and fitting split in `configs/repair_modes_calibrated.yaml`.
-
+- Run the bounded RL post-training from `training/rl_train.py` using the Day 38 checkpoint as reference.
+- Track reward, KL, and held-out WER together; reward rising while WER worsens is the key diagnostic.
 #### Experiment and Measure
-- Compare raw and calibrated confidence if a simple method is feasible.
-- Evaluate correctness and reliability for the chosen configuration on held-out
-  clean/damaged cases, including LM-induced errors if LM output enters repair.
-  Keep validation-selected thresholds fixed; report failed calibration honestly.
-
+- Compare base, fine-tuned, and RL variants on held-out data.
+- Re-run the Day 13 risk-coverage analysis for the RL model; improved WER does not imply improved triage safety.
+- Record total GPU cost against the declared budget in `results/day41_rl_vs_baseline.csv`.
 #### Required Output
-- `src/asr/calibration.py`
-- `results/day41_reliability.png`
-- `configs/repair_modes_calibrated.yaml`
-
+['- `training/rl_train.py`', '- `results/day41_rl_vs_baseline.csv`', '- `docs/day41_rl_findings.md`', '- `results/day41_risk_coverage.csv`']
 #### Completion Check
-> Repair thresholds are justified from held-out evidence for the actual
-> model/decoder/precision, with tested hypothesis alignment and an explicit
-> confidence definition. Search scores are not relabeled calibrated confidence.
+> You can state whether RL helped, did nothing, or hurt, with evidence, and you checked triage safety rather than WER alone.
 
 ---
 
-### DAY 42: Week 6 robustness milestone
+### DAY 42: Personalization comparison and robustness milestone
 - **Compute:** `Modal L4`
 - **Dedicated Daily File:** [`docs/days/day_42.md`](days/day_42.md)
 
-> **v2 STATUS: CORE — Gate 5 is evidence-based.** Extend the one app; preserve
-> explicit blocked precision status rather than claiming unmeasured optimization.
-
+> **v3 STATUS: CORE** One table answers the personalization question and closes Phase P5.
 #### Learn
-- Review fine tuning, augmentation, RNNT, and calibration.
-
+- Separating adaptation effects from training-time effects.
+- Reporting a null result without overclaiming.
 #### Build in MendSpeech
-- Extend `app/audio_lab.py` to switch between base and adapted recognizer;
-  retain the existing ASR/streaming/policy controls rather than create another app.
-- Show clean WER, damaged WER, confidence calibration, and repair percentage.
-- Show model/policy versions, raw versus calibrated confidence, validation-selected
-  thresholds, safe action/reason codes and Day 40 measured/blocked precision
-  status. Do not offer an unavailable export as if it were implemented.
-
+- Produce the final base/fine-tuned/RL comparison in `reports/day42_personalization.md`.
+- Extend `app/audio_lab.py` to switch between the base, fine-tuned, and RL checkpoints.
 #### Experiment and Measure
-- Run one fixed benchmark suite and freeze results for Week 8 comparisons.
-- Keep matched clean/raw-damaged controls and separate optional Indic extension
-  results from the immutable core test set. Report regression, negative outcomes,
-  inspect/abstain behavior, adaptation provenance and actual L4 configurations.
-
+- Report WER per corruption and severity for all three checkpoints, plus clean-speech regression.
+- Report the risk-coverage curve for each checkpoint.
+- State plainly which checkpoint ships and why the choice rests on measured evidence.
 #### Required Output
-- `app/audio_lab.py`
-- `results/week6_frozen_baseline.csv`
-- `reports/week6_training.md`
-
+['- `reports/day42_personalization.md`', '- `results/day42_personalization_matrix.csv`', '- `app/audio_lab.py`']
 #### Completion Check
-> The one app and report demonstrate measured adaptation and calibration results,
-including clean regression or a negative result. Precision tradeoffs are supported
-by controlled L4 measurements or explicitly blocked, never falsely completed.
+> The personalization question is answered with a table and a shipping recommendation, including any null results.
 
 ---

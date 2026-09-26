@@ -1,68 +1,43 @@
-# Day 48: Selective reconstruction with boundary matched stitching
+# Day 48: End-to-end latency optimization round
 
 > **Week 7 • Day 6 of 7**  
 > **Navigation:** [← Day 47](day_47.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 49 →](day_49.md)
 
-> **v2 STATUS: CORE — predicted-text selective repair with measured seam outcomes.** Oracle text is a separate diagnostic, never the normal path.
-
+> **v3 STATUS: CORE** One targeted change, chosen by the Day 47 budget, then measured.
 ---
 
 ### Compute Target
-`Modal L4 plus local CPU for stitching`
+`Modal L4`
 
 ---
 
 ### 1. Learn
-- Repair span text selection.
-- Timing constraints and duration control.
-- Boundary padding and silence handling.
-- Short time energy matching and local loudness matching.
-- Linear versus equal power crossfades.
-- Spectral and room tone mismatch.
-- Why ASR to text to TTS can lose pitch, emotion, breathing, and coarticulation.
+- Choosing one optimization from measured evidence rather than preference.
+- Verifying that an end-to-end gain is real and not measurement drift.
 
 ---
 
 ### 2. Build in MendSpeech
-- For normal runs, use the controller-selected interval and predicted ASR
-  text, not the gold/reference transcript. Reuse the selected TTS stack;
-  reject unsafe spans when inferred content or speaker permissions are weak.
-- Gold text or known damage boundaries may be used only in separately labeled
-  `oracle_text` / `oracle_span` diagnostics. Record text source and span source
-  independently and exclude oracle rows from end-to-end performance claims.
-- Match generated duration to the target interval without changing untouched speech.
-- Match local energy before stitching and implement both linear and equal power crossfades.
-- Add optional room tone under the regenerated span when the original context supports it.
-- Log preserved samples, reconstructed samples, boundary length, and all matching parameters.
-- Test identity/no-repair behavior, exact sample counts, and unchanged samples
-  outside the target interval plus explicitly declared crossfade margins.
+- Apply the change the Day 47 budget identified as the largest target in `src/`.
+- Re-run the full Day 47 decomposition after the change.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare full utterance TTS, naive selective repair, and boundary matched selective repair.
-- Measure preservation percentage, latency, energy discontinuity, and speaker similarity proxy.
-- Run a small blinded seam audibility check with randomized sample order.
-- Hold predicted text and intervals fixed for stitching comparisons. Report
-  smoother, unchanged, or worse seams; do not select cases to force an improvement.
+- Report before/after p50/p95/p99 for the whole pipeline in `results/day48_e2e_optimization.csv`.
+- Re-run enough repetitions to separate a real gain from noise.
+- If the change did not help, say so and record the negative result.
 
 ---
 
 ### 4. Required Output Artifacts
-- `src/repair/reconstruct.py`
-- `src/repair/stitch.py`
-- `src/repair/boundary_metrics.py`
-- `results/day48_selective_samples/`
-- `results/day48_seam_ablation.csv`
+['- `results/day48_e2e_optimization.csv`', '- `docs/day48_optimization_outcome.md`', '- `app/audio_lab.py`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 48:**  
-> Predicted-text runs preserve samples outside declared repair/crossfade bounds,
-> and seam metrics plus blinded checks compare matched and naive stitching on
-> identical spans. Measured non-improvement is valid; oracle-only performance
-> cannot satisfy the normal end-to-end check.
+> You have a measured end-to-end before/after, or a documented negative result with evidence.
 
 ---
 
@@ -74,7 +49,4 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- FastSpeech 2 paper
-- HiFi GAN paper
-- VITS paper
-- DSP references for energy matching and equal power crossfades
+- End-to-end measurement discipline

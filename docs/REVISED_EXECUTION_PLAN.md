@@ -1,246 +1,204 @@
-# Revised Execution Plan (v2 — Focused Restoration Scope)
+# Revised Execution Plan (v3 — Real-Time Voice Interface)
 
-> **Scope revision: September 26, 2026.** This document governs pacing,
-> session compression, add-ons, and release gates. The individual day files
-> specify implementation and artifact contracts. This revision changes the
-> plan, not the completion status of any experiment.
+> **Scope revision, September 26, 2026.** This document governs pacing,
+> session compression, and release gates. Day files specify implementation and
+> artifact contracts. This revision changes the plan, not the completion status
+> of any experiment.
 >
-> Earlier October calendar targets are superseded. Gates advance on measured
-> evidence, not elapsed dates. Do not infer that a gate passed from its number.
+> **Gates advance on measured evidence, not elapsed dates.** Do not infer that a
+> gate passed from its number. A blocked required target is incomplete, not done.
 
-## 1. Release Boundary
+## 1. Project Thesis
 
-MendSpeech tests whether uncertainty-guided selective reconstruction improves
-damaged speech while retaining reliable original audio under latency constraints.
-SpeechDamageBench remains an independently installable, deterministic package.
+MendSpeech is a **real-time voice interface**: damage-robust streaming ASR, an
+LLM post-processing stage, calibrated confidence, and bounded RL
+personalization — measured as a single latency budget from waveform to polished
+text.
 
-The release contains one measured ASR/streaming pipeline, one repair policy,
-one selected TTS stack, one evolving application, one serving endpoint, and
-one reproducible evaluation suite. The scratch Conformer block is a tested
-learning component, not a second production recognizer.
+`SpeechDamageBench` remains an independently installable, deterministic
+package and becomes the project's **robustness evaluation suite**.
 
-### Approved scope decisions
+### Research questions, in priority order
 
-| Area | v2 decision | Evidence retained |
+1. **Where does the end-to-end latency budget actually live?** Decompose
+   audio-to-transcript, LLM time-to-first-token, and full response into
+   `p50/p95/p99`, find the tail owner, and improve it with measured evidence.
+2. **How far can a speech model be pushed for a specific acoustic condition?**
+   Measure controlled adaptation and RL post-training, including where they
+   fail.
+3. **What does confidence mean, and when is it safe to act on it?** Calibrate
+   against correctness and identify confident-but-wrong cases.
+
+### Non-goals for this release
+
+Speech restoration and TTS synthesis are **out of scope**. So are diarization,
+mobile/edge ports, multi-cloud deployment, custom CUDA kernels, and
+architecture surveys. Additions require a measured need and an explicit scope
+decision.
+
+---
+
+## 2. Requirement Mapping
+
+| Requirement | Phase | Required evidence |
+| :--- | :--- | :--- |
+| Optimize ML inference / research systems | **P4** | INT8/FP16, `torch.compile`, CUDA graphs, batching, throughput and cost curves |
+| Sub-500ms end-to-end response | **P3, P6** | Per-stage `p50/p95/p99`, tail owner identified and improved |
+| Personalize speech models: fine-tuning | **P5** | Leakage-audited adaptation run, clean regression, validation-only selection |
+| Personalize with reinforcement learning | **P5** | RL run against a falsifiable reward, base vs. adapted comparison |
+| Build with LLMs | **P6** | Pinned small model, measured TTFT, streaming/prefix-cache/batching effects |
+| Engineering systems for research | **P7** | One harness, one command, regression suite, benchmark registry, reproduction |
+
+---
+
+## 3. Approved Scope Decisions
+
+| Area | v3 decision | Evidence retained |
 | :--- | :--- | :--- |
 | Encoder | Day 19 merges into Day 18; no separate tiny encoder or depth sweep | Real log-Mel projection, masks, shape and gradient checks |
-| Architecture review | Keep Day 21; remove the separate inspector UI | Static shape trace and architecture report |
-| Application | Extend `app/audio_lab.py`; reusable UI components are allowed | Milestone screenshots, reports, and results, not parallel app implementations |
-| ASR decoding | Compare greedy, beam-only, and beam plus one small n-gram LM on the same acoustic model | Held-out accuracy, names/numbers, helpful/harmful changes, and separate decoder/end-to-end timings |
-| TTS | Use one compatible stack, including its vocoder; target two verified languages including one Indian language | Language-specific quality, bounded adaptation, repair-focused prosody, and seam diagnostics |
-| TTS latency | Measure short-span synthesis and check the selected backend's streaming capability | First playable audio, completion, RTF, and explicit native/chunked/full-waveform labels |
-| VAD | Keep baseline, reference comparison, and endpointing | No timed rebuild or stopwatch completion requirement |
-| Systems drills | Optional learning reference | No quota or release dependency |
-| Voice-agent loop | Add-on D is removed from the release scope | Streaming and synthesis demonstrated in MendSpeech itself |
-| External restoration | One candidate and a bounded feasibility check | Correct capability labels; blocked comparisons explicitly deferred |
-| Adaptive context | Fixed streaming first; bounded supported-context experiment | Separate live, simulated, and unavailable outcomes |
+| Application | Extend `app/audio_lab.py`; reusable UI components allowed | Screenshots, reports, results — not parallel apps |
+| TTS / synthesis | **Removed.** No TTS stack, adaptation, prosody, or latency work | — |
+| Restoration / repair policy | **Removed.** No stitching, seam metrics, or comparator | — |
+| External restoration baseline | **Removed** | — |
+| Indic / code-mixed add-on | **Removed** | — |
+| Decoding | Greedy vs beam vs beam + one small n-gram LM on one acoustic model | Held-out accuracy, names/numbers, helpful/harmful changes, separate decoder and end-to-end timing |
+| Inference optimization | **Expanded** to the project centerpiece | Measured accuracy/latency/memory tradeoffs per technique |
 
-Do not add multi-cloud deployment, mobile/edge ports, a diarization subsystem,
-custom CUDA kernels, scratch vocoder training, a separate emotion-generation
-subsystem, or an architecture survey to this release. Do not select a second
-TTS stack merely to obtain streaming. Such extensions require a measured need
-and a separate scope decision.
+---
 
-## 2. Session Accounting and Protocol
+## 4. Session Accounting and Protocol
 
-- Day numbers are stable specification identifiers, not consecutive calendar days.
-- Weeks 3–4 contain **9 build sessions**: Days 15, 16, 18, 21, 23, 24, 25, 26,
-  and 28. Day 17 remains learn-only with its build absorbed by Day 18; Day 19
-  merges into Day 18; Day 20 remains dropped; Day 22 merges into Day 23;
-  Day 27 merges into Day 28.
-- Week 8 retains **5 build sessions**: Days 50, 51, 52+53, 54, and 55+56.
-- Starting at Day 10, the nominal remaining core is **40 build sessions**:
-  5 recognition + 9 encoder + 7 streaming + 7 robustness + 7 TTS + 5 capstone.
-  Add-ons A, B, and C budget approximately 2 sessions each: **46 base slots**
-  before debugging, training/data preparation, or feasibility-driven extensions.
-- The approved decoding and TTS amendments expand Days 24/26/28/41 and 43–49
-  without renumbering or creating another add-on. The 46-slot base is **not an
-  updated delivery estimate**: LM text preparation, decoder integration,
-  two-language review and listening, and latency checks require extra work.
-  Re-estimate these after Day 24 and Day 43 compatibility checks; apply the
-  scope-review rule below rather than silently fitting them into two-hour slots.
-- Six sessions per week remains a planning cadence, not a completion promise.
-  Sunday stays recovery-only. Record revised estimates from observed work;
-  do not compress evidence to protect a date.
-- Retain Learn, Build, Measure, and explanation checks. Optional drills do not
-  replace the day's learning. A task may use at most two extra sessions before
-  explicitly reporting its remaining scope and obtaining a revised decision.
-  Required failed checks remain incomplete; only explicitly conditional branches
-  below may be deferred without inventing results.
+- Day numbers are stable specification identifiers, not consecutive days.
+- Starting at Day 10, the nominal remaining scope is **39 build sessions**:
+  5 recognition + 6 streaming + 7 optimization + 6 personalization/RL +
+  6 serving/LLM + 5 evaluation + 5 report. Known merges reduce this further.
+- Days 17 (learn-only) and 19 (merged into 18) remain as in v2; Day 20 is
+  dropped; Day 22 merges into Day 23; Day 27 merges into Day 28.
+- A planning cadence of 5–6 sessions per week is a target, not a promise.
+  Estimate from observed throughput and re-plan when it misses. Never
+  compress evidence to protect a date.
+- Retain Learn, Build, Measure, and explanation checks. A task may use at most
+  two extra sessions before an explicit scope review.
+- **Required failed checks remain incomplete.** Only explicitly conditional
+  branches may be deferred, with a recorded blocker and narrowed claims.
 
-## 3. Data and Measurement Contracts
+### Data and measurement contracts
 
 - The Week 1 benchmark is frozen: at least 30 transcripted utterances, at least
-  5 speakers, speaker-separated splits. No new speakers or relabeling in place.
-- Training, validation, calibration, and test roles must be explicit. Corrupted
-  copies retain source IDs so a source cannot leak across splits. Choose model
-  checkpoints and policy thresholds without consulting the test outcomes.
-- Add-on C uses a separate manifest; never replace or enlarge the frozen core
-  benchmark to improve a result. Record consent/license, transcript verification,
-  language, speaker, source, and normalization policy.
-- Day 26 records LM text provenance in `data/lm_text_manifest.csv`; exclude
-  evaluation references and duplicate text from LM fitting. Decoder settings
-  are selected on validation only. Day 43 creates `data/tts_eval_manifest.csv`
-  for separate held-out two-language synthesis evaluation. Its sentences and
-  reference recordings cannot become training/tuning data. Track consent,
-  language, normalization, split roles, and known pretraining-overlap limits.
-- Every generated sample records corruption, severity, seed, source, parameters,
-  and package version. Preserve previous result files; new experiments get new
-  configurations and result artifacts with entries in `results/README.md`.
-- Normal repair consumes predicted text. Reference-transcript reconstruction is
-  a separately labeled **oracle** experiment, never an end-to-end system result.
-- Record hardware, model/software revisions, batch size, and timing boundaries.
-  All comparable GPU latency, RTF, and memory measurements use Modal L4.
-  Keep CPU VAD/decoder timing distinct and record host/worker configuration;
-  do not silently mix hardware tiers. Cached-logit decoding time is not fresh
-  audio-to-transcript latency. Fused LM search scores are not calibrated confidence.
-- The existing approximate $15–30 compute envelope is a constraint, not an
-  estimate for newly scoped training. Check remaining budget and expected L4
-  cost before a TTS adaptation run; stop rather than silently exceed it.
+  5 speakers, speaker-separated splits. No relabeling in place.
+- Training, validation, calibration, and test roles must be explicit.
+  Corrupted copies retain source IDs so a source cannot leak across splits.
+  Thresholds, decoding parameters, and reward tuning use validation only.
+- Every generated sample records corruption, severity, seed, source,
+  parameters, and package version. Preserve previous results; new experiments
+  get new artifacts with rows in `results/README.md`.
+- Record hardware, model and software revisions, batch size, warm-up, and
+  timing boundaries. **All comparable GPU latency, RTF, and memory measurements
+  use Modal L4.** CPU VAD and CPU decoder timings stay separate and labelled.
+- Cached-logit decoding time is not fresh audio-to-transcript latency. Fused LM
+  search scores are not calibrated confidence. Latency percentiles are not
+  means. LLM time-to-first-token is not full response time.
+- The approximate **$15–30** compute envelope is a constraint, not an estimate
+  for newly scoped training or LLM serving. Check remaining budget and expected
+  cost before each L4 run; stop rather than silently exceed it.
 
-## 4. Milestone Gates
+---
 
-| Gate | Sessions | Exit evidence |
-| :--- | :--- | :--- |
-| **Gate 1** | 02–07 | Tested audio lab, standalone SpeechDamageBench v0, frozen labeled benchmark |
-| **Gate 2** | 08–14 | ASR, WER/CER, confidence/timing, safe policy, reproducible Modal metadata; external comparator feasibility status recorded; then Add-on A |
-| **Gate 3** | 15–28 compressed | One tested Conformer block; measured pretrained baseline, capability record, efficiency harness, greedy/beam/LM decoding evidence, and failure casebook |
-| **Gate 4** | 29–35 | Correct cache-aware streaming, VAD/endpointing, fixed-context measurements; adaptive experiment labeled live/simulated/deferred; then Add-on B |
-| **Gate 5** | 36–42 | One ASR adaptation experiment with clean regression; supported export/precision comparisons or explicit blocked optimization status; model/decoder/precision-specific calibration and robustness report |
-| **Gate 6** | 43–49 | One TTS stack, two-language evaluation including an Indian language, adaptation result or explicit feasibility deferral, repair-focused prosody and short-span latency, verified streaming status, selective repair, and tested abstention |
-| **Gate 7** | 50–56 compressed | Frozen controlled comparisons, clean regression, bounded external comparator outcome, technical report, demo, and clean reproduction; finish Add-on C measurements |
+## 5. Phases and Gates
 
-An explicit deferral is not successful implementation of that capability.
-The release report must list it, explain the blocker, and narrow its claims.
-Core safe repair, streaming correctness, calibration, and reproducibility cannot
-be replaced by a feasibility note.
-Required three-way decoding and two-language evaluation remain incomplete if
-blocked; continued independent work does not close those requirements. Narrowing
-them requires an explicit scope review. Native streaming TTS remains conditional:
-an unsupported backend still requires a measured full-waveform latency baseline,
-not a streaming claim. TTS adaptation retains its separate feasibility gate.
+| Phase | Days | Sessions | Exit evidence |
+| :--- | :--- | ---: | :--- |
+| **P1 Foundation** ✅ | 01–09 | 9 (done) | Audio lab, standalone SpeechDamageBench, frozen labeled benchmark, Wav2Vec2 baseline, 30-run corruption benchmark |
+| **P2 Recognition quality** | 10–14 | 5 | WER/CER and error taxonomy, token confidence, time alignment, validation-based calibration, three-way decoding comparison |
+| **P3 Streaming and endpointing** | 15–26 | 6 | Correct cache-aware streaming, VAD/endpointing, fixed-lookahead measurements, streaming latency frontier |
+| **P4 Inference optimization** ⭐ | 27–33 | 7 | INT8/FP16, `torch.compile`, CUDA graphs, batching, streaming fast path; measured accuracy/latency/memory tradeoffs |
+| **P5 Personalization and RL** ⭐ | 34–39 | 6 | Leakage-audited fine-tune with clean regression, augmentation ablation, bounded RL run against a falsifiable reward |
 
-## 5. Retained Add-Ons
-
-### Add-on A — VAD and Endpointing Baseline (after Gate 2, approximately 2 sessions)
-
-- Implement a small deterministic frame-level energy or spectral VAD, with
-  framing/timestamp/silence tests, on a fixed labeled 30–50-file subset.
-- Compare it with one local reference VAD. Measure precision/recall/F1, false
-  alarms, missed speech, onset/offset error in ms, and CPU RTF on clean/damaged
-  cases. Carry the measured choice into Day 35 and Add-on B.
-- Artifacts: `src/vad/baseline.py`, `tests/test_vad.py`,
-  `results/addon_a_vad_benchmark.csv`, and `docs/addon_a_notes.md`.
-- Completion: explain the detector's observed failure modes and reproduce the
-  measurements. No timed rebuild; no separate diarization or denoising branch.
-
-### Add-on B — Serving Deployment (after Gate 4, approximately 2 sessions)
-
-- Wrap the streaming system in one async FastAPI/WebSocket service on Modal.
-  Record the reproducible container configuration; use the same VAD/endpointing
-  behavior as the core pipeline. Bound queues and make timeout, disconnect,
-  retry, and fallback behavior explicit.
-- Measure 1, 4, and 8 streams on fixed hardware: time to first partial,
-  finalization delay, end-to-end p50/p95/p99, RTF, cold start, utilization,
-  peak GPU memory, queue depth, and dropped/delayed chunks.
-- Artifacts: `infra/serve/`, `results/addon_b_serving.csv`, and
-  `reports/addon_b_serving.md`.
-- Completion: identify the bottleneck and reproduce one controlled failure and
-  recovery. One provider and one endpoint; no second deployment exercise.
-
-### Add-on C — Indic and Code-Mixed Evaluation (approximately 2 sessions, split)
-
-- After Gate 2, establish a separate verified manifest for one Indian language,
-  Indian English, and a code-mixed slice. Include multiple speakers, names,
-  numbers, transliteration, and clean/noisy/dropout conditions. Verify checkpoint
-  and tokenizer support before claiming evaluation in that language.
-- Record offline WER/CER and entity errors when feasible. Complete endpointing,
-  first-partial, and latency measurements after streaming exists, and finish the
-  report with Gate 7. Do not fill future metrics with invented values.
-- Where compatible data and model support exist, reuse this scope in the single
-  Days 37–38 ASR adaptation experiment with disjoint train/validation/test data.
-  Otherwise keep it evaluation-only; do not start another model-training track.
-- Prefer the same verified Indian language in the separate Day 43 TTS set when
-  supported. ASR language coverage does not establish TTS coverage, and two
-  monolingual synthesis slices do not establish code-mixed synthesis. Keep
-  manifests and task results distinct; do not add a third required TTS slice.
-- Artifacts: `data/indic_codemix_manifest.csv`,
-  `results/addon_c_indic_codemix.csv`, and `reports/addon_c_speech_readiness.md`.
-- Completion: explain at least three observed language/code-mixing failure
-  modes, or report why coverage is insufficient. A missing compatible model
-  leaves that slice incomplete, not a claim of multilingual performance.
+---
 
 ## 6. Bounded Experiments
 
-**ASR decoding (Days 24, 26, 28, 41):** Day 24 verifies the selected acoustic
-checkpoint's decoder/head, tokenizer, and optional backend requirements. Day 26
-extends the existing harness with offline greedy, beam without an external LM,
-and beam plus one small n-gram LM. Reuse identical acoustic outputs only where
-the head/backend permits; a CTC recipe is not automatically an RNN-T recipe.
-Keep lexicon, insertion settings, and normalization controlled; use a small
-predeclared validation search, not an open-ended sweep. Report WER/CER,
-names/numbers, help/hurt cases, cache status, decoder-only and fresh end-to-end
-timing. Tests cover token mapping, empty input and repeated/blank CTC behavior
-where applicable. Artifacts and required checks live in [Day 26](days/day_26.md).
-Unsupported dependencies remain a blocker, not permission for another acoustic
-model or a scratch decoder. Day 28 retains a verified streaming-compatible
-decoder; offline LM decoding cannot silently replace it. Day 41 validates
-confidence for the chosen model/decoder/precision before repair decisions.
+**Decoding (P2).** One acoustic checkpoint. Greedy, beam without an external
+LM, and beam plus one small n-gram LM. Reuse identical acoustic outputs only
+where the head permits; a CTC recipe is not automatically an RNN-T recipe.
+Control lexicon, insertion settings, and normalization. Use a small
+predeclared validation search, not a sweep. Record LM text provenance in
+`data/lm_text_manifest.csv`, excluding evaluation references and duplicates.
+Report WER/CER, names/numbers, **and both helpful and harmful transcript
+changes** — a lower WER does not prove repair-safety. Measure decoder-only
+cached time separately from fresh audio-to-transcript latency.
 
-**Two-language synthesis (Days 43–46):** Target two languages supported by the
-same stack, including at least one Indian language; neither English nor
-code-mixed support is assumed. Freeze at least ten held-out sentences per
-language as a small diagnostic set with names/numbers and competent language
-review, not a population benchmark. Document same-speaker versus unseen-speaker
-conditions and separate training languages from evaluated languages. A native
-API smoke check must establish each claimed capability; unsupported language,
-prosody, or streaming features are distinct from an adaptation blocker.
+**Calibration (P2).** Confidence is defined for the actual model, decoder, and
+precision in use. A fused beam score is not a probability. Greedy thresholds
+cannot silently transfer to LM-altered hypotheses. Validate token and timestamp
+alignment, or retain the verified greedy path where alignment fails.
 
-**TTS adaptation:** Day 43 records one stack's permitted data/checkpoint use,
-trainable parameters, held-out sentences, speaker protocol, memory and cost.
-Day 46 runs a bounded base-versus-adapted comparison only after this check
-passes. Keep configurations and provenance, compare intelligibility, naturalness,
-duration and latency, and report non-improvement honestly. If blocked, keep the
-pretrained repair path and explicitly defer adaptation; no second TTS installation.
-Day 46 compares both language slices, including regression in a language not
-used for adaptation. Use only language-supported intelligibility proxies and
-record evaluator limitations alongside listening evidence.
+**Streaming (P3).** Fixed lookahead settings with a measured WER-versus-latency
+frontier. Adaptive context is a bounded experiment using only supported
+settings, labelled `live`, `simulated`, or `unavailable`. A simulation cannot
+establish live latency savings, and no new inference framework is written to
+rescue it.
 
-**Repair prosody and synthesis latency (Days 44–45, 49):** Day 44 compares the
-base condition with supported native controls; bounded DSP remains separately
-labeled, never learned emotion control. Measure duration error, voiced pitch,
-energy continuity, intelligibility, and blinded seam judgments. Day 45 records
-`results/day45_tts_latency.csv` on fixed L4, including sample count, cold/warm
-conditions, p50/p95, RTF, memory, and first playable audio versus completion.
-Define the timing start and playable buffer before measuring. Label actual
-behavior `native_streaming`, `phrase_chunked`, or `full_waveform_delivery`;
-network chunks of a completed waveform do not prove incremental synthesis.
-Run native streaming checks only if the selected pinned backend supports them,
-including ordering, finalization, sample coverage, and chunk-boundary quality.
-State whether full text is required up front. Day 49 separately measures the
-complete repair path, including context buffering and stitching; synthesis-only
-timing cannot establish end-to-end repair latency.
+**Optimization (P4).** One model, one L4 tier, one batch-size discipline.
+Verify export parity before trusting any optimized variant. Report actual WER,
+latency, RTF, and memory per technique. **INT8 or FP16 may be slower or less
+accurate and need not be selected.** Report per-variant `measured` or `blocked`
+status with reasons; never claim a speedup without a measurement.
 
-**Adaptive context:** Day 24 verifies supported context/cache behavior. Day 32
-establishes fixed settings; Day 34 tests supported switching or clearly labeled
-simulation. A simulation cannot establish live tail-latency or compute savings.
-Do not implement a new inference framework to rescue this secondary experiment.
+**Personalization (P5).** One adaptation recipe, reused for the augmentation
+control. Audit source and speaker leakage before training. Compare base,
+fine-tuned, and RL variants on held-out data with a clean-speech regression
+check. RL uses a **falsifiable reward** — penalize plausible but acoustically
+unsupported output — and is compared against the fine-tuned baseline. If RL
+does not help, that is a valid result. A blocked RL run leaves fine-tuning
+intact and the RL target incomplete.
 
-**External restoration:** Week 2 records one candidate's real interface, pinned
-revision, license, input/output format, mask support, and smoke-test outcome.
-Use at most one setup session plus one focused compatibility retry. If blocked,
-stop and record the deferral. Day 54 compares the verified system with the core
-baselines or documents the unsupported external question. General restoration
-is not automatically masked inpainting. No scratch inpainting fallback or
-open-ended model search; see [baseline notes](baseline_install_notes.md).
+**LLM stage (P6).** One small pinned model, post-processing only, behind an
+adapter so the core ASR result is reproducible without it. Measure TTFT and
+full-response latency, streaming versus batched generation, prefix-cache hit
+rate, and effect under concurrency. Report quality impact on the polished-text
+output. Do not add an agent loop, tool use, or a second model.
 
-## 7. Release Evidence and Optional Learning
+**Serving (P6).** One provider, one endpoint, one async WebSocket service.
+Load-test to saturation and report the concurrency knee, queue depth, and
+per-stream latency distribution. Reproduce one controlled failure and recovery.
+Modal deployment is the measured environment; it is not evidence of named
+cloud-provider experience, and the report must not imply it.
 
-Keep raw damaged audio, full resynthesis, naive selective repair, boundary-matched
-repair, calibrated versus raw confidence, fixed-context streaming, and clean
-regression controls. Record false repairs, abstentions, retained audio, seams,
-intelligibility, and latency. Negative results remain valid measurements.
+---
 
-Keep the report and clean reproduction. Each claim must point to a result,
-each conditional omission to a limitation. The [systems drills](SPEECH_ML_SYSTEMS_DRILLS.md)
-are optional study material, not release gates. Archived PDFs remain unchanged.
+## 7. Release Evidence
+
+Required before the release is claimed complete:
+
+1. Frozen benchmark results with speaker-separated splits and the statistical
+   caveat stated.
+2. Decoding comparison including harmful LM-induced changes.
+3. Streaming correctness, cache-failure evidence, and a measured latency
+   frontier.
+4. Optimization table with per-technique accuracy/latency/memory and explicit
+   blocked rows.
+5. Fine-tuning and RL results with clean regression, or a recorded RL blocker.
+6. Serving load curve, backpressure behavior, and one reproduced failure.
+7. LLM stage TTFT and full-response latency, or a recorded blocker.
+8. One-command reproduction of at least one benchmark from a clean environment.
+9. A technical report where every claim points to a table, figure, or
+   experiment, and every omitted capability appears as a limitation.
+
+Negative results are valid measurements and belong in the report. The
+[systems drills](SPEECH_ML_SYSTEMS_DRILLS.md) are optional study material, not
+release gates. Archived PDFs remain unchanged.
+
+| **P6 Serving and LLM stage** ⭐ | 40–45 | 6 | FastAPI/WebSocket streaming service, load-to-saturation, backpressure and recovery, pinned small LLM, per-stage latency decomposition |
+| **P7 Evaluation infrastructure** | 46–48, 50–51 | 5 | One harness and one command, regression suite, benchmark registry, frozen evaluation, robustness matrix |
+| **P8 Report and release** | 52–56 | 5 | Latency budget report, technical report, demo, clean reproduction, tagged release |
+
+An explicit deferral is not a completed capability. The release report lists
+it, explains the blocker, and narrows its claims. Core recognition correctness,
+streaming correctness, calibration, and reproducibility cannot be replaced by a
+feasibility note.
+
+| LLM stage | One small pinned model, post-processing only | TTFT, full-response latency, cache and batching effects, quality |
+| RL personalization | Bounded post-training against a falsifiable reward | Base vs. adapted, and adapted vs. RL |
+| VAD | Keep baseline, reference comparison, endpointing | No stopwatch or timed-rebuild requirement |
+| Systems drills | Optional learning reference | No quota or release dependency |

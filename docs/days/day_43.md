@@ -1,10 +1,9 @@
-# Day 43: TTS system anatomy
+# Day 43: Serving contract and message schema
 
 > **Week 7 • Day 1 of 7**  
 > **Navigation:** [← Day 42](day_42.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 44 →](day_44.md)
 
-> **v2 STATUS: CORE — one TTS stack, two-language evaluation, and bounded adaptation feasibility.** Inference, language, prosody, training and native streaming are separate capabilities; no second synthesis installation.
-
+> **v3 STATUS: CORE** Phase P6 begins. Design the contract before implementing, or latency semantics get baked in wrong.
 ---
 
 ### Compute Target
@@ -13,107 +12,32 @@
 ---
 
 ### 1. Learn
-- Text or phoneme representation.
-- Acoustic model.
-- Mel spectrogram or latent representation.
-- Vocoder.
-- Speaker conditioning.
-- Prosody.
-- Language/frontend coverage, held-out synthesis evaluation, and native audio
-  generation versus phrase chunking or delivery of an already completed waveform.
-- Content, speaker, and style representations; why useful factorization is not
-  proof of perfect disentanglement.
+- WebSocket message schemas for streaming audio and incremental transcripts.
+- What belongs in a partial result versus a final result.
+- Backpressure semantics at the protocol level.
 
 ---
 
 ### 2. Build in MendSpeech
-- Select exactly one feasible, permitted TTS stack at this gate and reuse it
-  throughout Week 7, including its existing pretrained vocoder. Check the
-  planned stack's speaker/language, data, adaptation, and compute requirements
-  before selection; do not prescribe an unverified new model/framework or
-  install alternatives. A documented recipe is not measured L4 feasibility.
-- In `docs/tts_pipeline.md`, pin checkpoint and processor/tokenizer revisions,
-  library versions, sample rate, text normalization and token coverage, and
-  speaker-embedding shape/provenance. Use only owned or explicitly consented
-  speaker references; public availability alone is not consent.
-- Target exactly two supported languages, including at least one Indian
-  language, preferably the Add-on C language if verified. Do not assume English
-  or code-mixed support. Freeze `data/tts_eval_manifest.csv` with at least ten
-  held-out sentences per language, including names and numbers. Record original
-  and normalized text, language, source/license, speaker/reference consent,
-  hashes, split roles, and competent language review. This is a diagnostic set,
-  not evidence of population-level or many-language generalization.
-- Keep the TTS set separate from the immutable core benchmark and Add-on C's
-  ASR manifest. Exclude its sentences/reference recordings from adaptation and
-  tuning; do not condition on the held-out target recording. A separate consented
-  same-speaker reference is allowed if labeled, not claimed as unseen-speaker
-  transfer. Record unknown pretraining overlap rather than claiming its absence.
-- In the pipeline record, verify each language's frontend/tokenizer and native
-  output rate with synthesis smoke tests. Record exposed rate/pitch/style
-  controls and native incremental audio APIs, if any, with revision-specific
-  evidence. Distinguish `verified`, `unsupported`, and `unverified` per capability;
-  language inference, adaptation and streaming are not one combined status.
-  State whether full input text is required before generation starts.
-- Record legal paired training-data provenance and permitted uses, duration,
-  transcript quality, speaker/reference IDs, and disjoint train/validation/
-  held-out sentence splits. Exclude frozen evaluation audio, transcripts, and
-  speakers from training and tuning; no duplicate text/audio leakage.
-- Choose and justify one supported bounded adaptation method for that stack;
-  record its exact trainable parameter names/counts and frozen components.
-  Keep the vocoder frozen and verify finite gradient flow on the selected
-  revision instead of assuming an adapter API exists.
-- Before Day 46, declare step, wall-time, data-duration, and spend ceilings
-  from remaining resources. Run at most one small L4 forward/backward pilot;
-  record batch size, precision, peak memory, seconds/step, current L4 price,
-  estimated capped cost, and stop reason. A failed install, permissions/data
-  gap, invalid gradients, or budget overrun means `adaptation_status=deferred`.
-  Only a supported pilot within the declared bounds means `feasible`.
-- Record inference feasibility separately. Do not model-hunt, train from
-  scratch, add a second project, or promise a session/compute budget; if
-  inference is blocked, dependent synthesis work remains deferred.
-- If two-language inference is blocked, keep the requirement incomplete and
-  seek scope review; a deferral note does not complete the language target.
-  Unsupported native streaming instead falls back to Day 45's measured
-  full-waveform baseline. Neither case authorizes another stack, mobile port,
-  or a separate emotion-generation subsystem.
-- Save generated waveforms locally in ignored storage and exposed intermediate
-  representations; tracked sample directories contain only manifests/notes.
-- Record where the selected system injects linguistic content, speaker
-  identity, and style or prosody conditioning.
+- Define the WebSocket message schema in `src/serve/schema.py`: audio chunks in, partial and final transcripts with confidence and latency out.
+- Define timeout, disconnect, and cancellation behaviour in `src/serve/schema.py`.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare several sentences with punctuation and pacing changes.
-- Generate the held-out two-language samples, record unsupported items and
-  pronunciation/intelligibility observations with competent language review,
-  and freeze the set before Day 44 comparisons. Native streaming verification
-  uses a minimal exposed-API check; waveform splitting is not that evidence.
-- FastSpeech 2 and VITS are short theoretical contrasts, not additional models
-  to install or benchmark. Record unresolved capabilities explicitly.
+- Write the contract as a testable specification in `docs/day43_serving_contract.md`.
+- Verify the schema round-trips in `tests/test_serve_schema.py`.
 
 ---
 
 ### 4. Required Output Artifacts
-- `src/tts/baseline.py`
-- `results/day43_tts_samples/`
-- `docs/tts_pipeline.md`
-- `data/tts_eval_manifest.csv`
-- `results/day43_tts_language_quality.csv` (per-item language, configuration,
-  reference role, reviewer assessment, and supported/missing status)
+['- `src/serve/schema.py`', '- `tests/test_serve_schema.py`', '- `docs/day43_serving_contract.md`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 43:**  
-> You can explain the selected text-to-waveform path and speaker conditioning,
-> and `docs/tts_pipeline.md` records checked licenses, data/split provenance,
-> exact trainable parameters, L4 pilot evidence or a blocking reason, cost
-> bounds, and a feasible or deferred adaptation decision. No training success
-> is claimed by this gate; unresolved fields remain explicitly unverified.
-> Two supported languages have held-out synthesis/review evidence and a frozen
-> separate manifest. If this target is blocked, it stays incomplete pending scope
-> review. Native streaming can be unsupported without being mislabeled implemented.
+> The message contract is explicit about partial versus final results, latency fields, and failure semantics.
 
 ---
 
@@ -121,14 +45,9 @@
 25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
 notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
 same task in the next session instead of pretending the day is finished.
-Language review, consent/data preparation and pilot work require a revised
-estimate; use the execution plan's scope-review rule rather than a fixed deadline.
 
 ---
 
 ### 7. References & Resources
-- The selected stack's model card, license, and supported adaptation recipe
-- FastSpeech 2 paper
-- HiFi GAN paper
-- VITS paper
-- DSP references for energy matching and equal power crossfades
+- WebSocket protocol design
+- Streaming API design patterns

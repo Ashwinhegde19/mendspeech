@@ -1,10 +1,9 @@
-# Day 28: Week 4 integration
+# Day 28: torch.compile and graph capture
 
 > **Week 4 • Day 7 of 7**  
 > **Navigation:** [← Day 27](day_27.md) | [Week 4 Plan](../Week_4_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 29 →](day_29.md)
 
-> **v2 STATUS: CORE — absorbs Day 27.** Integration plus the top-3 failure casebook in one session, using the shared `app/audio_lab.py` entrypoint.
-
+> **v3 STATUS: CORE** First optimization technique, measured against the Day 27 profile rather than assumed.
 ---
 
 ### Compute Target
@@ -13,44 +12,33 @@
 ---
 
 ### 1. Learn
-- Review efficiency choices and baseline results.
+- torch.compile: graph capture, fusion, and recompilation triggers.
+- Dynamic shapes and why recompilation is silent and expensive.
+- CUDA graphs for static-shape workloads.
 
 ---
 
 ### 2. Build in MendSpeech
-- Replace the generic ASR runner in MendSpeech with the reproducible FastConformer path.
-- Extend `app/audio_lab.py`, the single app entrypoint, to expose latency, RTF, WER when reference text exists, and GPU memory. Do not create a versioned demo app.
-- Capture Day 27's top three repeatable failure patterns with transcript, confidence, and damage metadata in the retained casebook.
-- Link Day 26's decoding comparison with head/tokenizer/LM/config provenance
-  in `reports/week4_fastconformer.md`. Show offline beam/LM output only as
-  offline evidence. Retain a verified streaming-compatible decoder (greedy if
-  needed); do not replace it with an offline-only backend or treat LM-fused
-  scores as confidence. Changes to text/timestamps require alignment checks
-  and Day 41 decoder-specific calibration before calibrated repair claims.
+- Apply torch.compile to the hot path in `src/asr/optimized_runner.py`, pinning shapes to avoid recompilation.
+- Add a CUDA-graph fast path only for static-shape inputs in `src/asr/optimized_runner.py`.
 
 ---
 
 ### 3. Experiment and Measure
-- Run the same ten reference clips through the full Week 2 uncertainty policy using FastConformer.
-- Record the actual decoder for every run. Include helpful/harmful Day 26
-  examples; preserve the original greedy results instead of overwriting them.
+- Measure WER, p50/p95/p99 latency, RTF, and memory against the Day 27 baseline on identical inputs.
+- Record compile time and warmup separately from steady-state latency.
+- Verify output parity against the unoptimized path; a speedup with different transcripts is not a speedup.
 
 ---
 
 ### 4. Required Output Artifacts
-- `app/audio_lab.py`
-- `results/fastconformer_failure_casebook.md` — absorbed Day 27 evidence
-- `reports/week4_fastconformer.md`
+['- `src/asr/optimized_runner.py`', '- `tests/test_optimized_parity.py`', '- `results/day28_compile_speedup.csv`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 28:**  
-> The shared audio lab exposes a measured, inspectable FastConformer recognition
-> core, and the report links the top-three failure casebook and completed
-> three-way decoding evidence. Offline and streaming capabilities, score
-> semantics and pending calibration are explicit; blocked decoding needs scope
-> review rather than a completed Gate 3 label.
+> You have a measured before/after for compilation with verified output parity, or the failure and its cause documented.
 
 ---
 
@@ -62,5 +50,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- FastConformer primary paper
-- NVIDIA NeMo FastConformer model documentation
+- PyTorch torch.compile documentation
+- CUDA graph capture documentation

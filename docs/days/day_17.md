@@ -3,8 +3,7 @@
 > **Week 3 • Day 3 of 7**  
 > **Navigation:** [← Day 16](day_16.md) | [Week 3 Plan](../Week_3_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 18 →](day_18.md)
 
-> **v1 STATUS: LEARN-ONLY — no build session.** Complete the Learn block during theory time; the macaron build work moves into [Day 18](day_18.md).
-
+> **v3 STATUS: LEARN-ONLY** No build session; the macaron build moves into Day 18.
 ---
 
 ### Compute Target
@@ -13,27 +12,24 @@
 ---
 
 ### 1. Learn
-- Feed forward expansion.
-- Swish or SiLU activation.
-- Dropout.
-- Half step residual weighting in Conformer.
+- Macaron structure.
+- Layer normalization placement.
+- Residual scaling and why half-step helps deep stacks.
 
 ---
 
 ### 2. Build in MendSpeech
-- Implement the feed forward module and residual wrapper.
-- Add numerical tests for shape and gradient flow.
+- No standalone build. Day 18 implements the macaron feed-forward.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare output statistics with and without residual scaling.
+- No standalone measurement. Day 18 compares output statistics with and without residual scaling.
 
 ---
 
 ### 4. Required Output Artifacts
-- `src/models/conformer_ffn.py`
-- `tests/test_conformer_ffn.py`
+['None for this learn-only session; artifacts are produced within Day 18.']
 
 ---
 
@@ -51,5 +47,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Conformer primary paper
-- A mature Conformer implementation such as NVIDIA NeMo
+- Gulati et al., Conformer
+- Layer normalization and residual scaling notes

@@ -1,6 +1,6 @@
 # MendSpeech Complete Learning and Research Roadmap
 
-> **A 56-Specification Systems & Research Roadmap for Selective Semantic Speech Restoration, Streaming ASR, Calibrated Decisions, and Boundary-Matched Reconstruction.**
+> **A Systems & Research Roadmap for a Real-Time Voice Interface: Streaming ASR, Latency Budget, Inference Optimization, and Personalization.**
 
 ---
 
@@ -10,12 +10,10 @@
 > Sessions can span multiple sittings; training/data preparation and debugging
 > require explicit estimates. Do not sacrifice evidence to preserve a calendar.
 >
-> **v2 focused scope:** [REVISED_EXECUTION_PLAN.md](REVISED_EXECUTION_PLAN.md)
-> governs gates, compression, and three retained add-ons. Weeks 3–4 have nine
-> build sessions; Week 8 has five. From Day 10, the nominal remaining scope is
-> 40 core specification slots plus approximately six add-on sessions. The added
-> decoding and TTS evidence expands those slots; re-estimate after compatibility
-> checks rather than treating 46 as an updated delivery promise.
+> **v3 scope:** [REVISED_EXECUTION_PLAN.md](REVISED_EXECUTION_PLAN.md) governs
+> phases and gates. Roughly 39 build sessions remain from Day 10. Cadence is a
+> target, not a promise; estimate from observed throughput and re-plan when it
+> misses.
 
 ---
 
@@ -162,4 +160,3 @@ no fixed extra-session or compute estimate is promised before the capability che
 - **Streaming ASR:** NVIDIA Stateful Conformer with Cache-Based Streaming Inference.
 - **Transducer:** Graves RNN-T papers and NeMo RNN-T decoders.
 - **TTS & Vocoders:** FastSpeech 2, HiFi-GAN, VITS papers.
-- **External Restoration Baseline:** One candidate and its verified primary documentation, as recorded in [baseline notes](baseline_install_notes.md); no architecture shopping list.

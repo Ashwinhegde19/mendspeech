@@ -1,60 +1,45 @@
-# Day 14: Week 2 integration and review
+# Day 14: Decoding comparison: greedy, beam, and beam plus LM
 
 > **Week 2 • Day 7 of 7**  
 > **Navigation:** [← Day 13](day_13.md) | [Week 2 Plan](../Week_2_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 15 →](day_15.md)
 
-> **v2 STATUS: CORE — Gate 2 advances on evidence, not a date.** Extend
-> `app/audio_lab.py`; external-comparator deferral does not block the core ASR work.
-
+> **v3 STATUS: CORE** Week 2 integration and the accuracy-versus-latency trade-off. A lower WER is not automatically better: a fluent but acoustically wrong transcript is the failure this project must catch.
 ---
 
 ### Compute Target
-`Modal L4 recommended`
+`Modal L4`
 
 ---
 
 ### 1. Learn
-- Review CTC, WER, confidence, timestamp alignment, and repair decisions.
+- Greedy versus beam search: accuracy gained against search cost.
+- External n-gram language models: why a plausible transcript can be acoustically wrong.
+- Cache reuse for isolating decoder cost from acoustic cost.
 
 ---
 
 ### 2. Build in MendSpeech
-- Extend `app/audio_lab.py`: damaged audio to transcript to confidence to timed
-  preserve/inspect/repair/abstain proposals. Reuse the Day 12 overlay; do not
-  create a separate milestone app or claim synthesis before it exists.
-- Add clean JSON output for every run: source/corruption/seed, model revision,
-  policy preset/version, thresholds, intervals, actions and reason codes.
-- Verify the Modal wrapper records model revision, GPU type, software versions, and run id automatically.
-- Carry forward `docs/baseline_install_notes.md`: one comparator's `feasible`
-  or `deferred` status and verified capabilities. A blocker report is enough
-  for this conditional branch; it must not be labeled masked-inpainting success.
+- Extend the baseline runner to support greedy, beam, and beam plus one small n-gram LM in `src/asr/decoding.py`.
+- Record LM text provenance, normalization, and split roles in `data/lm_text_manifest.csv`; exclude evaluation references and duplicates.
+- Freeze one LM order and a small validation-only beam/LM-weight candidate list in `configs/decoding.yaml`.
 
 ---
 
 ### 3. Experiment and Measure
-- Run at least twenty corrupted utterances with matched clean/raw-damaged
-  controls and fixed validation-selected thresholds; inspect false repair,
-  missed repair, inspect and abstain cases. Preserve model-version provenance.
-- Report ASR WER/CER, uncertainty overlap, proposed repair coverage and clean
-  false repairs; do not imply generated-audio improvement. Keep L4 comparisons
-  separate from functional CPU smoke runs.
+- Report WER/CER and names-and-numbers error for all three decoders on identical held-out cases.
+- Collect cases where the LM helped and cases where it hurt; a lower WER does not prove safety.
+- Measure decoder-only time on cached acoustic outputs separately from fresh audio-to-transcript latency.
 
 ---
 
 ### 4. Required Output Artifacts
-- `app/audio_lab.py`
-- `infra/modal_asr.py`
-- `results/week2_casebook.md`
-- `reports/week2_asr_uncertainty.md`
+['- `src/asr/decoding.py`', '- `tests/test_asr_decoding.py`', '- `configs/decoding.yaml`', '- `data/lm_text_manifest.csv`', '- `results/day14_decoding_comparison.csv`', '- `docs/day14_harmful_lm_changes.md`', '- `app/audio_lab.py`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 14:**  
-> The one app shows what the ASR heard and the exact proposed actions, with
-unchanged audio for inspect/abstain. The casebook/report retain controls, model
-and policy versions, errors and comparator feasibility status. Gate 2 does not
-require a successful external neural restoration model.
+> All three decoders are measured on the same held-out cases with separated decoder and end-to-end timing, and the LM's harmful changes are documented as first-class evidence.
 
 ---
 
@@ -66,5 +51,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- CTC primary paper or a reliable derivation
-- Framework ASR documentation for logits, timestamps, and confidence
+- NVIDIA NeMo ASR Language Modeling and Customization
+- Beam search and n-gram LM fusion references

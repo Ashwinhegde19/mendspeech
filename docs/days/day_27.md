@@ -1,10 +1,9 @@
-# Day 27: FastConformer failure casebook
+# Day 27: Profiling the streaming model
 
 > **Week 4 • Day 6 of 7**  
 > **Navigation:** [← Day 26](day_26.md) | [Week 4 Plan](../Week_4_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 28 →](day_28.md)
 
-> **v1 STATUS: MERGED into [Day 28](day_28.md).** Keep only the top-3 failure patterns; no separate session.
-
+> **v3 STATUS: CORE** Phase P4 begins. Measure before optimizing, or you optimize the wrong thing.
 ---
 
 ### Compute Target
@@ -13,32 +12,33 @@
 ---
 
 ### 1. Learn
-- Error slicing by corruption type and severity.
-- Short versus long utterance effects.
-- Confidence versus error.
+- Where time actually goes in a streaming forward pass.
+- CPU launch overhead versus GPU compute time.
+- Kernel-level versus end-to-end timing.
 
 ---
 
 ### 2. Build in MendSpeech
-- Build a casebook of at least fifteen interesting failures.
-- Link each case to audio, transcript, confidence, and damage metadata.
+- Add per-operator profiling to the Day 26 harness in `src/bench/profile_ops.py`.
+- Produce a ranked operator table for one fixed configuration.
 
 ---
 
 ### 3. Experiment and Measure
-- Look for systematic error patterns rather than isolated anecdotes.
+- Rank operators by measured time and separate launch overhead from compute.
+- Identify the top three candidates for optimization and state the expected ceiling for each.
+- Write the baseline row into `results/day27_operator_profile.csv`.
 
 ---
 
 ### 4. Required Output Artifacts
-- `results/fastconformer_failure_casebook.md`
+['- `src/bench/profile_ops.py`', '- `results/day27_operator_profile.csv`', '- `docs/day27_optimization_targets.md`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 27:**  
-> You can name at least three repeatable failure patterns and propose a testable
-reason for each.
+> You can name the top three time consumers with measured evidence and an expected gain for each.
 
 ---
 
@@ -50,5 +50,6 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- FastConformer primary paper
-- NVIDIA NeMo FastConformer model documentation
+- PyTorch profiler
+- NVIDIA Nsight Systems
+- Kernel launch overhead references

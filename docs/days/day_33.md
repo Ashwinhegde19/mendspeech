@@ -3,6 +3,7 @@
 > **Week 5 • Day 5 of 7**  
 > **Navigation:** [← Day 32](day_32.md) | [Week 5 Plan](../Week_5_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 34 →](day_34.md)
 
+> **v3 STATUS: CORE** A streaming system that silently mishandles state is worse than a slow correct one.
 ---
 
 ### Compute Target
@@ -18,25 +19,24 @@
 ---
 
 ### 2. Build in MendSpeech
-- Add controlled experiments that reset or shorten cache at selected boundaries.
+- Add controlled experiments that reset or shorten the cache at chosen boundaries in `src/streaming/cache_stress.py`.
 
 ---
 
 ### 3. Experiment and Measure
 - Measure WER changes around the reset point.
-- Inspect whether errors cluster near boundaries or propagate later.
+- Determine whether errors cluster at boundaries or propagate, and write it up in `results/day33_cache_failures.md`.
 
 ---
 
 ### 4. Required Output Artifacts
-- `experiments/cache_break_test.py`
-- `results/day33_cache_failures.md`
+['- `src/streaming/cache_stress.py`', '- `tests/test_cache_reset.py`', '- `results/day33_cache_failures.md`']
 
 ---
 
 ### 5. Completion Check
 > **Definition of Done for Day 33:**  
-> You can explain a concrete failure caused by incorrect state handling.
+> You can explain a concrete failure caused by incorrect state handling and where it appears.
 
 ---
 
@@ -48,5 +48,5 @@ same task in the next session instead of pretending the day is finished.
 ---
 
 ### 7. References & Resources
-- Stateful or cache aware Conformer primary material
-- NVIDIA NeMo streaming ASR documentation and examples
+- Stateful Conformer primary material
+- NVIDIA NeMo streaming ASR documentation
