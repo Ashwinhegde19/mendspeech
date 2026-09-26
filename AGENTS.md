@@ -1,16 +1,18 @@
 # Engineering guidelines
 
-Rules for anyone changing this repository. They apply to human
-contributors and to any automated assistant. Where these rules conflict
+Rules for everyone changing this repository: human
+contributors and automated assistants alike. Where these rules conflict
 with a tool's defaults, these rules win.
 
 ---
 
 ## 1. Project
 
-**MendSpeech** is a speech system: detect damaged spans with calibrated
-ASR uncertainty, decide whether to preserve, inspect, repair, or abstain,
-reconstruct only what is justified, and measure the result.
+**MendSpeech** targets meaning-preserving dictation: damage-robust streaming
+ASR, calibrated uncertainty, conservative transcript editing, and correlated
+latency measurements. Acoustic fine-tuning is robustness adaptation; bounded
+SFT/RL applies to the text editor, not an unspecified CTC policy update.
+These are target capabilities, not claims of completed implementation.
 
 Two products matter:
 
@@ -25,6 +27,10 @@ Pacing and gates live in
 On any calendar or scope conflict, the execution plan wins.
 
 Work is scoped to one session spec at a time (`docs/days/day_NN.md`).
+`docs/plan_manifest.json` records statuses, prerequisites and effort ranges.
+After changing these or day specs, run `scripts/plan_docs.py --write`, then
+`scripts/plan_docs.py --check` and the documentation tests. Generated week,
+compiled, and navigation views must not be edited independently.
 Do not redesign the build order, add experiments, or change scope unless
 the maintainer asks.
 
@@ -53,7 +59,7 @@ README.md                 # Public project face
 pyproject.toml            # Package: mendspeech (Python >=3.10)
 src/                      # One package per subsystem
   audio/                  # EXISTS: waveform I/O, STFT, log-Mel
-  asr/ streaming/ controller/ tts/ repair/ baselines/ metrics/ bench/
+  asr/ streaming/ controller/ vad/ llm/ rl/ serve/ metrics/ bench/
                           # created when that subsystem is reached
 tests/                    # pytest suite (test_*.py), mirrors src
 notebooks/                # Exploration and figures only
@@ -70,8 +76,9 @@ pdfs/                     # Archived originals — never modify
 - Python **>= 3.10**. Install: `pip install -e .`
 - Use the project venv: `.venv/bin/python -m pytest` (system Python
   does not have the dependencies).
-- Tests: `pytest` from repo root (`pythonpath = ["."]`,
-  `testpaths = ["tests"]`).
+- Tests: `pytest` from repo root (`pythonpath = [".", "speechdamagebench"]`,
+  `testpaths = ["tests", "speechdamagebench/tests"]`). Documentation tests
+  inspect public paths only, never private notes or dependency caches.
 - Imports: `from src.audio.loader import load_audio`.
 - Week 1 is local CPU. Modal L4 is allowed from the first ASR session
   and is required for any latency, RTF, or memory comparison.

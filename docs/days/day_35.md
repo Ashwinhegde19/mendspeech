@@ -1,54 +1,57 @@
-# Day 35: Endpointing and the VAD baseline
+# Day 35: Editor SFT and continued-SFT control
 
-> **Week 5 • Day 7 of 7**  
+> **Week 5 • Day 7 of 7**
 > **Navigation:** [← Day 34](day_34.md) | [Week 5 Plan](../Week_5_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 36 →](day_36.md)
 
-> **v3 STATUS: CORE** Add-on A, absorbed here. Endpointing decides when a final answer is sent, so its errors are latency errors.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 16](day_16.md), [Day 34](day_34.md)
+> **Effort:** 3–5 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Local CPU plus Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Energy versus spectral VAD.
-- Onset and offset error in milliseconds.
-- False alarms versus missed speech in a streaming setting.
+- Supervised fine-tuning for constrained text editing and the compute-matched continued-SFT control.
 
 ---
 
 ### 2. Build in MendSpeech
-- Implement a deterministic frame-level VAD in `src/vad/baseline.py` with framing, timestamp, and silence tests.
-- Compare it with one local reference VAD on identical clean and damaged inputs.
+- Run editor SFT via training/editor_sft.py on the Day13 train split; freeze the SFT checkpoint as the RL reference.
+- Run a continued-SFT control matched to the future RL wall-time/token budget, so extra compute is not mistaken for the RL algorithm.
 
 ---
 
 ### 3. Experiment and Measure
-- Measure precision, recall, F1, false alarms, missed speech, and onset/offset error in ms.
-- Report CPU RTF separately from GPU measurements.
-- Carry the measured choice into Day 41 and record it in `results/day35_vad_benchmark.csv`.
+- Evaluate SFT and continued-SFT on validation (protected-content violations, formatting accuracy, identity vs needs-edit, risk-coverage).
+- Log trainable-parameter names/counts, memory, step time and cost; artifacts for both arms.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/vad/baseline.py`', '- `tests/test_vad.py`', '- `results/day35_vad_benchmark.csv`', '- `docs/day35_vad_notes.md`']
+- `training/editor_sft.py`
+- `configs/editor_sft.yaml`
+- `results/day35_sft_vs_continued.csv`
+- `docs/day35_sft_notes.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 35:**  
-> Endpointing error is quantified in milliseconds and the chosen detector's failure modes are documented.
+> **Definition of Done for Day 35:**
+> An SFT editor and a compute-matched continued-SFT control exist so any later RL gain cannot be explained by extra training alone.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- WebRTC VAD
-- Energy and spectral VAD references
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

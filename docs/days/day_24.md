@@ -1,56 +1,56 @@
-# Day 24: Pretrained streaming ASR baseline and capability check
+# Day 24: Fixed-context quality and latency frontier
 
-> **Week 4 • Day 3 of 7**  
+> **Week 4 • Day 3 of 7**
 > **Navigation:** [← Day 23](day_23.md) | [Week 4 Plan](../Week_4_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 25 →](day_25.md)
 
-> **v3 STATUS: CORE** Record what the selected checkpoint actually supports before later phases depend on it.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 21](day_21.md), [Day 22](day_22.md), [Day 23](day_23.md)
+> **Effort:** 2–4 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Model checkpoint loading.
-- Tokenizer and decoder configuration.
-- Batch versus single utterance inference.
-- Cache-aware inference, right-context controls, export support, and tokenizer language coverage.
+- Algorithmic lookahead, wall-clock finalization and WER versus responsiveness.
 
 ---
 
 ### 2. Build in MendSpeech
-- Run a current streaming-capable ASR checkpoint on clean and damaged sets in `src/asr/streaming_runner.py`.
-- Record model revision and all inference settings.
-- Record capability status for cache-aware inference, supported right-context values and units, runtime context switching, intended export path, and language coverage in `configs/model_baseline.yaml`.
+- Add only documented fixed context configurations and preserve model/head/cache compatibility.
+- Use the shared replay/harness with trace IDs, warm/cold and settings recorded.
 
 ---
 
 ### 3. Experiment and Measure
-- Benchmark WER, latency, and GPU memory by damage type.
-- Use minimal supported smoke checks where feasible and record failures early.
-- Estimate later-phase effort from the capability record; do not start a model hunt to fill a gap.
+- Compare supported context settings on validation at fixed decoder and batch; report time-to-first-partial and post-utterance finalization plus WER/CER.
+- Fewer than two supported settings yields a single-setting baseline and explicit limit, not invented adaptive gains.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/asr/streaming_runner.py`', '- `results/day24_baseline.csv`', '- `configs/model_baseline.yaml`']
+- `src/streaming/context.py`
+- `tests/test_context.py`
+- `results/day24_context_tradeoff.csv`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 24:**  
-> You have a reproducible baseline with model, data, hardware, and settings fixed, plus an evidence-backed capability record.
+> **Definition of Done for Day 24:**
+> Context costs are measured with a working chunk loop and endpoint detector; scope of supported settings is honest.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- FastConformer primary paper
-- NVIDIA NeMo streaming ASR documentation
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

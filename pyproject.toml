@@ -1,7 +1,7 @@
 [project]
 name = "mendspeech"
 version = "0.1.0"
-description = "Selective Semantic Speech Restoration Under Real-Time Constraints"
+description = "Meaning-preserving dictation with measured quality and latency"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

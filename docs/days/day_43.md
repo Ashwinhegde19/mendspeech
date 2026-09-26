@@ -1,53 +1,56 @@
-# Day 43: Serving contract and message schema
+# Day 43: Serving contract and WebSocket message schema
 
-> **Week 7 • Day 1 of 7**  
+> **Week 7 • Day 1 of 7**
 > **Navigation:** [← Day 42](day_42.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 44 →](day_44.md)
 
-> **v3 STATUS: CORE** Phase P6 begins. Design the contract before implementing, or latency semantics get baked in wrong.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 26](day_26.md), [Day 33](day_33.md)
+> **Effort:** 2–3 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- WebSocket message schemas for streaming audio and incremental transcripts.
-- What belongs in a partial result versus a final result.
-- Backpressure semantics at the protocol level.
+- WebSocket message schemas, per-stream isolation, cancellation and backpressure semantics.
 
 ---
 
 ### 2. Build in MendSpeech
-- Define the WebSocket message schema in `src/serve/schema.py`: audio chunks in, partial and final transcripts with confidence and latency out.
-- Define timeout, disconnect, and cancellation behaviour in `src/serve/schema.py`.
+- Define schema in src/serve/schema.py: audio chunks in; partial/final transcripts, confidence, stage events and latency fields out.
+- Specify timeout, disconnect, cancellation and bounded-queue semantics; write contract tests in tests/test_serve_schema.py.
 
 ---
 
 ### 3. Experiment and Measure
-- Write the contract as a testable specification in `docs/day43_serving_contract.md`.
-- Verify the schema round-trips in `tests/test_serve_schema.py`.
+- Verify the schema round-trips a recorded session.
+- Ensure latency fields match the contract definitions and never expose unmeasured values.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/serve/schema.py`', '- `tests/test_serve_schema.py`', '- `docs/day43_serving_contract.md`']
+- `src/serve/schema.py`
+- `tests/test_serve_schema.py`
+- `docs/day43_serving_contract.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 43:**  
-> The message contract is explicit about partial versus final results, latency fields, and failure semantics.
+> **Definition of Done for Day 43:**
+> A testable WebSocket contract with explicit latency, confidence, failure and backpressure semantics.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- WebSocket protocol design
-- Streaming API design patterns
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

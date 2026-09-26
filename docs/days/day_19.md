@@ -1,48 +1,52 @@
-# Day 19: Real-log-Mel block validation
+# Day 19: Shape and mask checks inside the streaming capability gate
 
-> **Week 3 • Day 5 of 7**  
+> **Week 3 • Day 5 of 7**
 > **Navigation:** [← Day 18](day_18.md) | [Week 3 Plan](../Week_3_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 20 →](day_20.md)
 
-> **v3 STATUS: MERGED** into Day 18. No standalone session.
+> **v4 STATUS: MERGED** Absorbed by Day18.
+> **Prerequisites:** [Day 18](day_18.md)
+> **Effort:** 0–0 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Local CPU — within Day 18`
+`Within Day18`
 
 ---
 
 ### 1. Learn
-- Input projection and mask propagation.
+- Feature length, cache shape, padding and valid output lengths.
 
 ---
 
 ### 2. Build in MendSpeech
-- Validate projection, masks, shapes, and gradients on Day 18's same block; do not build a separate encoder.
+- Checks are owned by Day18 tests/test_streaming_runner.py; no separate tiny encoder.
 
 ---
 
 ### 3. Experiment and Measure
-- No depth sweep. The shape trace in `results/day19_shape_trace.md` is produced within Day 18.
+- Use Day18 short/long/padded fixture results.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `results/day19_shape_trace.md` — produced in Day 18']
+- None; evidence belongs to Day18.
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 19:**  
-> A real log-Mel tensor passes through the block with documented shapes and valid gradients.
+> **Definition of Done for Day 19:**
+> No standalone work; merge is explicit and does not duplicate artifacts.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Day 18 artifacts and references
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

@@ -1,56 +1,58 @@
-# Day 40: RL reward design
+# Day 40: Bounded GRPO post-training on the editor
 
-> **Week 6 • Day 5 of 7**  
+> **Week 6 • Day 5 of 7**
 > **Navigation:** [← Day 39](day_39.md) | [Week 6 Plan](../Week_6_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 41 →](day_41.md)
 
-> **v3 STATUS: CORE** The reward must be falsifiable, or the run proves nothing. This is the most novel session in the plan.
+> **v4 STATUS: CORE** Highest-variance and most expensive session; feasibility and budget were gated on Day16.
+> **Prerequisites:** [Day 16](day_16.md), [Day 34](day_34.md), [Day 35](day_35.md), [Day 36](day_36.md)
+> **Effort:** 4–8 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4; spend/spend-capped`
 
 ---
 
 ### 1. Learn
-- Policy-gradient and PPO intuition for sequence output.
-- Reward hacking: what a model does when the reward is exploitable.
-- Designing a reward that is falsifiable in advance.
+- Group-relative policy optimization, KL to the SFT reference, reward variance, rollout cost.
 
 ---
 
 ### 2. Build in MendSpeech
-- Define the reward in `src/rl/reward.py`: penalize fluent output that the acoustics do not support.
-- Write the falsifiable prediction in `configs/rl.yaml` BEFORE running anything.
-- Implement a minimal policy-gradient or PPO-style update in `src/rl/ppo.py`.
+- Run the bounded GRPO run using training/editor_rl.py with the Day34 reward and Day35 SFT reference; default to LoRA-scale updates, modest steps, and a declared stop/spend budget.
+- Log reward curves, KL to reference, group reward variance, completion length, adapter grad norms and refusals.
 
 ---
 
 ### 3. Experiment and Measure
-- Show the reward can be gamed: construct at least one input where a naive reward rewards a wrong transcript.
-- Verify the reward is computable offline from cached logits before spending GPU time.
-- Unit-test reward components in `tests/test_reward.py`.
+- Evaluate against the SFT and continued-SFT controls on validation: protected-content violations, formatting accuracy, identity vs needs-edit, risk-coverage.
+- Stop on nonfinite loss, repeated OOM, or safety violations rising >2pp above the SFT baseline at two consecutive evals; a valid null is kept, a failed run is blocked not disguised.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/rl/reward.py`', '- `src/rl/ppo.py`', '- `configs/rl.yaml`', '- `tests/test_reward.py`', '- `docs/day40_reward_design.md`']
+- `training/editor_rl.py`
+- `configs/editor_rl.yaml`
+- `results/day40_rl_vs_sft.csv`
+- `docs/day40_rl_findings.md`
+- `results/day40_reward_curve.csv`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 40:**  
-> You have a written falsifiable prediction, a reward shown to be gameable in at least one case, and a tested implementation.
+> **Definition of Done for Day 40:**
+> A bounded, controlled GRPO run on the text editor with SFT/continued-SFT comparison and explicit stop criteria, or a documented blocked/null outcome.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- PPO and policy gradient references
-- Reward design and specification gaming literature
-- RLHF and ASR post-training
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

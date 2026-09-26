@@ -1,133 +1,177 @@
 # MendSpeech Project Blueprint
 
-> **A Real-Time Voice Interface: Streaming ASR, Latency Budget, and Personalization.**
+> **Meaning-preserving dictation: streaming ASR, conservative transcript
+> editing, and a measured latency budget.**
 >
-> **v3 scope:** One streaming recognition pipeline, one LLM post-processing
-> stage, one serving endpoint, and one evaluation harness. The
-> [execution plan](REVISED_EXECUTION_PLAN.md) governs optimization,
-> personalization, RL, and the latency budget. These are target behaviors, not
-> claims that the current implementation is complete.
+> **v4 scope.** One streaming recognition pipeline, one conservative editor, one
+> serving endpoint, and one evaluation harness. The
+> [execution plan](REVISED_EXECUTION_PLAN.md) governs phases and gates; the
+> [latency and quality contract](LATENCY_AND_QUALITY_CONTRACT.md) and the
+> [editor and RL contract](EDITOR_AND_RL_CONTRACT.md) govern measurement and
+> post-training. Everything below is a target behavior, not a claim that the
+> current implementation is complete.
 
 ---
 
-### Core Principle
-> *Measure the whole pipeline, find what actually limits it, improve that, and never hide an architectural limitation.*
+### Core principle
+
+> *Never present text the speaker did not say. Improve readability only where a
+> guard can prove the meaning is unchanged, and measure the whole pipeline
+> honestly.*
 
 ---
 
-## 1. Product Behavior
-- Accept live microphone audio, a stream of audio chunks, or an uploaded file.
-- Optionally generate controlled acoustic conditions through `SpeechDamageBench`.
+## 1. Product behavior
+
+- Accept live microphone audio, a stream of chunks, or an uploaded recording.
+- Optionally generate controlled acoustic conditions via `SpeechDamageBench`.
 - Transcribe incrementally with cache-aware streaming ASR.
-- Emit partial and final transcripts with word-level timestamps and confidence.
-- Triage each utterance: **accept**, **low confidence**, or **reject**.
-- Post-process the accepted transcript into polished text with one small LLM.
-- Report, as a single decomposed number, where the end-to-end latency lives.
+- Emit partial and final transcripts with word timestamps and raw confidence.
+- Fit calibration and triage each utterance: **accept**, **low confidence**, or
+  **reject**.
+- Offer the accepted transcript to a conservative editor that may format but not
+  rewrite.
+- Validate every proposed edit before delivery; otherwise return the raw
+  transcript with a reason.
+- Report where the latency lives, per stage, per request, with tail attribution.
+
+Three invariants:
+
+1. The raw ASR transcript is always available.
+2. A rejected, malformed, timed-out, or low-confidence edit returns raw text
+   with a reason code — never an invented sentence.
+3. Names, numbers, negation, and units are never altered by the editor.
 
 ---
 
-## 2. Pipeline Stages
+## 2. Pipeline stages
 
-| Stage | Component | What Is Measured |
+| Stage | Component | Measured |
 | :--- | :--- | :--- |
-| **Capture and VAD** | Frame-level energy/spectral VAD | Precision/recall/F1, onset/offset error in ms, CPU RTF |
-| **ASR** | Cache-aware streaming Conformer | WER/CER, per-corruption accuracy, clean regression |
-| **Decode** | Greedy / beam / beam + n-gram LM | WER/CER, names/numbers, helpful *and* harmful changes, decoder-only vs fresh latency |
-| **Confidence** | Calibrated score for the exact model+decoder+precision | ECE/Brier, reliability diagram, confident-but-wrong cases |
-| **Personalization** | Fine-tuning, then RL post-training | Held-out WER, clean regression, adaptation vs RL |
-| **LLM** | One small pinned post-processing model | Time-to-first-token, full response, prefix-cache hit rate, quality |
-| **Serving** | One async WebSocket endpoint | Concurrency knee, queue depth, p50/p95/p99, backpressure, failure/recovery |
+| **Endpointing** | Frame-level VAD plus an endpoint state machine | Precision/recall, onset/offset error in ms, endpoint-to-final delay |
+| **ASR** | Cache-aware streaming Conformer | WER/CER per corruption, names/numbers/negation, clean regression |
+| **Decode** | Greedy / beam / beam + one n-gram LM | Accuracy, helpful *and* harmful changes, cached decoder vs fresh latency |
+| **Confidence** | Score calibrated for the exact model, head, decoder, and precision | Reliability, ECE/Brier, risk-coverage, confident-but-wrong cases |
+| **Triage** | Accept / uncertain / reject, fitted on validation | Coverage versus error rate, bypass rate |
+| **Editor** | One pinned small causal LM, formatting only | Protected-content violations, formatting accuracy, identity vs needs-edit, fallback rate, independent review |
+| **Guard** | Deterministic pass/fail before delivery | Rejection rate, rejected-edit quality |
+| **Post-training** | Editor SFT, compute-matched control, bounded GRPO | Improvement against controls, violation rate, reward-validity checks |
+| **Robustness** | ASR fine-tuning for acoustic conditions | Held-out WER, clean-speech regression, cost |
+| **Serving** | One async WebSocket endpoint | Concurrency knee, queue depth, percentiles, backpressure, failure and recovery |
 
-Latency is reported **per stage**, never as a single blended average. Cached
-decoder time is not fresh audio-to-transcript time. LLM time-to-first-token is
-not full response time. A tail is identified by a percentile, not a mean.
+Latency is reported **per stage and per request**. Cached decoder time is not
+fresh audio-to-transcript latency. Time-to-first-token is not completion.
+Percentiles are not additive, and a tail is attributed by inspecting the same
+slow requests rather than by comparing independent distributions.
 
 ---
 
-## 3. Robustness Evaluation Suite
+## 3. Robustness evaluation suite
 
-`SpeechDamageBench` is a standalone, versioned package, not a private utility.
+`SpeechDamageBench` is a standalone, versioned package.
 
-| Damage Family | Controlled Variables | Purpose |
+| Damage family | Controlled variables | Purpose |
 | :--- | :--- | :--- |
-| **Additive Noise** | SNR, noise type, random seed | Test masking robustness. |
-| **Clipping** | Threshold, severity | Test lost peaks and saturation. |
-| **Bandwidth Limits** | Sample rate, filter settings | Simulate narrow channels (telephony, codecs). |
-| **Dropouts** | Span length, frequency, random seed | Simulate missing speech and packet loss. |
-| **Reverberation** | Impulse response / room severity | Test temporal smearing. |
+| **Additive noise** | SNR, noise type, random seed | Masking robustness |
+| **Clipping** | Threshold, severity | Lost peaks and saturation |
+| **Bandwidth limits** | Sample rate, filter settings | Narrow channels (telephony, codecs) |
+| **Dropouts** | Span length, frequency, random seed | Missing speech and packet loss |
+| **Reverberation** | Impulse response, room severity | Temporal smearing |
 
-> [!NOTE]
-> Every generated sample records corruption name, severity, random seed, clean source ID, parameter values, and package version.
+> Every generated sample records corruption, severity, seed, source ID,
+> parameters, and package version. The frozen evaluation set is never enlarged
+> to improve a result; new experiments use new configurations.
 
 ---
 
 ## 4. Metrics
 
-| Metric | Why It Matters |
+| Metric | Why it matters |
 | :--- | :--- |
-| **WER & CER** | Recognition correctness, per corruption and severity. |
-| **Names and numbers error rate** | Entity errors that a blended WER can hide. |
-| **Latency percentiles (p50/p95/p99)** | Responsiveness and tail behavior. A mean hides the tail. |
-| **Time to first partial transcript** | What the user actually perceives first. |
-| **LLM time-to-first-token** | Separates first-token responsiveness from full response. |
-| **Real-Time Factor (RTF)** | Whether processing keeps up with live speech. |
-| **Peak GPU memory** | Deployment cost and memory pressure. |
-| **Throughput / concurrency knee** | Where added load stops being free. |
-| **Prefix-cache hit rate** | Whether repeated system context is being reused. |
-| **Calibration (ECE / Brier)** | Whether confidence supports triage decisions. |
-| **Confident-but-wrong rate** | The failure that breaks a confidence-gated system. |
-| **Helpful vs harmful LM changes** | Lower WER does not imply safer output. |
-| **Cost per 1000 hours of audio** | The number an infra team budgets with. |
+| **WER / CER** | Recognition correctness, sliced by corruption and severity |
+| **Names, numbers, negation error** | Entity errors a blended WER hides |
+| **Confidence reliability (ECE, Brier)** | Whether confidence supports triage |
+| **Confident-but-wrong rate** | The failure that breaks a confidence-gated system |
+| **Risk-coverage** | Error rate traded against coverage kept |
+| **Endpoint error (ms)** | When a final answer is sent |
+| **Per-stage p50/p95/p99** | Where responsiveness is actually lost |
+| **Time to first partial** | First user-perceived feedback |
+| **TTFT and completion** | Separating first-token responsiveness from full output |
+| **RTF, peak memory, combined footprint** | Whether the pipeline keeps up and fits |
+| **Throughput and concurrency knee** | Where added load stops being free |
+| **Protected-content violation rate** | Whether editing changed meaning |
+| **Fallback and edit coverage** | How often the editor abstains or acts |
+| **Cost per 1000 audio hours** | Extrapolated from measured cost, with assumptions stated |
 
 ---
-## 5. Required Ablations
-- **Decoding:** Greedy vs. beam-only vs. beam plus one LM; validation-only tuning, unchanged acoustic model, helpful and harmful text changes.
-- **Context policy:** Supported fixed low/high lookahead, plus a bounded adaptive experiment labelled live, simulated, or unavailable.
-- **Confidence:** Raw vs. calibrated confidence, per model/decoder/precision.
-- **Triage thresholds:** Accept / low-confidence / reject policies, selected on validation.
-- **Optimization:** Each technique (quantization, `torch.compile`, CUDA graphs, batching) measured independently against the same baseline, on fixed L4 and batch discipline.
-- **Streaming fast path:** Cached versus uncached state, measured separately.
-- **Personalization:** Base vs. fine-tuned vs. RL, on held-out data with a clean-speech regression check.
-- **LLM stage:** Enabled vs. disabled, batched vs. streamed generation, cold vs. warm prefix cache.
-- **Serving:** One provider and one endpoint; concurrency sweep to saturation with one reproduced failure and recovery.
-- **Clean-speech regression:** Already-clean speech must not be degraded by the pipeline.
+
+## 5. Required ablations
+
+- **Decoding:** greedy vs beam-only vs beam + one LM; validation-only tuning,
+  with helpful and harmful changes reported.
+- **Context:** supported fixed lookahead settings, with algorithmic latency
+  measured rather than asserted.
+- **Confidence and triage:** raw vs calibrated confidence; threshold policies
+  fitted on validation.
+- **Editor:** raw vs deterministic formatting vs prompt-only vs SFT vs RL, on
+  the same held-out cases, evaluating both proposed and delivered output.
+- **Post-training:** RL vs supervised editing vs a compute-matched control, so
+  extra training cannot masquerade as the algorithm.
+- **Robustness:** base vs robustness-adapted ASR, with clean-speech regression.
+- **Optimization:** each technique measured independently against one baseline,
+  on fixed hardware and batch discipline, with parity checks.
+- **Serving:** one provider, one endpoint, concurrency swept to saturation, with
+  one reproduced failure and recovery.
 
 ---
-## 6. Repository Target Structure
+
+## 6. Repository target structure
 
 ```text
 mendspeech/
 ├── src/
-│   ├── audio/          # Waveform loaders, STFT, log-Mel, normalization
-│   ├── asr/            # Streaming ASR, CTC decode, confidence, calibration
-│   ├── streaming/      # Cache-aware runners, lookahead, endpointing
-│   ├── vad/            # Frame-level VAD baseline and comparison
-│   ├── rl/             # Reward definition and policy-gradient update
-│   ├── llm/            # LLM post-processing adapter
-│   ├── serve/          # Async WebSocket service and load harness
-│   ├── metrics/        # WER, CER, RTF, latency percentiles, calibration
-│   └── bench/          # One benchmark harness used by every experiment
-├── speechdamagebench/  # Standalone versioned robustness suite
-├── infra/              # Modal execution scripts and container definitions
-├── app/                # audio_lab.py is the evolving demo; shared UI components
-├── training/           # Fine-tuning and RL entry points
+│   ├── audio/          # Waveform loaders, STFT, log-Mel
+│   ├── asr/            # Streaming ASR, decoding, confidence, calibration
+│   ├── streaming/      # Session loop, cache, context, endpointing
+│   ├── vad/            # Deterministic VAD baseline
+│   ├── controller/     # Triage policy and bounded adaptive context
+│   ├── llm/            # Editing contract, deterministic baseline, editor adapter, guard
+│   ├── rl/             # Reward definition and group-relative training entry points
+│   ├── serve/          # Async WebSocket service, batching, load harness
+│   ├── metrics/        # WER, entity error, risk-coverage, timing
+│   └── bench/          # One benchmark harness, tracing, profiling, budget
+├── training/           # ASR fine-tuning and editor post-training entry points
 ├── configs/            # Frozen experiment configurations
-├── experiments/        # Frozen experiment configs
-├── results/            # Measured tables and figures; audio/checkpoints/logs ignored
-└── reports/            # Latency budget, technical report, casebooks
+├── experiments/        # Ablations and the frozen protocol
+├── speechdamagebench/  # Standalone versioned robustness suite
+├── infra/              # Modal and container definitions
+├── app/                # audio_lab.py, the single evolving demo
+├── results/            # Measured tables and figures
+└── reports/            # Latency budget, casebook, technical report
 ```
 
 ---
-## 7. Definition of Done
-1. A new user can reproduce benchmark results with documented single-command sequences.
-2. The interactive demo streams live or prerecorded audio and shows partial/final transcripts with confidence and latency.
-3. The latency budget report decomposes every stage with p50/p95/p99 and names the tail owner.
-4. At least one optimization is applied end-to-end with a measured before/after, or the negative result is documented with evidence.
-5. Fine-tuning and RL are compared against baseline on held-out data with a clean-speech regression check, or a blocker is recorded.
-6. The serving endpoint is load-tested to saturation with one reproduced failure and recovery.
-7. The LLM stage is measured for TTFT and full response, or its blocker is recorded.
-8. You can explain every major component from first principles without relying on library names.
-9. Benchmark results are reported at a fixed documented scale (>=30 utterances, >=5 speakers, speaker-separated splits) with the statistical caveat stated.
-10. The report contains at least one surprising result and one limitation that materially constrains its claims.
-11. Every deferred or blocked capability appears explicitly in the limitations section.
-12. Release evidence is independent of optional learning drills and extra UI pages.
+
+## 7. Definition of done
+
+1. A new user reproduces benchmark results with documented single commands.
+2. The demo streams audio and shows partial and final transcripts, confidence,
+   triage actions, the guarded edit, and the measured latency budget.
+3. The latency budget report decomposes every stage with percentiles and names
+   the p99 owner by request identifier.
+4. At least one optimization ships with a measured before/after, or the
+   negative result is documented with evidence.
+5. Confidence is fitted and independently evaluated for the shipping
+   configuration, distinct from threshold selection.
+6. Editor quality is measured on held-out cases, including protected-content
+   violations and an independent review, with raw text always recoverable.
+7. Post-training is compared against supervised and compute-matched controls,
+   or the blocker is recorded.
+8. The serving endpoint is load-tested to saturation with a reproduced failure
+   and recovery.
+9. Every major component can be explained from first principles without relying
+   on library names.
+10. Results are reported at a fixed documented scale, with the statistical
+    caveat stated.
+11. Every blocked, deferred, or partial capability appears explicitly in the
+    limitations section.

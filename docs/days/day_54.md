@@ -1,51 +1,56 @@
-# Day 54: Personalization comparison on the frozen harness
+# Day 54: Adaptation and RL final comparison
 
-> **Week 8 • Day 5 of 7**  
+> **Week 8 • Day 5 of 7**
 > **Navigation:** [← Day 53](day_53.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 55 →](day_55.md)
 
-> **v3 STATUS: CORE** Base, fine-tuned, and RL, measured once on data frozen before any of them ran.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 38](day_38.md), [Day 40](day_40.md), [Day 41](day_41.md), [Day 53](day_53.md)
+> **Effort:** 2–3 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Why the final comparison must use the frozen set, not a convenient one.
-- Reporting regression as carefully as improvement.
+- Separating acoustic robustness adaptation from text-editor post-training.
 
 ---
 
 ### 2. Build in MendSpeech
-- Run the three checkpoints through the frozen harness in `src/bench/run_personalization.py`.
+- Run base, robustness-adapted, SFT-editor and RL-editor conditions through the frozen harness in src/bench/run_personalization.py.
+- Report each condition on its own axis: ASR WER/robustness for the checkpoint; editor quality for the editor.
 
 ---
 
 ### 3. Experiment and Measure
-- Report WER, risk-coverage, and clean-speech regression for base, fine-tuned, and RL.
-- Report what RL cost in GPU time against what it bought.
-- State plainly whether personalization earned its place in the pipeline.
+- Report the frozen-test numbers for all conditions, including clean-speech regression.
+- State whether adaptation and RL each earned their place; a null result is reported, not hidden.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/bench/run_personalization.py`', '- `results/day54_personalization_final.csv`', '- `reports/day54_personalization.md`']
+- `src/bench/run_personalization.py`
+- `results/day54_conditions_final.csv`
+- `reports/day54_conditions_final.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 54:**  
-> The personalization decision is made on frozen evidence, including the case where it did not pay off.
+> **Definition of Done for Day 54:**
+> The final conditions are compared on frozen evidence, with adaptation and editor quality kept distinct and nulls reported.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Phase 5 requirements in the execution plan
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

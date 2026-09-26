@@ -1,51 +1,56 @@
 # Day 52: Robustness matrix on the frozen set
 
-> **Week 8 • Day 3 of 7**  
+> **Week 8 • Day 3 of 7**
 > **Navigation:** [← Day 51](day_51.md) | [Week 8 Plan](../Week_8_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 53 →](day_53.md)
 
-> **v3 STATUS: CORE** The full corruption x severity x decoder grid, on data nobody can now change.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 38](day_38.md), [Day 39](day_39.md), [Day 51](day_51.md)
+> **Effort:** 2–3 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Why a full matrix beats spot checks.
-- Multiple-comparison discipline when slicing results.
+- Sliced evaluation, multiple comparisons and variance.
 
 ---
 
 ### 2. Build in MendSpeech
-- Run the full matrix through the frozen harness in `src/bench/run_matrix.py`.
+- Run the full corruption x severity x decoder grid in src/bench/run_matrix.py on the frozen set.
+- Report the robustness-adapted checkpoint and the base checkpoint in the same matrix.
 
 ---
 
 ### 3. Experiment and Measure
-- Report WER/CER and confidence behaviour for every corruption, severity, and decoder combination.
-- Identify the corruption/decoder pair with the worst risk-coverage behaviour.
-- Repeat enough runs to estimate variance on a representative subset.
+- Report WER/CER, names/numbers and confidence behaviour per cell.
+- Estimate variance on a representative subset; identify the worst cell.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/bench/run_matrix.py`', '- `results/day52_robustness_matrix.csv`', '- `results/day52_robustness_matrix.png`']
+- `src/bench/run_matrix.py`
+- `results/day52_robustness_matrix.csv`
+- `results/day52_robustness_matrix.png`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 52:**  
-> The complete matrix is measured and the worst cell is identified, with variance estimated on a subset.
+> **Definition of Done for Day 52:**
+> The complete robustness matrix is measured on the frozen set, with the worst cell and variance identified.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Evaluation methodology for sliced results
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

@@ -1,21 +1,13 @@
-# Week 6: Robustness, Fine Tuning, RNNT, and Calibration
+# Week 6
 
-> **Days 36 to 42**  
-> **Navigation:** [← Week 5](Week_5_MendSpeech_Daily_Plan.md) | [Master Index](INDEX.md) | [Master Roadmap](MendSpeech_8_Week_Master_Roadmap.md) | [Week 7 →](Week_7_MendSpeech_Daily_Plan.md)
+> **Days 36–42**
+> **Navigation:** [← Index](INDEX.md) | [Master Index](INDEX.md) | [Master Roadmap](MendSpeech_8_Week_Master_Roadmap.md) | [Executive Plan](REVISED_EXECUTION_PLAN.md)
 
 ---
 
 > [!IMPORTANT]
-> **Week Milestone:**  
-> Adapt the recognizer to damaged speech while learning training and calibration discipline.
->
-> **v2 evidence gate:** Days 36–42 remain CORE. Gate 5 requires one ASR
-> adaptation experiment with clean regression, validation-based calibration and
-> the robustness report in the one app. Day 40 retains the quantization lab with
-> compatibility/parity checks: measured supported precision or explicit blocked
-> optimization status, never an invented speedup. No calendar deadline applies.
-
----
+> **Week theme:** Editor reward, SFT and compute-matched control, GRPO, and ASR robustness adaptation
+> Post-train the text editor with explicit controls, and adapt the recognizer for acoustic robustness.
 
 ---
 
@@ -23,181 +15,216 @@
 
 | Day | Focus | Compute | Status | Daily Link |
 | :--- | :--- | :--- | :--- | :--- |
-| **Day 36** | Training pipeline anatomy | `Modal L4` | CORE | [Open Day 36](days/day_36.md) |
-| **Day 37** | Adaptation dataset and leakage audit | `Local CPU` | CORE | [Open Day 37](days/day_37.md) |
-| **Day 38** | Fine-tune for damaged-speech robustness | `Modal L4` | CORE | [Open Day 38](days/day_38.md) |
-| **Day 39** | Augmentation ablation | `Modal L4` | CORE | [Open Day 39](days/day_39.md) |
-| **Day 40** | RL reward design | `Modal L4` | CORE | [Open Day 40](days/day_40.md) |
-| **Day 41** | RL post-training run | `Modal L4` | CORE | [Open Day 41](days/day_41.md) |
-| **Day 42** | Personalization comparison and robustness milestone | `Modal L4` | CORE | [Open Day 42](days/day_42.md) |
-
----
-
-## Phase Focus
-
-Personalization, fine-tuning, and RL post-training
+| **Day 36** | Training pipeline anatomy for the editor | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 36](days/day_36.md) |
+| **Day 37** | ASR robustness adaptation dataset and leakage audit | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 37](days/day_37.md) |
+| **Day 38** | ASR robustness fine-tuning (not personalization) | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 38](days/day_38.md) |
+| **Day 39** | Augmentation ablation on corrupted audio | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 39](days/day_39.md) |
+| **Day 40** | Bounded GRPO post-training on the editor | `Modal L4; spend/spend-capped` | CORE | [Open Day 40](days/day_40.md) |
+| **Day 41** | Personalization-adjacent robustness and error analysis | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 41](days/day_41.md) |
+| **Day 42** | Editor personalization feasibility check (scope, not claim) | `Local CPU` | CORE | [Open Day 42](days/day_42.md) |
 
 ---
 
 ## Daily Detailed Operating Plans
-### DAY 36: Training pipeline anatomy
-- **Compute:** `Modal L4`
+
+### DAY 36: Training pipeline anatomy for the editor
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_36.md`](days/day_36.md)
 
-> **v3 STATUS: CORE** Phase P5 begins. You cannot fine-tune responsibly if you cannot read a loss curve.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 35](days/day_35.md)
+> **Effort:** 2–3 focused hours.
+
 #### Learn
-- Manifest format.
-- Batching variable-duration audio.
-- Loss curves.
-- Learning rate, validation split, checkpointing.
+- Loss curves, overfitting detection, tokenizer/label masking and checkpoint reproducibility.
+
 #### Build in MendSpeech
-- Create one reproducible training configuration in `configs/train_smoke.yaml`.
-- Implement the training loop in `training/train.py` with checkpointing and validation hooks.
+- Diagnose the Day35 SFT loss/eval curves and add reproducibility checks in training/editor_sft.py.
+- Document data mix, label masking and checkpoint reload determinism.
+
 #### Experiment and Measure
-- Run a short smoke job and verify the loss decreases.
-- Deliberately use a bad learning rate and record the failure signature in `results/day36_training_smoke.csv`.
-- Verify checkpoints reload and reproduce the same validation number.
-#### Required Output
-['- `configs/train_smoke.yaml`', '- `training/train.py`', '- `tests/test_train_loop.py`', '- `results/day36_training_smoke.csv`']
+- Verify checkpoint reload reproduces validation numbers.
+- Relate loss/overfit behaviour to editor data size so RL budgets are set on evidence.
+
+#### Required Output Artifacts
+- `docs/day36_editor_training_diagnosis.md`
+- `results/day36_editor_loss_curves.csv`
+
 #### Completion Check
-> You can diagnose whether a run is learning, diverging, or overfitting from basic evidence, and a checkpoint reloads reproducibly.
+> Editor training behaviour is diagnosable and reproducible, giving evidence-based budgets for the RL run.
 
 ---
 
-### DAY 37: Adaptation dataset and leakage audit
-- **Compute:** `Local CPU`
+### DAY 37: ASR robustness adaptation dataset and leakage audit
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_37.md`](days/day_37.md)
 
-> **v3 STATUS: CORE** Leaked data makes every later number meaningless, so this session precedes training.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 10](days/day_10.md), [Day 18](days/day_18.md)
+> **Effort:** 2–3 focused hours.
+
 #### Learn
-- Train, validation, and test separation.
-- Speaker leakage.
-- Synthetic corruption sampling.
-- Balanced severity distribution.
+- Acoustic corruption manifests and the frozen benchmark invariant.
+
 #### Build in MendSpeech
-- Build manifests pairing clean transcripts with corrupted audio for one adaptation experiment in `data/`.
-- Preserve the already-frozen test membership and speaker-separated splits.
-- Audit source duplicates and speaker leakage, and write the audit to `reports/data_audit.md`.
+- Build data/train_manifest.jsonl and val_manifest.jsonl from separate non-frozen source audio; keep data/test_manifest.jsonl byte-identical to the frozen set.
+- Audit source/speaker leakage and corruption provenance; document in reports/data_audit.md.
+
 #### Experiment and Measure
-- Prove no source or speaker appears in more than one split, including via corrupted copies.
-- Report the severity distribution and correct any imbalance before training.
-#### Required Output
-['- `data/train_manifest.jsonl`', '- `data/val_manifest.jsonl`', '- `data/test_manifest.jsonl`', '- `reports/data_audit.md`']
+- Prove no source/speaker crosses splits; report severity distribution.
+- The frozen test set is not used for training, tuning or checkpoint selection in this phase.
+
+#### Required Output Artifacts
+- `data/train_manifest.jsonl`
+- `data/val_manifest.jsonl`
+- `data/test_manifest.jsonl`
+- `reports/data_audit.md`
+
 #### Completion Check
-> The evaluation set cannot appear in training through clean or corrupted duplicates, and the audit shows how you know.
+> The adaptation dataset is leakage-free and the frozen evaluation set is provably untouched.
 
 ---
 
-### DAY 38: Fine-tune for damaged-speech robustness
-- **Compute:** `Modal L4`
+### DAY 38: ASR robustness fine-tuning (not personalization)
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_38.md`](days/day_38.md)
 
-> **v3 STATUS: CORE** The personalization experiment: base versus adapted, measured with a clean-speech regression check.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 24](days/day_24.md), [Day 25](days/day_25.md), [Day 37](days/day_37.md)
+> **Effort:** 3–5 focused hours.
+
 #### Learn
-- Transfer learning.
-- Frozen versus trainable layers.
-- Mixed precision.
-- Gradient accumulation.
+- Transfer learning, frozen versus trainable layers, mixed precision. This is acoustic robustness, not user personalization.
+
 #### Build in MendSpeech
-- Fine-tune the Day 24 checkpoint on the Day 37 dataset using `training/finetune.py`.
-- Freeze trainable layers, learning rate, steps, seed, and sampling in `configs/finetune.yaml`.
+- Fine-tune the pinned streaming checkpoint with training/asr_finetune.py under configs/asr_finetune.yaml (steps, LR, seed, sampling frozen).
+- Bind and re-validate Day25 calibration for the adapted checkpoint before it informs triage.
+
 #### Experiment and Measure
-- Compare base and adapted models on the frozen test set, reporting WER per corruption and severity.
-- Measure clean-speech regression explicitly; an adaptation that helps damaged speech but harms clean speech is a documented tradeoff, not a win.
-- Record actual training time and cost.
-#### Required Output
-['- `training/finetune.py`', '- `configs/finetune.yaml`', '- `reports/day38_adaptation.md`', '- `results/day38_base_vs_adapted.csv`']
+- Compare base vs adapted on the frozen test set per corruption/severity with clean-speech regression.
+- An adaptation that helps damaged speech but harms clean speech is a documented trade-off; no personalization claim is made.
+
+#### Required Output Artifacts
+- `training/asr_finetune.py`
+- `configs/asr_finetune.yaml`
+- `results/day38_base_vs_adapted.csv`
+- `reports/day38_robustness_adaptation.md`
+
 #### Completion Check
-> You can state exactly what improved, what did not, and whether clean speech regressed.
+> Acoustic robustness is measured with clean-speech regression on the frozen set, and is reported as adaptation rather than personalization.
 
 ---
 
-### DAY 39: Augmentation ablation
-- **Compute:** `Modal L4`
+### DAY 39: Augmentation ablation on corrupted audio
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_39.md`](days/day_39.md)
 
-> **v3 STATUS: CORE** Confound control: augmentation must be separated from extra training time.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 38](days/day_38.md)
+> **Effort:** 2–3 focused hours.
+
 #### Learn
-- Time masking.
-- Frequency masking.
-- Data augmentation as invariance training.
+- SpecAugment, room impulse-response augmentation and training-time confounds.
+
 #### Build in MendSpeech
-- Add one augmentation intervention to a controlled short run in `experiments/specaugment_ablation.py`.
+- Run one controlled augmentation arm with identical steps/seed via experiments/augmentation_ablation.py.
+- Test augmentation strength and label-preserving transforms; never alter the frozen set.
+
 #### Experiment and Measure
-- Compare no augmentation versus selected augmentation with the same seed and the same step budget.
-- Report whether the gain survives when the extra steps are given to the unaugmented baseline.
-#### Required Output
-['- `experiments/specaugment_ablation.py`', '- `results/day39_augmentation.csv`']
+- Compare no-augmentation vs augmentation at equal budget, then give the extra steps to the unaugmented baseline.
+- Record the gain (or its absence) and per-corruption effect.
+
+#### Required Output Artifacts
+- `experiments/augmentation_ablation.py`
+- `results/day39_augmentation.csv`
+
 #### Completion Check
-> You can separate the effect of augmentation from the effect of extra training time.
+> The effect of augmentation is separated from the effect of extra training time.
 
 ---
 
-### DAY 40: RL reward design
-- **Compute:** `Modal L4`
+### DAY 40: Bounded GRPO post-training on the editor
+- **Compute:** Modal L4; spend/spend-capped
 - **Dedicated Daily File:** [`docs/days/day_40.md`](days/day_40.md)
 
-> **v3 STATUS: CORE** The reward must be falsifiable, or the run proves nothing. This is the most novel session in the plan.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 16](days/day_16.md), [Day 34](days/day_34.md), [Day 35](days/day_35.md), [Day 36](days/day_36.md)
+> **Effort:** 4–8 focused hours.
+
 #### Learn
-- Policy-gradient and PPO intuition for sequence output.
-- Reward hacking: what a model does when the reward is exploitable.
-- Designing a reward that is falsifiable in advance.
+- Group-relative policy optimization, KL to the SFT reference, reward variance, rollout cost.
+
 #### Build in MendSpeech
-- Define the reward in `src/rl/reward.py`: penalize fluent output that the acoustics do not support.
-- Write the falsifiable prediction in `configs/rl.yaml` BEFORE running anything.
-- Implement a minimal policy-gradient or PPO-style update in `src/rl/ppo.py`.
+- Run the bounded GRPO run using training/editor_rl.py with the Day34 reward and Day35 SFT reference; default to LoRA-scale updates, modest steps, and a declared stop/spend budget.
+- Log reward curves, KL to reference, group reward variance, completion length, adapter grad norms and refusals.
+
 #### Experiment and Measure
-- Show the reward can be gamed: construct at least one input where a naive reward rewards a wrong transcript.
-- Verify the reward is computable offline from cached logits before spending GPU time.
-- Unit-test reward components in `tests/test_reward.py`.
-#### Required Output
-['- `src/rl/reward.py`', '- `src/rl/ppo.py`', '- `configs/rl.yaml`', '- `tests/test_reward.py`', '- `docs/day40_reward_design.md`']
+- Evaluate against the SFT and continued-SFT controls on validation: protected-content violations, formatting accuracy, identity vs needs-edit, risk-coverage.
+- Stop on nonfinite loss, repeated OOM, or safety violations rising >2pp above the SFT baseline at two consecutive evals; a valid null is kept, a failed run is blocked not disguised.
+
+#### Required Output Artifacts
+- `training/editor_rl.py`
+- `configs/editor_rl.yaml`
+- `results/day40_rl_vs_sft.csv`
+- `docs/day40_rl_findings.md`
+- `results/day40_reward_curve.csv`
+
 #### Completion Check
-> You have a written falsifiable prediction, a reward shown to be gameable in at least one case, and a tested implementation.
+> A bounded, controlled GRPO run on the text editor with SFT/continued-SFT comparison and explicit stop criteria, or a documented blocked/null outcome.
 
 ---
 
-### DAY 41: RL post-training run
-- **Compute:** `Modal L4`
+### DAY 41: Personalization-adjacent robustness and error analysis
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_41.md`](days/day_41.md)
 
-> **v3 STATUS: CORE** Base versus fine-tuned versus RL, on the same held-out data. A null result here is still a result.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 38](days/day_38.md), [Day 39](days/day_39.md), [Day 40](days/day_40.md)
+> **Effort:** 2–4 focused hours.
+
 #### Learn
-- Reward/advantage computation.
-- KL regularization against the reference model.
-- Why RL can degrade a well-calibrated model.
+- Acoustic robustness adaptation versus user personalization; error taxonomy for the shipped path.
+
 #### Build in MendSpeech
-- Run the bounded RL post-training from `training/rl_train.py` using the Day 38 checkpoint as reference.
-- Track reward, KL, and held-out WER together; reward rising while WER worsens is the key diagnostic.
+- Build the failure casebook in reports/casebook.md for the robustness-adapted checkpoint plus the RL editor across corruption/severity.
+- Explicitly label Day38 as robustness adaptation; define the personalization evaluation this release does NOT claim.
+
 #### Experiment and Measure
-- Compare base, fine-tuned, and RL variants on held-out data.
-- Re-run the Day 13 risk-coverage analysis for the RL model; improved WER does not imply improved triage safety.
-- Record total GPU cost against the declared budget in `results/day41_rl_vs_baseline.csv`.
-#### Required Output
-['- `training/rl_train.py`', '- `results/day41_rl_vs_baseline.csv`', '- `docs/day41_rl_findings.md`', '- `results/day41_risk_coverage.csv`']
+- Rank failure modes by frequency and severity across the frozen matrix.
+- Verify each failure mode has an owner stage (ASR, triage, editor, guard, or endpoint) so the report can attribute causality.
+
+#### Required Output Artifacts
+- `reports/casebook.md`
+- `results/day41_failure_frequency.csv`
+
 #### Completion Check
-> You can state whether RL helped, did nothing, or hurt, with evidence, and you checked triage safety rather than WER alone.
+> A ranked, stage-attributed failure casebook, and an honest statement that this release measures acoustic robustness rather than user personalization.
 
 ---
 
-### DAY 42: Personalization comparison and robustness milestone
-- **Compute:** `Modal L4`
+### DAY 42: Editor personalization feasibility check (scope, not claim)
+- **Compute:** Local CPU
 - **Dedicated Daily File:** [`docs/days/day_42.md`](days/day_42.md)
 
-> **v3 STATUS: CORE** One table answers the personalization question and closes Phase P5.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 13](days/day_13.md), [Day 41](days/day_41.md)
+> **Effort:** 2–3 focused hours.
+
 #### Learn
-- Separating adaptation effects from training-time effects.
-- Reporting a null result without overclaiming.
+- User-specific vocabulary/corrections would be personalization; this session sizes it without claiming it.
+
 #### Build in MendSpeech
-- Produce the final base/fine-tuned/RL comparison in `reports/day42_personalization.md`.
-- Extend `app/audio_lab.py` to switch between the base, fine-tuned, and RL checkpoints.
+- Write a feasibility memo on what per-user enrollment, correction history and a personal lexicon would require in data, time and budget.
+- Compare to the released scope; recommend keep, defer or drop with reasons.
+
 #### Experiment and Measure
-- Report WER per corruption and severity for all three checkpoints, plus clean-speech regression.
-- Report the risk-coverage curve for each checkpoint.
-- State plainly which checkpoint ships and why the choice rests on measured evidence.
-#### Required Output
-['- `reports/day42_personalization.md`', '- `results/day42_personalization_matrix.csv`', '- `app/audio_lab.py`']
+- No model training. Report effort estimates and dependency blockers.
+- The memo must state that a personalization claim is not made unless this work is separately approved and executed.
+
+#### Required Output Artifacts
+- `docs/day42_personalization_feasibility.md`
+
 #### Completion Check
-> The personalization question is answered with a table and a shipping recommendation, including any null results.
+> A written feasibility memo decides the scope of personalization without pretending it was achieved.
 
 ---

@@ -1,0 +1,907 @@
+{
+  "version": 4,
+  "description": "Meaning-preserving dictation: streaming ASR, conservative transcript editing, robustness adaptation, bounded editor post-training, and a measured latency budget.",
+  "controlling_documents": {
+    "execution_plan": "docs/REVISED_EXECUTION_PLAN.md",
+    "blueprint": "docs/MendSpeech_Project_Blueprint.md",
+    "timing_contract": "docs/LATENCY_AND_QUALITY_CONTRACT.md",
+    "editor_rl_contract": "docs/EDITOR_AND_RL_CONTRACT.md"
+  },
+  "phases": [
+    {
+      "id": "P1",
+      "days": [
+        1,
+        9
+      ],
+      "goal": "Audio lab, deterministic damage suite, frozen labeled benchmark, CTC and ASR baseline.",
+      "core_sessions": 9,
+      "effort_hours": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "P2",
+      "days": [
+        10,
+        16
+      ],
+      "goal": "Data roles and protocol, confidence, timestamps, conservative editor contract, decoder comparison, early ASR-to-editor baseline, and SFT/GRPO feasibility.",
+      "core_sessions": 7,
+      "effort_hours": [
+        19,
+        31
+      ]
+    },
+    {
+      "id": "P3",
+      "days": [
+        18,
+        26
+      ],
+      "goal": "Streaming capability gate, chunk/session loop, endpointing, fixed-context frontier, calibration and triage, and an early end-to-end pipeline with a latency baseline.",
+      "core_sessions": 6,
+      "effort_hours": [
+        15,
+        27
+      ]
+    },
+    {
+      "id": "P4",
+      "days": [
+        27,
+        33
+      ],
+      "goal": "Profiling, compile/graph capture, batching, precision parity, cache-failure evidence, scorecard, and pipeline revalidation.",
+      "core_sessions": 7,
+      "effort_hours": [
+        15,
+        27
+      ]
+    },
+    {
+      "id": "P5",
+      "days": [
+        34,
+        42
+      ],
+      "goal": "Editor reward, SFT and compute-matched control, GRPO run, failure casebook, and a personalization feasibility decision.",
+      "core_sessions": 9,
+      "effort_hours": [
+        23,
+        39
+      ]
+    },
+    {
+      "id": "P6",
+      "days": [
+        43,
+        49
+      ],
+      "goal": "Serving contract, async service, load to saturation, editor selection under load, correlated latency budget, one optimization round, and a progress review.",
+      "core_sessions": 7,
+      "effort_hours": [
+        14,
+        26
+      ]
+    },
+    {
+      "id": "P7",
+      "days": [
+        50,
+        55
+      ],
+      "goal": "Frozen protocol, evaluation freeze, robustness matrix, ablations, final condition comparison, technical report, and reproduction guide.",
+      "core_sessions": 6,
+      "effort_hours": [
+        10,
+        17
+      ]
+    },
+    {
+      "id": "P8",
+      "days": [
+        56,
+        56
+      ],
+      "goal": "Final demo, clean reproduction, and tagged release.",
+      "core_sessions": 1,
+      "effort_hours": [
+        2,
+        3
+      ]
+    }
+  ],
+  "days": [
+    {
+      "day": 1,
+      "title": "Waveforms, sampling, and the MendSpeech baseline",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 2,
+      "title": "Fourier intuition and STFT",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 3,
+      "title": "Mel scale and log Mel features",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 4,
+      "title": "Build SpeechDamageBench as a standalone package",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 5,
+      "title": "Objective audio measurements",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 6,
+      "title": "Build the first MendSpeech audio console",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 7,
+      "title": "Review, explain, and freeze Week 1",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 8,
+      "title": "Frame sequence to transcript",
+      "status": "CORE",
+      "compute": "Modal L4 optional, CPU acceptable for\nsmall runs",
+      "prerequisites": []
+    },
+    {
+      "day": 9,
+      "title": "CTC from first principles",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "prerequisites": []
+    },
+    {
+      "day": 10,
+      "title": "WER/CER, data roles, and evaluation protocol",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        9
+      ],
+      "phase": "P2"
+    },
+    {
+      "day": 11,
+      "title": "Confidence definitions and failure cases",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        10
+      ],
+      "phase": "P2"
+    },
+    {
+      "day": 12,
+      "title": "Transcript timestamps and correlated event tracing",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        10,
+        11
+      ],
+      "phase": "P2"
+    },
+    {
+      "day": 13,
+      "title": "Conservative editor contract and evaluation data",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        10,
+        11,
+        12
+      ],
+      "phase": "P2"
+    },
+    {
+      "day": 14,
+      "title": "Greedy, beam and one small LM comparison",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        10,
+        11,
+        12
+      ],
+      "phase": "P2"
+    },
+    {
+      "day": 15,
+      "title": "Early ASR-to-editor baseline and resource pilot",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        13,
+        14
+      ],
+      "phase": "P2"
+    },
+    {
+      "day": 16,
+      "title": "Early SFT and GRPO feasibility on the text editor",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        4,
+        6
+      ],
+      "prerequisites": [
+        13,
+        15
+      ],
+      "phase": "P2"
+    },
+    {
+      "day": 17,
+      "title": "Attention and Conformer architecture reading",
+      "status": "LEARN-ONLY",
+      "compute": "Local CPU",
+      "effort_hours": [
+        0,
+        0
+      ],
+      "prerequisites": [
+        9
+      ],
+      "phase": "P1"
+    },
+    {
+      "day": 18,
+      "title": "Streaming checkpoint and decoder capability gate",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        14,
+        15
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 19,
+      "title": "Shape and mask checks inside the streaming capability gate",
+      "status": "MERGED",
+      "compute": "Within Day18",
+      "effort_hours": [
+        0,
+        0
+      ],
+      "prerequisites": [
+        18
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 20,
+      "title": "Scratch production-encoder comparison outside release",
+      "status": "DROPPED",
+      "compute": "None",
+      "effort_hours": [
+        0,
+        0
+      ],
+      "prerequisites": [
+        18
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 21,
+      "title": "Correct chunk loop and per-stream state",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        18
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 22,
+      "title": "Temporal subsampling and context reasoning",
+      "status": "LEARN-ONLY",
+      "compute": "Local CPU",
+      "effort_hours": [
+        0,
+        0
+      ],
+      "prerequisites": [
+        18
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 23,
+      "title": "VAD, endpointing and finalization state machine",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        21
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 24,
+      "title": "Fixed-context quality and latency frontier",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        21,
+        22,
+        23
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 25,
+      "title": "Fit and validate calibrated confidence and triage",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        11,
+        14,
+        18,
+        24
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 26,
+      "title": "Early streaming-to-editor integration and budget",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        15,
+        21,
+        23,
+        24,
+        25
+      ],
+      "phase": "P3"
+    },
+    {
+      "day": 27,
+      "title": "Profile the current end-to-end path",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        14,
+        26
+      ],
+      "phase": "P4"
+    },
+    {
+      "day": 28,
+      "title": "torch.compile and graph capture experiment",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        27
+      ],
+      "phase": "P4"
+    },
+    {
+      "day": 29,
+      "title": "Batching, concurrency and queueing",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        27
+      ],
+      "phase": "P4"
+    },
+    {
+      "day": 30,
+      "title": "Precision and export parity",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        27
+      ],
+      "phase": "P4"
+    },
+    {
+      "day": 31,
+      "title": "Streaming fast path and cache-failure evidence",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        21,
+        24,
+        28,
+        30
+      ],
+      "phase": "P4"
+    },
+    {
+      "day": 32,
+      "title": "Optimization scorecard and selection",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        26,
+        28,
+        29,
+        30,
+        31
+      ],
+      "phase": "P4"
+    },
+    {
+      "day": 33,
+      "title": "Rebuild and revalidate the end-to-end pipeline",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        25,
+        26,
+        32
+      ],
+      "phase": "P4"
+    },
+    {
+      "day": 34,
+      "title": "RL reward definition and falsifiability",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        13,
+        16,
+        25
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 35,
+      "title": "Editor SFT and continued-SFT control",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        16,
+        34
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 36,
+      "title": "Training pipeline anatomy for the editor",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        35
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 37,
+      "title": "ASR robustness adaptation dataset and leakage audit",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        10,
+        18
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 38,
+      "title": "ASR robustness fine-tuning (not personalization)",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        24,
+        25,
+        37
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 39,
+      "title": "Augmentation ablation on corrupted audio",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        38
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 40,
+      "title": "Bounded GRPO post-training on the editor",
+      "status": "CORE",
+      "compute": "Modal L4; spend/spend-capped",
+      "effort_hours": [
+        4,
+        8
+      ],
+      "prerequisites": [
+        16,
+        34,
+        35,
+        36
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 41,
+      "title": "Personalization-adjacent robustness and error analysis",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        38,
+        39,
+        40
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 42,
+      "title": "Editor personalization feasibility check (scope, not claim)",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        13,
+        41
+      ],
+      "phase": "P5"
+    },
+    {
+      "day": 43,
+      "title": "Serving contract and WebSocket message schema",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        26,
+        33
+      ],
+      "phase": "P6"
+    },
+    {
+      "day": 44,
+      "title": "Async streaming service",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        33,
+        43
+      ],
+      "phase": "P6"
+    },
+    {
+      "day": 45,
+      "title": "Load test to saturation and failure recovery",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        3,
+        5
+      ],
+      "prerequisites": [
+        44
+      ],
+      "phase": "P6"
+    },
+    {
+      "day": 46,
+      "title": "LLM stage measurement and consolidation",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        15,
+        32,
+        40,
+        45
+      ],
+      "phase": "P6"
+    },
+    {
+      "day": 47,
+      "title": "Per-stage correlated latency budget",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        44,
+        45,
+        46
+      ],
+      "phase": "P6"
+    },
+    {
+      "day": 48,
+      "title": "End-to-end optimization round informed by the budget",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        47
+      ],
+      "phase": "P6"
+    },
+    {
+      "day": 49,
+      "title": "Progress checkpoint against the plan (revised)",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        0,
+        1
+      ],
+      "prerequisites": [
+        48
+      ],
+      "phase": "P6"
+    },
+    {
+      "day": 50,
+      "title": "Freeze the evaluation protocol and claims",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        1,
+        2
+      ],
+      "prerequisites": [
+        32,
+        40,
+        46,
+        48
+      ],
+      "phase": "P7"
+    },
+    {
+      "day": 51,
+      "title": "Release SpeechDamageBench v1 and freeze the evaluation set",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        1,
+        2
+      ],
+      "prerequisites": [
+        37,
+        50
+      ],
+      "phase": "P7"
+    },
+    {
+      "day": 52,
+      "title": "Robustness matrix on the frozen set",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        38,
+        39,
+        51
+      ],
+      "phase": "P7"
+    },
+    {
+      "day": 53,
+      "title": "Optimization, serving and editor ablations on the frozen harness",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        32,
+        45,
+        46,
+        48,
+        52
+      ],
+      "phase": "P7"
+    },
+    {
+      "day": 54,
+      "title": "Adaptation and RL final comparison",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        38,
+        40,
+        41,
+        53
+      ],
+      "phase": "P7"
+    },
+    {
+      "day": 55,
+      "title": "Technical report and reproduction guide",
+      "status": "CORE",
+      "compute": "Local CPU",
+      "effort_hours": [
+        2,
+        4
+      ],
+      "prerequisites": [
+        50,
+        52,
+        53,
+        54
+      ],
+      "phase": "P7"
+    },
+    {
+      "day": 56,
+      "title": "Final demo, clean reproduction and release",
+      "status": "CORE",
+      "compute": "Modal L4 for measured GPU work; local CPU for checks",
+      "effort_hours": [
+        2,
+        3
+      ],
+      "prerequisites": [
+        55
+      ],
+      "phase": "P8"
+    }
+  ],
+  "notes": [
+    "Day numbers are specification identifiers, not calendar days.",
+    "Effort ranges are focused hours including learning and tests, not deadlines.",
+    "Day 16 gates whether editor post-training is feasible; it is not a claim of completed RL.",
+    "A blocked required target is incomplete and requires an explicit scope decision."
+  ]
+}

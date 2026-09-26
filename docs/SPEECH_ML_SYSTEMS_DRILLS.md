@@ -109,8 +109,9 @@ they do not require a timed reconstruction here.
 ### After Gate 6
 
 - Explain CTC versus RNN-T and base versus quantized inference behavior.
-- Trace content, speaker, style, duration, vocoder, and stitching through the
-  cascaded repair path.
+- Trace audio, acoustic frames, encoder states, cache, decode, triage, editor
+  guard, and delivery through the streaming pipeline, and say which stage owns
+  the p99.
 - Diagnose one real failure without blaming a library name.
 
 ### After Gate 7

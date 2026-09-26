@@ -1,52 +1,57 @@
-# Day 47: Per-stage latency budget decomposition
+# Day 47: Per-stage correlated latency budget
 
-> **Week 7 • Day 5 of 7**  
+> **Week 7 • Day 5 of 7**
 > **Navigation:** [← Day 46](day_46.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 48 →](day_48.md)
 
-> **v3 STATUS: CORE** The headline artifact of the whole project. The question is where the time actually goes, not what feels slow.
+> **v4 STATUS: CORE** Release headline artifact.
+> **Prerequisites:** [Day 44](day_44.md), [Day 45](day_45.md), [Day 46](day_46.md)
+> **Effort:** 2–4 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Separating queueing, model, decoding, network, and serialization time.
-- Why a blended average hides the tail that users feel.
+- Critical-path latency attribution; tail ownership by request ID, not percentile sum.
 
 ---
 
 ### 2. Build in MendSpeech
-- Instrument every stage in `src/bench/budget.py` using the Day 26 harness conventions.
+- Instrument the full path in src/bench/budget.py with trace IDs, clock sync notes, stage start/end, queue/prefill/decode/generation/guard/network.
+- Produce correlated per-request critical paths for the shipped configuration.
 
 ---
 
 ### 3. Experiment and Measure
-- Decompose waveform-to-polished-text into VAD/endpointing, ASR, decode, LLM TTFT, LLM full response, and network/serialization.
-- Report p50/p95/p99 per stage in `results/day47_latency_budget.csv`.
-- Name the single stage that owns the p99 and state the largest available optimization target in `docs/day47_latency_budget.md`.
+- Report per-stage p50/p95/p99, counts, cold/warm and length slices.
+- Identify the p99 owner by inspecting the same slow requests; do not sum percentiles or claim a sub-500ms end-to-end guarantee.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/bench/budget.py`', '- `results/day47_latency_budget.csv`', '- `docs/day47_latency_budget.md`', '- `results/day47_latency_budget.png`']
+- `src/bench/budget.py`
+- `results/day47_latency_budget.csv`
+- `results/day47_latency_budget.png`
+- `docs/day47_latency_budget.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 47:**  
-> You can point at the stage that owns the tail with per-stage percentiles, and the claim is reproducible from one command.
+> **Definition of Done for Day 47:**
+> A reproducible, request-level decomposition that names the tail owner and the largest optimization target, with no unsupported end-to-end claim.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Latency attribution methodology
-- Tail latency in distributed systems
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

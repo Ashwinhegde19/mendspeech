@@ -1,12 +1,12 @@
 # MendSpeech
 
-**A real-time voice interface: streaming ASR, latency budget, and personalization.**
+**Meaning-preserving dictation: streaming ASR, conservative transcript editing, and a measured latency budget.**
 
 Live dictation is not clean audio. It arrives with noise, clipping, missing
 packets, background speech, and words the model has never heard. MendSpeech is
 a real-time voice interface built to survive that: cache-aware streaming ASR,
-calibrated confidence, one LLM post-processing stage, and bounded RL
-personalization.
+calibrated confidence, one conservative editor, and bounded post-training of
+that editor.
 
 Everything is measured: word error, entity error, latency percentiles,
 real-time factor, calibration, and peak memory.
@@ -16,9 +16,8 @@ The project answers three questions, in order:
 1. **Where does the end-to-end latency budget actually live?** Decompose
    waveform to polished text stage by stage, find what owns the tail, improve
    it, and show the before/after.
-2. **How far can a speech model be pushed for a given acoustic condition?**
-   Measure controlled fine-tuning and RL post-training, including where they
-   fail.
+2. **How should a bounded post-training budget be split between supervised
+   editing and RL, and what does each buy?** A null result is still a result.
 3. **When is confidence safe to act on?** Calibrate it against correctness and
    find the cases where a high score is still wrong.
 
@@ -28,7 +27,7 @@ The project answers three questions, in order:
 
 | Product | Role |
 | :--- | :--- |
-| **MendSpeech** | Streaming recognition, calibrated confidence, a triage policy, bounded fine-tuning and RL personalization, an LLM post-processing stage, and a measured latency budget (`src/`). |
+| **MendSpeech** | Streaming recognition, calibrated confidence, a triage policy, a conservative editor with a guard, bounded editor post-training, acoustic robustness adaptation, and a measured latency budget (`src/`). |
 | **SpeechDamageBench** | A standalone, versioned robustness suite (noise, clipping, bandwidth limits, dropouts, reverberation). Every sample records corruption, severity, seed, and source. Usable without MendSpeech. |
 
 The release is one streaming pipeline, one serving endpoint, one LLM stage,
@@ -42,8 +41,8 @@ are 25 ms FFT / 10 ms hop.
 
 ## Status
 
-Early build. Audio foundations are in place; recognition, streaming, and
-repair come next. Milestones live in the
+Early build. Days 01–09 are complete: the audio lab, `SpeechDamageBench`, the
+frozen labeled benchmark, CTC from first principles, and a Wav2Vec2 baseline. Milestones live in the
 [execution plan](docs/REVISED_EXECUTION_PLAN.md). Architecture and the
 definition of done live in the
 [blueprint](docs/MendSpeech_Project_Blueprint.md).
@@ -52,11 +51,12 @@ definition of done live in the
 | :--- | :--- | :--- |
 | `src/audio` | Waveform I/O, resampling, STFT, log-Mel features | **exists** (tested) |
 | SpeechDamageBench | Deterministic damage generation + frozen evaluation sets | in progress |
-| `src/asr` | FastConformer, CTC, token confidence, calibration | planned |
-| `src/streaming` | Cache-aware real-time inference, lookahead, endpointing | planned |
+| `src/asr` | Decoding, token confidence, calibration | planned |
+| `src/streaming`, `src/vad` | Session loop, cache, lookahead, endpointing | planned |
 | `src/controller` | Triage policy, bounded adaptive context | planned |
-| `src/rl`, `src/llm` | RL reward and policy-gradient update; LLM post-processing adapter | planned |
-| `src/serve`, `src/bench` | Async service, load harness; WER, RTF, percentiles, ECE | planned |
+| `src/llm` | Editing contract, deterministic baseline, editor adapter, guard | planned |
+| `src/rl` | Reward definition and group-relative post-training | planned |
+| `src/serve`, `src/bench` | Async endpoint, load harness, tracing, latency budget | planned |
 
 Audio files and checkpoints are gitignored. Manifests and measured
 results are tracked. The [results index](results/README.md) ties every
@@ -102,8 +102,8 @@ pacing and gate contract.
 | Recognition | WER/CER, confidence, timestamps, triage policy, decoding comparison |
 | Streaming | Cache-aware inference, VAD/endpointing, lookahead cost, cache-failure evidence |
 | Optimization | Profiling, `torch.compile`, CUDA graphs, batching, quantization, scorecard |
-| Personalization | Leakage audit, fine-tuning, augmentation ablation, RL reward and run |
-| Serving | Async WebSocket service, load to saturation, LLM stage, **latency budget** |
+| Post-training | Editor reward, SFT with a compute-matched control, bounded GRPO, and ASR robustness adaptation |
+| Serving | Async WebSocket endpoint, load to saturation, editor selection, **correlated latency budget** |
 | Release | Frozen evaluation, ablations, technical report, reproduction, demo |
 
 Session notes and experiment specs live under [`docs/`](docs/INDEX.md).

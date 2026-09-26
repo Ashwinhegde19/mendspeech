@@ -1,55 +1,58 @@
-# Day 34: Bounded adaptive-context comparison
+# Day 34: RL reward definition and falsifiability
 
-> **Week 5 • Day 6 of 7**  
+> **Week 5 • Day 6 of 7**
 > **Navigation:** [← Day 33](day_33.md) | [Week 5 Plan](../Week_5_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 35 →](day_35.md)
 
-> **v3 STATUS: CORE** , capability-bounded. Live switching only if the checkpoint supports it; otherwise report the deferral honestly.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 13](day_13.md), [Day 16](day_16.md), [Day 25](day_25.md)
+> **Effort:** 3–5 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Policy-driven context selection.
-- Confidence smoothing.
-- Latency budget.
-- Stability versus oscillation.
+- Reward hacking, faithful rewards, and a bounded group-relative RL objective on the text editor.
 
 ---
 
 ### 2. Build in MendSpeech
-- Implement a capability-guarded policy in `src/controller/adaptive_context.py` that classifies chunks as easy or uncertain.
-- Compare at most two supported right-context settings from Day 25.
-- Return an explicit unavailable status when fewer than two settings are supported.
+- Design the conservative reward on the Day13 contract: edit/format fidelity, protected-span safety, length and fluency penalties, with a per-example safety floor.
+- Show a short-falsifiable prediction before training: which validation failures the reward should reduce and which must not increase.
+- Use the pilot path from Day16; do not train on the CTC acoustic model and do not handcraft a per-example rewrite.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare fixed-fast, fixed-accurate, and the bounded adaptive policy with an explicit `live`, `simulated`, or `unavailable` status.
-- Keep simulated estimates separate from measured latency; do not count cached reuse as a runtime gain.
+- Construct adversarial cases (empty/truncated output, negation removal, entity edits, prompt-echo, runaway length) and verify each is penalized.
+- Confirm the reward is computable offline on validation; log reward variance and any zero-variance groups. A reward that cannot be gamed by refusal earns nothing on needs-edit cases.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/controller/adaptive_context.py`', '- `results/day34_adaptive_context.csv`']
+- `src/rl/reward.py`
+- `configs/editor_reward.yaml`
+- `tests/test_reward.py`
+- `docs/day34_reward_design.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 34:**  
-> You have a measured live comparison, a clearly limited simulated comparison, or an evidence-backed unavailable result.
+> **Definition of Done for Day 34:**
+> A written falsifiable prediction plus reward tests that demonstrate the failure modes the reward is designed to penalize.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Stateful Conformer primary material
-- NVIDIA NeMo streaming ASR documentation
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

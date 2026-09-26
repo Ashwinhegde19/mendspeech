@@ -1,21 +1,13 @@
-# Week 4: FastConformer and Efficient Encoder Behavior
+# Week 4
 
-> **Days 22 to 28**  
-> **Navigation:** [← Week 3](Week_3_MendSpeech_Daily_Plan.md) | [Master Index](INDEX.md) | [Master Roadmap](MendSpeech_8_Week_Master_Roadmap.md) | [Week 5 →](Week_5_MendSpeech_Daily_Plan.md)
+> **Days 22–28**
+> **Navigation:** [← Index](INDEX.md) | [Master Index](INDEX.md) | [Master Roadmap](MendSpeech_8_Week_Master_Roadmap.md) | [Executive Plan](REVISED_EXECUTION_PLAN.md)
 
 ---
 
 > [!IMPORTANT]
-> **Week Milestone:**  
-> Measure why FastConformer is efficient and freeze a reproducible baseline.
->
-> **v2 gate evidence:** Follow Gate 3 in [the execution plan](REVISED_EXECUTION_PLAN.md), shared with Week 3. This week has **5 build sessions: Days 23, 24, 25, 26, and 28**; the combined encoder block has **9 build sessions**, with completion based on evidence rather than a calendar target.
-> These are base specification slots. The new decoder/LM experiment adds work
-> within Days 24/26/28; estimate it after compatibility checks, not by assuming
-> it fits the old session count. An incomplete decoder comparison needs a scope
-> review before Gate 3 closes, even if independent streaming work proceeds.
-
----
+> **Week theme:** Context trade-off, calibration, triage, and the end-to-end latency baseline
+> Measure fixed context and produce a calibrated, end-to-end latency baseline.
 
 ---
 
@@ -23,182 +15,223 @@
 
 | Day | Focus | Compute | Status | Daily Link |
 | :--- | :--- | :--- | :--- | :--- |
-| **Day 22** | Why FastConformer exists | `Local CPU` | LEARN-ONLY | [Open Day 22](days/day_22.md) |
-| **Day 23** | Temporal subsampling experiment | `Modal L4 useful` | CORE | [Open Day 23](days/day_23.md) |
-| **Day 24** | Pretrained streaming ASR baseline and capability check | `Modal L4` | CORE | [Open Day 24](days/day_24.md) |
-| **Day 25** | Context and lookahead cost | `Modal L4` | CORE | [Open Day 25](days/day_25.md) |
-| **Day 26** | Efficiency benchmark harness | `Modal L4` | CORE | [Open Day 26](days/day_26.md) |
-| **Day 27** | Profiling the streaming model | `Modal L4` | CORE | [Open Day 27](days/day_27.md) |
-| **Day 28** | torch.compile and graph capture | `Modal L4` | CORE | [Open Day 28](days/day_28.md) |
-
----
-
-## Phase Focus
-
-FastConformer, capability record, and the benchmark harness
+| **Day 22** | Temporal subsampling and context reasoning | `Local CPU` | LEARN-ONLY | [Open Day 22](days/day_22.md) |
+| **Day 23** | VAD, endpointing and finalization state machine | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 23](days/day_23.md) |
+| **Day 24** | Fixed-context quality and latency frontier | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 24](days/day_24.md) |
+| **Day 25** | Fit and validate calibrated confidence and triage | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 25](days/day_25.md) |
+| **Day 26** | Early streaming-to-editor integration and budget | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 26](days/day_26.md) |
+| **Day 27** | Profile the current end-to-end path | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 27](days/day_27.md) |
+| **Day 28** | torch.compile and graph capture experiment | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 28](days/day_28.md) |
 
 ---
 
 ## Daily Detailed Operating Plans
-### DAY 22: Why FastConformer exists
-- **Compute:** `Local CPU`
+
+### DAY 22: Temporal subsampling and context reasoning
+- **Compute:** Local CPU
 - **Dedicated Daily File:** [`docs/days/day_22.md`](days/day_22.md)
 
-> **v3 STATUS: LEARN-ONLY** Merged into Day 23; paper notes and compute estimates only.
+> **STATUS: LEARN-ONLY**
+> **Prerequisites:** [Day 18](days/day_18.md)
+> **Effort:** 0–0 focused hours.
+
 #### Learn
-- Sequence length as an attention cost driver.
-- Subsampling before expensive encoder blocks.
-- Depthwise separable convolution.
-- Local and limited context attention.
+- Subsampling changes frame counts; buffering/lookahead creates latency.
+
 #### Build in MendSpeech
-- No standalone build. Day 23 incorporates the comparison checklist and diagram.
+- No separate module; study the selected model metadata for Day24.
+
 #### Experiment and Measure
-- Day 23 incorporates attention-matrix estimates before and after temporal subsampling.
-#### Required Output
-['None for this learn-only session; retained notes and estimate paths are produced within Day 23.']
+- No standalone timing sweep.
+
+#### Required Output Artifacts
+- None.
+
 #### Completion Check
-> You can explain FastConformer as a set of concrete efficiency choices, not just a faster model name.
+> Theory informs context measurements without a second encoder project.
 
 ---
 
-### DAY 23: Temporal subsampling experiment
-- **Compute:** `Modal L4 useful`
+### DAY 23: VAD, endpointing and finalization state machine
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_23.md`](days/day_23.md)
 
-> **v3 STATUS: CORE** Absorbs Day 22: quantify how much sequence length subsampling removes, and what that saves.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 21](days/day_21.md)
+> **Effort:** 3–5 focused hours.
+
 #### Learn
-- Convolutional subsampling.
-- Temporal resolution.
-- Information loss versus compute reduction.
+- Frame energy/spectral VAD, hangover, pause/endpoint trade-offs and speech-end labels.
+
 #### Build in MendSpeech
-- Implement a small subsampling front end in `src/models/subsampling.py`.
-- Track frames per second before and after each stage.
-- Incorporate Day 22's comparison checklist into `docs/day22_fastconformer_notes.md`.
+- Implement deterministic framing/VAD with one compatible local reference detector; tune thresholds only on validation.
+- Integrate start/end/hangover state with streaming/session.py. Preserve too-quiet/short/silence failure cases; no diarization.
+
 #### Experiment and Measure
-- Compare 2x, 4x, and 8x temporal reduction on tensor length, runtime, and rough output behavior.
-- Estimate attention-matrix size before and after subsampling.
-#### Required Output
-['- `src/models/subsampling.py`', '- `results/day23_subsampling.csv`', '- `docs/day22_fastconformer_notes.md`', '- `results/day22_compute_estimates.csv`']
+- Measure precision/recall, onset/offset ms error and CPU RTF on a separate annotated validation slice; untouched core-test membership.
+- Test mid-sentence pauses, trailing silence, short clips and delayed chunks; record endpoint-to-final and annotated-speech-end-to-final separately.
+
+#### Required Output Artifacts
+- `src/vad/baseline.py`
+- `src/streaming/endpoint.py`
+- `tests/test_vad.py`
+- `tests/test_endpoint.py`
+- `results/day23_endpointing.csv`
+
 #### Completion Check
-> You can quantify how subsampling changes sequence length and downstream attention cost.
+> Live finalization is tested and endpoint delay is measured, not postponed until after system profiling.
 
 ---
 
-### DAY 24: Pretrained streaming ASR baseline and capability check
-- **Compute:** `Modal L4`
+### DAY 24: Fixed-context quality and latency frontier
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_24.md`](days/day_24.md)
 
-> **v3 STATUS: CORE** Record what the selected checkpoint actually supports before later phases depend on it.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 21](days/day_21.md), [Day 22](days/day_22.md), [Day 23](days/day_23.md)
+> **Effort:** 2–4 focused hours.
+
 #### Learn
-- Model checkpoint loading.
-- Tokenizer and decoder configuration.
-- Batch versus single utterance inference.
-- Cache-aware inference, right-context controls, export support, and tokenizer language coverage.
+- Algorithmic lookahead, wall-clock finalization and WER versus responsiveness.
+
 #### Build in MendSpeech
-- Run a current streaming-capable ASR checkpoint on clean and damaged sets in `src/asr/streaming_runner.py`.
-- Record model revision and all inference settings.
-- Record capability status for cache-aware inference, supported right-context values and units, runtime context switching, intended export path, and language coverage in `configs/model_baseline.yaml`.
+- Add only documented fixed context configurations and preserve model/head/cache compatibility.
+- Use the shared replay/harness with trace IDs, warm/cold and settings recorded.
+
 #### Experiment and Measure
-- Benchmark WER, latency, and GPU memory by damage type.
-- Use minimal supported smoke checks where feasible and record failures early.
-- Estimate later-phase effort from the capability record; do not start a model hunt to fill a gap.
-#### Required Output
-['- `src/asr/streaming_runner.py`', '- `results/day24_baseline.csv`', '- `configs/model_baseline.yaml`']
+- Compare supported context settings on validation at fixed decoder and batch; report time-to-first-partial and post-utterance finalization plus WER/CER.
+- Fewer than two supported settings yields a single-setting baseline and explicit limit, not invented adaptive gains.
+
+#### Required Output Artifacts
+- `src/streaming/context.py`
+- `tests/test_context.py`
+- `results/day24_context_tradeoff.csv`
+
 #### Completion Check
-> You have a reproducible baseline with model, data, hardware, and settings fixed, plus an evidence-backed capability record.
+> Context costs are measured with a working chunk loop and endpoint detector; scope of supported settings is honest.
 
 ---
 
-### DAY 25: Context and lookahead cost
-- **Compute:** `Modal L4`
+### DAY 25: Fit and validate calibrated confidence and triage
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_25.md`](days/day_25.md)
 
-> **v3 STATUS: CORE** Lookahead is a latency knob; this session measures what it costs and buys.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 11](days/day_11.md), [Day 14](days/day_14.md), [Day 18](days/day_18.md), [Day 24](days/day_24.md)
+> **Effort:** 3–5 focused hours.
+
 #### Learn
-- Right context versus left context.
-- Algorithmic latency versus accuracy.
-- Why future context cannot be free.
+- Temperature scaling, word/utterance correctness labels, reliability, Brier/ECE, risk-coverage.
+
 #### Build in MendSpeech
-- Implement fixed left/right context settings in `src/streaming/context.py`.
-- Log the context configuration with every result.
+- Implement src/asr/calibration.py with an explicit score-to-correctness unit, calibration-only fitting and separate validation thresholds.
+- Map scores to actual decoded tokens/words; if beam scores lack valid aligned features, retain verified greedy triage rather than calling fused scores probabilities.
+- Bind calibration to checkpoint/head/tokenizer/decoder/precision and context mode; build accept/uncertain/reject policy that preserves raw text and bypasses editor on uncertainty.
+
 #### Experiment and Measure
-- Compare at least two supported context settings on the same subset.
-- Plot WER against measured algorithmic latency and mark the Pareto-efficient points.
-- Report where errors cluster near chunk boundaries.
-#### Required Output
-['- `src/streaming/context.py`', '- `tests/test_context.py`', '- `results/day25_context_tradeoff.csv`']
+- Compare raw/calibrated reliability and risk-coverage on disjoint validation, with bins/counts and corruption slices.
+- Test empty/blank/all-correct/all-wrong and serialization/refit; non-improvement is valid but unsupported calibrated claims are not.
+
+#### Required Output Artifacts
+- `src/asr/calibration.py`
+- `src/controller/triage.py`
+- `tests/test_calibration.py`
+- `tests/test_triage.py`
+- `configs/calibration.yaml`
+- `configs/triage_thresholds.yaml`
+- `results/day25_reliability.csv`
+- `results/day25_reliability.png`
+- `results/day25_risk_coverage.csv`
+
 #### Completion Check
-> You can explain exactly why future context creates latency, with a measured curve rather than an assertion.
+> Calibration is actually fitted and independently evaluated, distinct from threshold selection, for the exact shipping-candidate configuration.
 
 ---
 
-### DAY 26: Efficiency benchmark harness
-- **Compute:** `Modal L4`
+### DAY 26: Early streaming-to-editor integration and budget
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_26.md`](days/day_26.md)
 
-> **v3 STATUS: CORE** One harness serves every later measurement. A benchmark built twice is a benchmark you cannot trust.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 15](days/day_15.md), [Day 21](days/day_21.md), [Day 23](days/day_23.md), [Day 24](days/day_24.md), [Day 25](days/day_25.md)
+> **Effort:** 2–4 focused hours.
+
 #### Learn
-- Warmup runs.
-- Synchronized GPU timing.
-- Median and percentile latency.
-- Real time factor.
-- Peak memory.
+- End-of-speech finalization, editor trigger semantics and guard-before-delivery.
+
 #### Build in MendSpeech
-- Create one benchmark function used by every later experiment in `src/bench/benchmark_asr.py`.
-- Log environment, model, batch, and precision metadata automatically in `src/bench/environment.py`.
+- Extend one app/audio_lab.py with replay/microphone streaming, final-ASR→editor request, raw bypass and visibly provisional output.
+- Instrument all clocks in the latency contract; execute one-L4 joint-memory/interference test, not isolated-model timing only.
+
 #### Experiment and Measure
-- Run repeated inference and calculate variance.
-- Detect and discard obviously invalid cold start comparisons, reporting what was discarded and why.
-- Record the timing boundary explicitly: where measurement starts and ends.
-#### Required Output
-['- `src/bench/benchmark_asr.py`', '- `src/bench/environment.py`', '- `results/day26_repeatability.csv`']
+- Collect raw/deterministic/LLM quality and correlated request-level stage intervals on validation.
+- Record first partial, post-utterance ASR finalization, server/client TTFT and final usable text. State microphone versus paced replay and model residence/cold state.
+
+#### Required Output Artifacts
+- `app/audio_lab.py`
+- `tests/test_pipeline_contract.py`
+- `results/day26_e2e_baseline.csv`
+- `docs/day26_latency_baseline.md`
+
 #### Completion Check
-> Repeated runs produce stable enough numbers to support comparisons, and the timing boundary is documented.
+> The full baseline, including streaming, endpointing, guarded editing and combined resource use, exists before optimization.
 
 ---
 
-### DAY 27: Profiling the streaming model
-- **Compute:** `Modal L4`
+### DAY 27: Profile the current end-to-end path
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_27.md`](days/day_27.md)
 
-> **v3 STATUS: CORE** Phase P4 begins. Measure before optimizing, or you optimize the wrong thing.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 14](days/day_14.md), [Day 26](days/day_26.md)
+> **Effort:** 2–3 focused hours.
+
 #### Learn
-- Where time actually goes in a streaming forward pass.
-- CPU launch overhead versus GPU compute time.
-- Kernel-level versus end-to-end timing.
+- Kernel versus wall time, CPU launch overhead, queue/prefill/decode/generation and cold-versus-warm.
+
 #### Build in MendSpeech
-- Add per-operator profiling to the Day 26 harness in `src/bench/profile_ops.py`.
-- Produce a ranked operator table for one fixed configuration.
+- Add per-stage instrumentation to src/bench/profile_ops.py on the Day26 pipeline; no optimization technique is applied yet.
+- Separate start/compile/load from steady state; report per-request critical paths, not just aggregated percentiles.
+
 #### Experiment and Measure
-- Rank operators by measured time and separate launch overhead from compute.
-- Identify the top three candidates for optimization and state the expected ceiling for each.
-- Write the baseline row into `results/day27_operator_profile.csv`.
-#### Required Output
-['- `src/bench/profile_ops.py`', '- `results/day27_operator_profile.csv`', '- `docs/day27_optimization_targets.md`']
+- Rank measured time contributors and note overlapping/serialized stages. Identify where p99 requests diverge from median, using the same request IDs.
+- State expected ceiling for each candidate; unsupported profiling granularity is recorded, not guessed.
+
+#### Required Output Artifacts
+- `src/bench/profile_ops.py`
+- `results/day27_profile.csv`
+- `docs/day27_optimization_targets.md`
+
 #### Completion Check
-> You can name the top three time consumers with measured evidence and an expected gain for each.
+> The top measured contributors and the p99 divergence are named with request-level evidence, not assumption.
 
 ---
 
-### DAY 28: torch.compile and graph capture
-- **Compute:** `Modal L4`
+### DAY 28: torch.compile and graph capture experiment
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_28.md`](days/day_28.md)
 
-> **v3 STATUS: CORE** First optimization technique, measured against the Day 27 profile rather than assumed.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 27](days/day_27.md)
+> **Effort:** 3–5 focused hours.
+
 #### Learn
-- torch.compile: graph capture, fusion, and recompilation triggers.
-- Dynamic shapes and why recompilation is silent and expensive.
-- CUDA graphs for static-shape workloads.
+- Graph capture, fusion, recompilation on new shapes/frames and static versus dynamic cost.
+
 #### Build in MendSpeech
-- Apply torch.compile to the hot path in `src/asr/optimized_runner.py`, pinning shapes to avoid recompilation.
-- Add a CUDA-graph fast path only for static-shape inputs in `src/asr/optimized_runner.py`.
+- Apply torch.compile to a pinned steady-state configuration and experiment with CUDA graphs in src/asr/optimized_runner.py. Pin static shapes; treat chunked streaming as dynamic.
+- Test parity on same input/precision; separate warmup/compile time from p50/p95/p99.
+
 #### Experiment and Measure
-- Measure WER, p50/p95/p99 latency, RTF, and memory against the Day 27 baseline on identical inputs.
-- Record compile time and warmup separately from steady-state latency.
-- Verify output parity against the unoptimized path; a speedup with different transcripts is not a speedup.
-#### Required Output
-['- `src/asr/optimized_runner.py`', '- `tests/test_optimized_parity.py`', '- `results/day28_compile_speedup.csv`']
+- Measure WER/latency/RTF/memory against Day27 including joint editor; count recompiles and reject measures that slow p99 or break parity.
+- Negative/zero gains are documented with numbers; do not chase a checklist.
+
+#### Required Output Artifacts
+- `src/asr/optimized_runner.py`
+- `tests/test_optimized_parity.py`
+- `results/day28_compile.csv`
+
 #### Completion Check
-> You have a measured before/after for compilation with verified output parity, or the failure and its cause documented.
+> A measured, parity-checked before/after for compilation/graph capture, or an honest zero-gain result.
 
 ---

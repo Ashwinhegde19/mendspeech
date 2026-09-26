@@ -15,6 +15,6 @@ come from the Markdown [execution plan](REVISED_EXECUTION_PLAN.md) and day specs
 | **Week 3 Daily Plan** | `pdfs/Week_3_MendSpeech_Daily_Plan.pdf` | [`Week_3_MendSpeech_Daily_Plan.md`](Week_3_MendSpeech_Daily_Plan.md) | Conformer from scratch in PyTorch. |
 | **Week 4 Daily Plan** | `pdfs/Week_4_MendSpeech_Daily_Plan.pdf` | [`Week_4_MendSpeech_Daily_Plan.md`](Week_4_MendSpeech_Daily_Plan.md) | FastConformer subsampling & efficiency. |
 | **Week 5 Daily Plan** | `pdfs/Week_5_MendSpeech_Daily_Plan.pdf` | [`Week_5_MendSpeech_Daily_Plan.md`](Week_5_MendSpeech_Daily_Plan.md) | Streaming cache-aware inference & adaptive context. |
-| **Week 6 Daily Plan** | `pdfs/Week_6_MendSpeech_Daily_Plan.pdf` | [`Week_6_MendSpeech_Daily_Plan.md`](Week_6_MendSpeech_Daily_Plan.md) | Robust fine-tuning, RNN-T & confidence calibration. |
-| **Week 7 Daily Plan** | `pdfs/Week_7_MendSpeech_Daily_Plan.pdf` | [`Week_7_MendSpeech_Daily_Plan.md`](Week_7_MendSpeech_Daily_Plan.md) | TTS, speaker preservation & boundary matching. |
+| **Week 6 Daily Plan** | `pdfs/Week_6_MendSpeech_Daily_Plan.pdf` | [`Week_6_MendSpeech_Daily_Plan.md`](Week_6_MendSpeech_Daily_Plan.md) | Archived restoration-scope plan. |
+| **Week 7 Daily Plan** | `pdfs/Week_7_MendSpeech_Daily_Plan.pdf` | [`Week_7_MendSpeech_Daily_Plan.md`](Week_7_MendSpeech_Daily_Plan.md) | Archived restoration-scope plan. |
 | **Week 8 Daily Plan** | `pdfs/Week_8_MendSpeech_Daily_Plan.pdf` | [`Week_8_MendSpeech_Daily_Plan.md`](Week_8_MendSpeech_Daily_Plan.md) | Current Markdown: controlled repair comparisons and verified external restoration. |

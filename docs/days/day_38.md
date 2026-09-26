@@ -1,55 +1,57 @@
-# Day 38: Fine-tune for damaged-speech robustness
+# Day 38: ASR robustness fine-tuning (not personalization)
 
-> **Week 6 • Day 3 of 7**  
+> **Week 6 • Day 3 of 7**
 > **Navigation:** [← Day 37](day_37.md) | [Week 6 Plan](../Week_6_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 39 →](day_39.md)
 
-> **v3 STATUS: CORE** The personalization experiment: base versus adapted, measured with a clean-speech regression check.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 24](day_24.md), [Day 25](day_25.md), [Day 37](day_37.md)
+> **Effort:** 3–5 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Transfer learning.
-- Frozen versus trainable layers.
-- Mixed precision.
-- Gradient accumulation.
+- Transfer learning, frozen versus trainable layers, mixed precision. This is acoustic robustness, not user personalization.
 
 ---
 
 ### 2. Build in MendSpeech
-- Fine-tune the Day 24 checkpoint on the Day 37 dataset using `training/finetune.py`.
-- Freeze trainable layers, learning rate, steps, seed, and sampling in `configs/finetune.yaml`.
+- Fine-tune the pinned streaming checkpoint with training/asr_finetune.py under configs/asr_finetune.yaml (steps, LR, seed, sampling frozen).
+- Bind and re-validate Day25 calibration for the adapted checkpoint before it informs triage.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare base and adapted models on the frozen test set, reporting WER per corruption and severity.
-- Measure clean-speech regression explicitly; an adaptation that helps damaged speech but harms clean speech is a documented tradeoff, not a win.
-- Record actual training time and cost.
+- Compare base vs adapted on the frozen test set per corruption/severity with clean-speech regression.
+- An adaptation that helps damaged speech but harms clean speech is a documented trade-off; no personalization claim is made.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `training/finetune.py`', '- `configs/finetune.yaml`', '- `reports/day38_adaptation.md`', '- `results/day38_base_vs_adapted.csv`']
+- `training/asr_finetune.py`
+- `configs/asr_finetune.yaml`
+- `results/day38_base_vs_adapted.csv`
+- `reports/day38_robustness_adaptation.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 38:**  
-> You can state exactly what improved, what did not, and whether clean speech regressed.
+> **Definition of Done for Day 38:**
+> Acoustic robustness is measured with clean-speech regression on the frozen set, and is reported as adaptation rather than personalization.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- NVIDIA NeMo ASR training documentation
-- Transfer learning for speech recognition
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

@@ -1,55 +1,55 @@
-# Day 41: RL post-training run
+# Day 41: Personalization-adjacent robustness and error analysis
 
-> **Week 6 • Day 6 of 7**  
+> **Week 6 • Day 6 of 7**
 > **Navigation:** [← Day 40](day_40.md) | [Week 6 Plan](../Week_6_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 42 →](day_42.md)
 
-> **v3 STATUS: CORE** Base versus fine-tuned versus RL, on the same held-out data. A null result here is still a result.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 38](day_38.md), [Day 39](day_39.md), [Day 40](day_40.md)
+> **Effort:** 2–4 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Reward/advantage computation.
-- KL regularization against the reference model.
-- Why RL can degrade a well-calibrated model.
+- Acoustic robustness adaptation versus user personalization; error taxonomy for the shipped path.
 
 ---
 
 ### 2. Build in MendSpeech
-- Run the bounded RL post-training from `training/rl_train.py` using the Day 38 checkpoint as reference.
-- Track reward, KL, and held-out WER together; reward rising while WER worsens is the key diagnostic.
+- Build the failure casebook in reports/casebook.md for the robustness-adapted checkpoint plus the RL editor across corruption/severity.
+- Explicitly label Day38 as robustness adaptation; define the personalization evaluation this release does NOT claim.
 
 ---
 
 ### 3. Experiment and Measure
-- Compare base, fine-tuned, and RL variants on held-out data.
-- Re-run the Day 13 risk-coverage analysis for the RL model; improved WER does not imply improved triage safety.
-- Record total GPU cost against the declared budget in `results/day41_rl_vs_baseline.csv`.
+- Rank failure modes by frequency and severity across the frozen matrix.
+- Verify each failure mode has an owner stage (ASR, triage, editor, guard, or endpoint) so the report can attribute causality.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `training/rl_train.py`', '- `results/day41_rl_vs_baseline.csv`', '- `docs/day41_rl_findings.md`', '- `results/day41_risk_coverage.csv`']
+- `reports/casebook.md`
+- `results/day41_failure_frequency.csv`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 41:**  
-> You can state whether RL helped, did nothing, or hurt, with evidence, and you checked triage safety rather than WER alone.
+> **Definition of Done for Day 41:**
+> A ranked, stage-attributed failure casebook, and an honest statement that this release measures acoustic robustness rather than user personalization.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- PPO implementation references
-- KL-regularized policy optimization
-- RL fine-tuning stability
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

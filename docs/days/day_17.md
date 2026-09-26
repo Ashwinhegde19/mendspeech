@@ -1,9 +1,12 @@
-# Day 17: Macaron feed forward and residual scaling
+# Day 17: Attention and Conformer architecture reading
 
-> **Week 3 • Day 3 of 7**  
+> **Week 3 • Day 3 of 7**
 > **Navigation:** [← Day 16](day_16.md) | [Week 3 Plan](../Week_3_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 18 →](day_18.md)
 
-> **v3 STATUS: LEARN-ONLY** No build session; the macaron build moves into Day 18.
+> **v4 STATUS: LEARN-ONLY** Theory only, consumed by Day18.
+> **Prerequisites:** [Day 09](day_09.md)
+> **Effort:** 0–0 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
@@ -12,40 +15,38 @@
 ---
 
 ### 1. Learn
-- Macaron structure.
-- Layer normalization placement.
-- Residual scaling and why half-step helps deep stacks.
+- Attention tensor shapes, local convolution, residual/normalization placement and context limits.
 
 ---
 
 ### 2. Build in MendSpeech
-- No standalone build. Day 18 implements the macaron feed-forward.
+- No standalone implementation. Use existing tested CTC/audio examples and the model documentation needed for Day18.
 
 ---
 
 ### 3. Experiment and Measure
-- No standalone measurement. Day 18 compares output statistics with and without residual scaling.
+- Explain state/context costs during Day18; optional scratch exercises do not gate release.
 
 ---
 
 ### 4. Required Output Artifacts
-['None for this learn-only session; artifacts are produced within Day 18.']
+- None; learning is included in the absorbing Day18 estimate.
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 17:**  
-> You can explain the ordering of the Conformer block without memorizing a diagram.
+> **Definition of Done for Day 17:**
+> Concepts support Day18 model selection; no extra artifact or build session is counted.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Gulati et al., Conformer
-- Layer normalization and residual scaling notes
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

@@ -1,52 +1,54 @@
-# Day 42: Personalization comparison and robustness milestone
+# Day 42: Editor personalization feasibility check (scope, not claim)
 
-> **Week 6 • Day 7 of 7**  
+> **Week 6 • Day 7 of 7**
 > **Navigation:** [← Day 41](day_41.md) | [Week 6 Plan](../Week_6_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 43 →](day_43.md)
 
-> **v3 STATUS: CORE** One table answers the personalization question and closes Phase P5.
+> **v4 STATUS: CORE** Scope decision only; no implementation.
+> **Prerequisites:** [Day 13](day_13.md), [Day 41](day_41.md)
+> **Effort:** 2–3 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Local CPU`
 
 ---
 
 ### 1. Learn
-- Separating adaptation effects from training-time effects.
-- Reporting a null result without overclaiming.
+- User-specific vocabulary/corrections would be personalization; this session sizes it without claiming it.
 
 ---
 
 ### 2. Build in MendSpeech
-- Produce the final base/fine-tuned/RL comparison in `reports/day42_personalization.md`.
-- Extend `app/audio_lab.py` to switch between the base, fine-tuned, and RL checkpoints.
+- Write a feasibility memo on what per-user enrollment, correction history and a personal lexicon would require in data, time and budget.
+- Compare to the released scope; recommend keep, defer or drop with reasons.
 
 ---
 
 ### 3. Experiment and Measure
-- Report WER per corruption and severity for all three checkpoints, plus clean-speech regression.
-- Report the risk-coverage curve for each checkpoint.
-- State plainly which checkpoint ships and why the choice rests on measured evidence.
+- No model training. Report effort estimates and dependency blockers.
+- The memo must state that a personalization claim is not made unless this work is separately approved and executed.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `reports/day42_personalization.md`', '- `results/day42_personalization_matrix.csv`', '- `app/audio_lab.py`']
+- `docs/day42_personalization_feasibility.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 42:**  
-> The personalization question is answered with a table and a shipping recommendation, including any null results.
+> **Definition of Done for Day 42:**
+> A written feasibility memo decides the scope of personalization without pretending it was achieved.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Phase 5 evidence requirements in the execution plan
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

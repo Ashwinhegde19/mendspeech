@@ -1,53 +1,61 @@
-# Day 16: Conformer convolution module
+# Day 16: Early SFT and GRPO feasibility on the text editor
 
-> **Week 3 • Day 2 of 7**  
+> **Week 3 • Day 2 of 7**
 > **Navigation:** [← Day 15](day_15.md) | [Week 3 Plan](../Week_3_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 17 →](day_17.md)
 
-> **v3 STATUS: CORE** Depthwise convolution is what makes a Conformer cheaper than attention alone at long sequence lengths.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 13](day_13.md), [Day 15](day_15.md)
+> **Effort:** 4–6 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Local CPU`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Depthwise separable convolution.
-- Receptive field and locality.
-- Causality assumptions for a streaming encoder.
+- Completion-only SFT, LoRA gradients, group-relative advantages and reference KL.
+- Why CTC acoustic outputs cannot be passed to a causal-LM GRPO trainer.
 
 ---
 
 ### 2. Build in MendSpeech
-- Implement a Conformer-style convolution module in `src/models/conv_module.py`.
-- Test causality assumptions and receptive field growth in `tests/test_conv_module.py`.
+- Use the selected Day15 editor and a pinned compatible optional Transformers/PEFT/TRL environment. Implement training/editor_pilot.py with the exact bounded SFT/GRPO route in the editor contract, no scratch PPO or reward model.
+- Implement provisional reward component tests; one pilot group uses fresh current-policy generations. Check names/counts of trainable adapters, completion masks/EOS and group/batch divisibility.
+- Declare <=10 SFT and <=5 GRPO steps, group2, fixed token caps, wall-time/spend and nonfinite/OOM stop conditions. Unload ASR while training.
 
 ---
 
 ### 3. Experiment and Measure
-- Feed synthetic impulses and inspect how local information spreads.
-- Measure receptive field against layer count and compare with the analytic prediction.
+- Show finite loss/logprobs/gradients and adapter weight changes, reload checkpoint and inspect completions. Measure policy/reference/optimizer/rollout memory, step time and cost.
+- Log reward variance/zero-variance groups and KL; failed update or insufficient rollout diversity is blocked, not a null RL result. Forecast later training cost before approval.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/models/conv_module.py`', '- `tests/test_conv_module.py`', '- `results/day16_receptive_field.csv`']
+- `training/editor_pilot.py`
+- `configs/editor_pilot.yaml`
+- `src/rl/reward.py`
+- `tests/test_reward.py`
+- `reports/day16_training_feasibility.md`
+- `results/day16_training_pilot.csv`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 16:**  
-> You can explain why depthwise convolution is cheap and what local context it captures relative to attention.
+> **Definition of Done for Day 16:**
+> An actual tiny SFT and GRPO update on the causal text editor is verified, or the full training track remains explicitly blocked before further training expenditure.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- Gulati et al., Conformer
-- NVIDIA NeMo Conformer implementation
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

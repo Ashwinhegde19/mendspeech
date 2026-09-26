@@ -1,17 +1,13 @@
-# Week 5: Streaming, Cache Aware Inference, and Adaptive Context
+# Week 5
 
-> **Days 29 to 35**  
-> **Navigation:** [← Week 4](Week_4_MendSpeech_Daily_Plan.md) | [Master Index](INDEX.md) | [Master Roadmap](MendSpeech_8_Week_Master_Roadmap.md) | [Week 6 →](Week_6_MendSpeech_Daily_Plan.md)
+> **Days 29–35**
+> **Navigation:** [← Index](INDEX.md) | [Master Index](INDEX.md) | [Master Roadmap](MendSpeech_8_Week_Master_Roadmap.md) | [Executive Plan](REVISED_EXECUTION_PLAN.md)
 
 ---
 
 > [!IMPORTANT]
-> **Week Milestone:**  
-> Turn the recognizer into a real time system and test uncertainty-guided context spending only within supported checkpoint capabilities.
->
-> **v2 gate evidence:** Follow Gate 4 in [the execution plan](REVISED_EXECUTION_PLAN.md), not a calendar target. Days 29–35 retain streaming, cache, and VAD/endpointing evidence; **Add-on B** async serving and load behavior remains required. Day 32 uses supported fixed contexts; Day 34 is a bounded live/simulated/unavailable comparison, not a custom serving project.
-
----
+> **Week theme:** Profiling, compile/graph capture, batching, precision, and the scorecard
+> Optimize only what the profile shows, and record what does not help.
 
 ---
 
@@ -19,177 +15,222 @@
 
 | Day | Focus | Compute | Status | Daily Link |
 | :--- | :--- | :--- | :--- | :--- |
-| **Day 29** | Batching and throughput | `Modal L4` | CORE | [Open Day 29](days/day_29.md) |
-| **Day 30** | Quantization: INT8 and FP16 | `Modal L4` | CORE | [Open Day 30](days/day_30.md) |
-| **Day 31** | Streaming fast path | `Modal L4` | CORE | [Open Day 31](days/day_31.md) |
-| **Day 32** | Optimization scorecard | `Modal L4` | CORE | [Open Day 32](days/day_32.md) |
-| **Day 33** | Break the cache on purpose | `Modal L4` | CORE | [Open Day 33](days/day_33.md) |
-| **Day 34** | Bounded adaptive-context comparison | `Modal L4` | CORE | [Open Day 34](days/day_34.md) |
-| **Day 35** | Endpointing and the VAD baseline | `Local CPU plus Modal L4` | CORE | [Open Day 35](days/day_35.md) |
-
----
-
-## Phase Focus
-
-Profiling and the inference optimization techniques
+| **Day 29** | Batching, concurrency and queueing | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 29](days/day_29.md) |
+| **Day 30** | Precision and export parity | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 30](days/day_30.md) |
+| **Day 31** | Streaming fast path and cache-failure evidence | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 31](days/day_31.md) |
+| **Day 32** | Optimization scorecard and selection | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 32](days/day_32.md) |
+| **Day 33** | Rebuild and revalidate the end-to-end pipeline | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 33](days/day_33.md) |
+| **Day 34** | RL reward definition and falsifiability | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 34](days/day_34.md) |
+| **Day 35** | Editor SFT and continued-SFT control | `Modal L4 for measured GPU work; local CPU for checks` | CORE | [Open Day 35](days/day_35.md) |
 
 ---
 
 ## Daily Detailed Operating Plans
-### DAY 29: Batching and throughput
-- **Compute:** `Modal L4`
+
+### DAY 29: Batching, concurrency and queueing
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_29.md`](days/day_29.md)
 
-> **v3 STATUS: CORE** Throughput and latency are different axes; this session keeps them separate.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 27](days/day_27.md)
+> **Effort:** 2–4 focused hours.
+
 #### Learn
-- Static versus dynamic batching.
-- Queueing delay versus service time.
-- Why throughput gains can hurt single-stream latency.
+- Static versus dynamic batching, queue wait versus service time, batch-size latency/throughput knee.
+
 #### Build in MendSpeech
-- Implement batched inference in `src/serve/batching.py` with a configurable batch policy.
-- Expose batch size and queue wait as separately logged quantities.
+- Add bounded batching and per-stream queues in src/serve/batching.py; keep the co-residency pilot constraint in force.
+
 #### Experiment and Measure
-- Sweep batch size and report throughput and per-request latency separately.
-- Find the batch size where queueing delay starts to dominate.
-- Report RTF at the best throughput point and the latency at the lowest-concurrency point.
-#### Required Output
-['- `src/serve/batching.py`', '- `results/day29_batch_sweep.csv`', '- `docs/day29_queueing.md`']
+- Sweep batch size/concurrency within budget; report throughput, per-stream p50/p95/p99, queue wait, achieved concurrency and memory.
+- Verify no cross-stream state contamination and report starvation/fairness; batching is not required to be selected.
+
+#### Required Output Artifacts
+- `src/serve/batching.py`
+- `tests/test_batching.py`
+- `results/day29_batch_sweep.csv`
+- `docs/day29_queueing.md`
+
 #### Completion Check
-> You can state the throughput/latency knee with measured evidence and explain what happens past it.
+> Throughput and single-stream latency are reported separately with the knee and fairness behavior.
 
 ---
 
-### DAY 30: Quantization: INT8 and FP16
-- **Compute:** `Modal L4`
+### DAY 30: Precision and export parity
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_30.md`](days/day_30.md)
 
-> **v3 STATUS: CORE** Quantization is the technique most likely to be misreported, so parity comes before speed.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 27](days/day_27.md)
+> **Effort:** 2–4 focused hours.
+
 #### Learn
-- Dynamic versus static INT8.
-- Why static quantization needs a calibration set.
-- What quantization can and cannot preserve in a speech model.
+- FP16/INT8 (dynamic and static), calibration sets, exported-versus-original parity.
+
 #### Build in MendSpeech
-- Smoke-check export and precision support on one compatible backend; pin revisions in `docs/day30_quant_notes.md`.
-- Verify original-versus-exported parity at equal precision on validation clips before quantizing.
-- Apply supported INT8/FP16 variants through `src/asr/quantized_runner.py`.
+- Smoke-check export/precision support for the selected backend in an isolated pinned environment; document in docs/day30_quant_notes.md.
+- Verify original-versus-exported parity first; then apply supported FP16/INT8 with a calibration slice from training/calibration only, never the frozen test.
+
 #### Experiment and Measure
-- Measure WER/CER, p50/p95/p99, RTF, and peak memory for baseline and each supported precision.
-- Record confidence and logit shifts caused by quantization.
-- State explicitly whether a variant is faster. A slower variant is a valid finding.
-#### Required Output
-['- `src/asr/quantized_runner.py`', '- `docs/day30_quant_notes.md`', '- `results/day30_quantization_tradeoffs.csv`', '- `app/audio_lab.py`']
+- Measure WER/CER, latency percentiles, RTF, memory and confidence/logit shifts per precision; recheck Day25 calibration binding.
+- State explicitly if a precision is slower or degrades accuracy; blocked precision leaves the required comparison incomplete with recorded blocker.
+
+#### Required Output Artifacts
+- `src/asr/quantized_runner.py`
+- `docs/day30_quant_notes.md`
+- `results/day30_quantization_tradeoffs.csv`
+- `app/audio_lab.py`
+
 #### Completion Check
-> You have measured accuracy, latency, and memory for every supported precision, or a documented compatibility blocker. No speedup is claimed without a measurement.
+> Parity is verified before any precision claim, and every supported precision has measured accuracy/latency/memory or a documented blocker.
 
 ---
 
-### DAY 31: Streaming fast path
-- **Compute:** `Modal L4`
+### DAY 31: Streaming fast path and cache-failure evidence
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_31.md`](days/day_31.md)
 
-> **v3 STATUS: CORE** Optimized offline inference does not automatically make streaming fast; this session checks.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 21](days/day_21.md), [Day 24](days/day_24.md), [Day 28](days/day_28.md), [Day 30](days/day_30.md)
+> **Effort:** 2–4 focused hours.
+
 #### Learn
-- State reuse versus recomputation across chunks.
-- Where redundant computation remains in a cache-aware encoder.
+- State reuse versus recomputation across chunks and reset/truncation failure modes.
+
 #### Build in MendSpeech
-- Add a streaming-specific fast path in `src/streaming/fast_path.py` reusing Day 30's best variant.
-- Assert cached and uncached streaming produce equivalent transcripts.
+- Add a streaming fast path in src/streaming/fast_path.py reusing the best supported variant, with state equivalence tests.
+- Break the cache deliberately at chosen boundaries via src/streaming/cache_stress.py to characterize failure.
+
 #### Experiment and Measure
-- Measure steady-state per-chunk latency after warmup, separately from the first chunk.
-- Report the speedup of the fast path against the Day 30 baseline, or state that it did not help.
-#### Required Output
-['- `src/streaming/fast_path.py`', '- `tests/test_fast_path_parity.py`', '- `results/day31_fast_path.csv`']
+- Report steady-state per-chunk latency separate from first chunk; verify cached vs uncached transcripts.
+- Record WER changes and whether errors cluster or propagate at reset points; this failure evidence is required release material.
+
+#### Required Output Artifacts
+- `src/streaming/fast_path.py`
+- `tests/test_fast_path_parity.py`
+- `src/streaming/cache_stress.py`
+- `results/day31_cache_failures.md`
+- `results/day31_fast_path.csv`
+
 #### Completion Check
-> You can state measured steady-state streaming latency and whether the fast path earned its complexity.
+> A measured streaming fast path with parity and a concrete, reproducible cache-state failure.
 
 ---
 
-### DAY 32: Optimization scorecard
-- **Compute:** `Modal L4`
+### DAY 32: Optimization scorecard and selection
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_32.md`](days/day_32.md)
 
-> **v3 STATUS: CORE** One table decides what ships. Techniques that did not help are reported with the same prominence.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 26](days/day_26.md), [Day 28](days/day_28.md), [Day 29](days/day_29.md), [Day 30](days/day_30.md), [Day 31](days/day_31.md)
+> **Effort:** 2–3 focused hours.
+
 #### Learn
-- Presenting negative results without overclaiming.
-- Why an optimization table is a design document, not a log.
+- Multi-objective selection, Pareto frontiers and honest negative reporting.
+
 #### Build in MendSpeech
-- Build the scorecard generator in `src/bench/scorecard.py`.
-- Produce the scorecard in `results/day32_optimization_scorecard.csv`.
+- Build the scorecard generator in src/bench/scorecard.py over all measured variants.
+- Record a what_did_not_help section; select one shipping candidate and mark the selection provisional pending final-stack revalidation.
+
 #### Experiment and Measure
-- Tabulate WER, p50/p95/p99, RTF, and memory for baseline and every technique tried.
-- Add a `what_did_not_help` section to `docs/day32_optimization_report.md`.
-- Select the shipping configuration from the scorecard and justify it on measured grounds.
-#### Required Output
-['- `src/bench/scorecard.py`', '- `results/day32_optimization_scorecard.csv`', '- `docs/day32_optimization_report.md`']
+- Tabulate WER, latency percentiles, RTF, memory and calibration status per variant.
+- Select on measured grounds and identify the largest remaining bottleneck for the end-to-end path.
+
+#### Required Output Artifacts
+- `src/bench/scorecard.py`
+- `results/day32_optimization_scorecard.csv`
+- `docs/day32_optimization_report.md`
+
 #### Completion Check
-> You can defend the shipping configuration from a table, including the techniques that failed.
+> A defensible provisional shipping configuration with Pareto evidence including the techniques that failed.
 
 ---
 
-### DAY 33: Break the cache on purpose
-- **Compute:** `Modal L4`
+### DAY 33: Rebuild and revalidate the end-to-end pipeline
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_33.md`](days/day_33.md)
 
-> **v3 STATUS: CORE** A streaming system that silently mishandles state is worse than a slow correct one.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 25](days/day_25.md), [Day 26](days/day_26.md), [Day 32](days/day_32.md)
+> **Effort:** 2–4 focused hours.
+
 #### Learn
-- State continuity.
-- Chunk boundary dependencies.
-- Cache reset and truncation.
+- Provisional optimization results must be re-checked after pipeline integration.
+
 #### Build in MendSpeech
-- Add controlled experiments that reset or shorten the cache at chosen boundaries in `src/streaming/cache_stress.py`.
+- Rebuild src/streaming, src/serve and app/audio_lab.py around the selected candidate with the Day25 calibration and guard contract intact.
+- Re-verify streaming parity, confidence binding and the joint memory/interference pilot on the selected stack.
+
 #### Experiment and Measure
-- Measure WER changes around the reset point.
-- Determine whether errors cluster at boundaries or propagate, and write it up in `results/day33_cache_failures.md`.
-#### Required Output
-['- `src/streaming/cache_stress.py`', '- `tests/test_cache_reset.py`', '- `results/day33_cache_failures.md`']
+- Re-measure Day26 baseline quality/latency/memory end-to-end; deltas vs provisional are explained.
+- If the candidate is infeasible jointly, record the blocker and scope-review options instead of forcing the stack.
+
+#### Required Output Artifacts
+- `results/day33_rebuild_revalidation.csv`
+- `docs/day33_rebuild_notes.md`
+
 #### Completion Check
-> You can explain a concrete failure caused by incorrect state handling and where it appears.
+> The optimized end-to-end pipeline is revalidated, and any change in behavior versus the provisional baseline is explained.
 
 ---
 
-### DAY 34: Bounded adaptive-context comparison
-- **Compute:** `Modal L4`
+### DAY 34: RL reward definition and falsifiability
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_34.md`](days/day_34.md)
 
-> **v3 STATUS: CORE** , capability-bounded. Live switching only if the checkpoint supports it; otherwise report the deferral honestly.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 13](days/day_13.md), [Day 16](days/day_16.md), [Day 25](days/day_25.md)
+> **Effort:** 3–5 focused hours.
+
 #### Learn
-- Policy-driven context selection.
-- Confidence smoothing.
-- Latency budget.
-- Stability versus oscillation.
+- Reward hacking, faithful rewards, and a bounded group-relative RL objective on the text editor.
+
 #### Build in MendSpeech
-- Implement a capability-guarded policy in `src/controller/adaptive_context.py` that classifies chunks as easy or uncertain.
-- Compare at most two supported right-context settings from Day 25.
-- Return an explicit unavailable status when fewer than two settings are supported.
+- Design the conservative reward on the Day13 contract: edit/format fidelity, protected-span safety, length and fluency penalties, with a per-example safety floor.
+- Show a short-falsifiable prediction before training: which validation failures the reward should reduce and which must not increase.
+- Use the pilot path from Day16; do not train on the CTC acoustic model and do not handcraft a per-example rewrite.
+
 #### Experiment and Measure
-- Compare fixed-fast, fixed-accurate, and the bounded adaptive policy with an explicit `live`, `simulated`, or `unavailable` status.
-- Keep simulated estimates separate from measured latency; do not count cached reuse as a runtime gain.
-#### Required Output
-['- `src/controller/adaptive_context.py`', '- `results/day34_adaptive_context.csv`']
+- Construct adversarial cases (empty/truncated output, negation removal, entity edits, prompt-echo, runaway length) and verify each is penalized.
+- Confirm the reward is computable offline on validation; log reward variance and any zero-variance groups. A reward that cannot be gamed by refusal earns nothing on needs-edit cases.
+
+#### Required Output Artifacts
+- `src/rl/reward.py`
+- `configs/editor_reward.yaml`
+- `tests/test_reward.py`
+- `docs/day34_reward_design.md`
+
 #### Completion Check
-> You have a measured live comparison, a clearly limited simulated comparison, or an evidence-backed unavailable result.
+> A written falsifiable prediction plus reward tests that demonstrate the failure modes the reward is designed to penalize.
 
 ---
 
-### DAY 35: Endpointing and the VAD baseline
-- **Compute:** `Local CPU plus Modal L4`
+### DAY 35: Editor SFT and continued-SFT control
+- **Compute:** Modal L4 for measured GPU work; local CPU for checks
 - **Dedicated Daily File:** [`docs/days/day_35.md`](days/day_35.md)
 
-> **v3 STATUS: CORE** Add-on A, absorbed here. Endpointing decides when a final answer is sent, so its errors are latency errors.
+> **STATUS: CORE**
+> **Prerequisites:** [Day 16](days/day_16.md), [Day 34](days/day_34.md)
+> **Effort:** 3–5 focused hours.
+
 #### Learn
-- Energy versus spectral VAD.
-- Onset and offset error in milliseconds.
-- False alarms versus missed speech in a streaming setting.
+- Supervised fine-tuning for constrained text editing and the compute-matched continued-SFT control.
+
 #### Build in MendSpeech
-- Implement a deterministic frame-level VAD in `src/vad/baseline.py` with framing, timestamp, and silence tests.
-- Compare it with one local reference VAD on identical clean and damaged inputs.
+- Run editor SFT via training/editor_sft.py on the Day13 train split; freeze the SFT checkpoint as the RL reference.
+- Run a continued-SFT control matched to the future RL wall-time/token budget, so extra compute is not mistaken for the RL algorithm.
+
 #### Experiment and Measure
-- Measure precision, recall, F1, false alarms, missed speech, and onset/offset error in ms.
-- Report CPU RTF separately from GPU measurements.
-- Carry the measured choice into Day 41 and record it in `results/day35_vad_benchmark.csv`.
-#### Required Output
-['- `src/vad/baseline.py`', '- `tests/test_vad.py`', '- `results/day35_vad_benchmark.csv`', '- `docs/day35_vad_notes.md`']
+- Evaluate SFT and continued-SFT on validation (protected-content violations, formatting accuracy, identity vs needs-edit, risk-coverage).
+- Log trainable-parameter names/counts, memory, step time and cost; artifacts for both arms.
+
+#### Required Output Artifacts
+- `training/editor_sft.py`
+- `configs/editor_sft.yaml`
+- `results/day35_sft_vs_continued.csv`
+- `docs/day35_sft_notes.md`
+
 #### Completion Check
-> Endpointing error is quantified in milliseconds and the chosen detector's failure modes are documented.
+> An SFT editor and a compute-matched continued-SFT control exist so any later RL gain cannot be explained by extra training alone.
 
 ---

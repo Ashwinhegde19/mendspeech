@@ -1,55 +1,64 @@
-# Day 14: Decoding comparison: greedy, beam, and beam plus LM
+# Day 14: Greedy, beam and one small LM comparison
 
-> **Week 2 • Day 7 of 7**  
+> **Week 2 • Day 7 of 7**
 > **Navigation:** [← Day 13](day_13.md) | [Week 2 Plan](../Week_2_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 15 →](day_15.md)
 
-> **v3 STATUS: CORE** Week 2 integration and the accuracy-versus-latency trade-off. A lower WER is not automatically better: a fluent but acoustically wrong transcript is the failure this project must catch.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 10](day_10.md), [Day 11](day_11.md), [Day 12](day_12.md)
+> **Effort:** 3–5 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Greedy versus beam search: accuracy gained against search cost.
-- External n-gram language models: why a plausible transcript can be acoustically wrong.
-- Cache reuse for isolating decoder cost from acoustic cost.
+- CTC collapse versus transducer search and external LM fusion.
+- Decoder-only cached cost versus fresh end-to-end latency.
 
 ---
 
 ### 2. Build in MendSpeech
-- Extend the baseline runner to support greedy, beam, and beam plus one small n-gram LM in `src/asr/decoding.py`.
-- Record LM text provenance, normalization, and split roles in `data/lm_text_manifest.csv`; exclude evaluation references and duplicates.
-- Freeze one LM order and a small validation-only beam/LM-weight candidate list in `configs/decoding.yaml`.
+- Verify the current acoustic checkpoint/head and one supported decoder backend before comparing greedy, beam-only and beam+one n-gram LM. No second acoustic model or custom search engine.
+- Record LM corpus license/hash/deduplication and exclude evaluation references; select a small predeclared beam/LM-weight list on validation only.
+- Test token/blank/repeat mapping and alignment; initialize the shared repeatable benchmark harness with trace IDs, warm/cold and CPU worker metadata.
 
 ---
 
 ### 3. Experiment and Measure
-- Report WER/CER and names-and-numbers error for all three decoders on identical held-out cases.
-- Collect cases where the LM helped and cases where it hurt; a lower WER does not prove safety.
-- Measure decoder-only time on cached acoustic outputs separately from fresh audio-to-transcript latency.
+- On identical validation cases report WER/CER, names/numbers, helpful and harmful changes and cached decoder versus fresh timing.
+- Freeze selection for the later final test. Unsupported backend leaves decoding incomplete; independent baseline work may proceed with that blocker.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/asr/decoding.py`', '- `tests/test_asr_decoding.py`', '- `configs/decoding.yaml`', '- `data/lm_text_manifest.csv`', '- `results/day14_decoding_comparison.csv`', '- `docs/day14_harmful_lm_changes.md`', '- `app/audio_lab.py`']
+- `src/asr/decoding.py`
+- `tests/test_asr_decoding.py`
+- `configs/decoding.yaml`
+- `data/lm_text_manifest.csv`
+- `src/bench/benchmark_asr.py`
+- `src/bench/environment.py`
+- `tests/test_benchmark_asr.py`
+- `results/day14_decoding_comparison.csv`
+- `docs/day14_harmful_lm_changes.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 14:**  
-> All three decoders are measured on the same held-out cases with separated decoder and end-to-end timing, and the LM's harmful changes are documented as first-class evidence.
+> **Definition of Done for Day 14:**
+> Three decoder conditions have controlled evidence and provenance; offline decoding is not claimed as live streaming and LM scores are not calibrated confidence.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- NVIDIA NeMo ASR Language Modeling and Customization
-- Beam search and n-gram LM fusion references
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

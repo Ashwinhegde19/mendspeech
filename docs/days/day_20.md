@@ -1,48 +1,52 @@
-# Day 20: Compare your block with a production implementation
+# Day 20: Scratch production-encoder comparison outside release
 
-> **Week 3 • Day 6 of 7**  
+> **Week 3 • Day 6 of 7**
 > **Navigation:** [← Day 19](day_19.md) | [Week 3 Plan](../Week_3_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 21 →](day_21.md)
 
-> **v3 STATUS: DROPPED** Reading assignment only; do not schedule a session.
+> **v4 STATUS: DROPPED** No standalone encoder comparison.
+> **Prerequisites:** [Day 18](day_18.md)
+> **Effort:** 0–0 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Local CPU`
+`None`
 
 ---
 
 ### 1. Learn
-- Production Conformer code structure.
+- Optional architecture study only.
 
 ---
 
 ### 2. Build in MendSpeech
-- No build. Optional reading time only.
+- No build.
 
 ---
 
 ### 3. Experiment and Measure
-- No measurement.
+- No release experiment.
 
 ---
 
 ### 4. Required Output Artifacts
-['None.']
+- None.
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 20:**  
-> You have skimmed a production implementation and can name what your scratch block omits.
+> **Definition of Done for Day 20:**
+> Excluded from release scope; not a completion claim.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- A mature open-source Conformer implementation
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

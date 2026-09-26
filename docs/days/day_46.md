@@ -1,54 +1,57 @@
-# Day 46: LLM post-processing stage
+# Day 46: LLM stage measurement and consolidation
 
-> **Week 7 • Day 4 of 7**  
+> **Week 7 • Day 4 of 7**
 > **Navigation:** [← Day 45](day_45.md) | [Week 7 Plan](../Week_7_MendSpeech_Daily_Plan.md) | [Master Index](../INDEX.md) | [Day 47 →](day_47.md)
 
-> **v3 STATUS: CORE** One small pinned model, behind an adapter, so the ASR result stays reproducible without it.
+> **v4 STATUS: CORE** Planned evidence, not completed implementation.
+> **Prerequisites:** [Day 15](day_15.md), [Day 32](day_32.md), [Day 40](day_40.md), [Day 45](day_45.md)
+> **Effort:** 2–4 focused hours; estimates include learning and tests, not a deadline.
+
 ---
 
 ### Compute Target
-`Modal L4`
+`Modal L4 for measured GPU work; local CPU for checks`
 
 ---
 
 ### 1. Learn
-- Time-to-first-token versus full response.
-- Streaming versus batched generation.
-- Prefix caching and why repeated system context should be free.
+- Server TTFT vs completion vs client-observed latency; prefix-cache support detection.
 
 ---
 
 ### 2. Build in MendSpeech
-- Add one small pinned LLM post-processing adapter in `src/llm/polish.py`; the core ASR path must run without it.
-- Pin model, revision, quantization, and prompt template in `configs/llm.yaml`.
+- Measure the Day15 editor (and Day40 RL editor if available) for TTFT/completion, quality, and prefix-cache hit/miss if the runtime exposes it.
+- Consolidate prompt-only/SFT/RL editor results on the same frozen editor-test set with the Day13 quality metrics.
 
 ---
 
 ### 3. Experiment and Measure
-- Measure TTFT and full-response latency separately.
-- Measure prefix-cache hit rate across repeated requests and its effect on TTFT.
-- Report quality change on the polished output, not only latency.
+- Compare editor variants at fixed workload; report misses, fallback rate, and quality.
+- If co-residency/throughput prevents joint measurement, record the blocker; do not present isolated numbers as end-to-end.
 
 ---
 
 ### 4. Required Output Artifacts
-['- `src/llm/polish.py`', '- `configs/llm.yaml`', '- `tests/test_llm_polish.py`', '- `results/day46_llm_latency.csv`']
+- `configs/llm.yaml`
+- `src/llm/polish.py`
+- `results/day46_editor_variants.csv`
+- `docs/day46_editor_selection.md`
 
 ---
 
 ### 5. Completion Check
-> **Definition of Done for Day 46:**  
-> The LLM stage is measured for TTFT and full response, and the ASR result is still reproducible with it disabled.
+> **Definition of Done for Day 46:**
+> The editor variant used in serving is selected on measured quality/latency, and the choice is re-checked under load.
 
 ---
 
 ### 6. Study Method & Protocol
-25 minutes focused reading. 65 minutes implementation or controlled experiment. 20 minutes research
-notebook. 10 minutes commit and explain the result aloud. When debugging is incomplete, continue the
-same task in the next session instead of pretending the day is finished.
+Read the relevant concepts, implement the smallest testable slice, measure, and explain one concrete example (shape, units, seed, input and output). Use the effort range to schedule multiple sittings when needed. Do not substitute file existence or a blocked run for required evidence. Stop at declared spend/time limits; seek scope review after two extra sittings without progress.
 
 ---
 
 ### 7. References & Resources
-- vLLM and TGI serving documentation
-- Prefix caching and KV-cache reuse references
+- [Execution and measurement rules](../REVISED_EXECUTION_PLAN.md)
+- [Timing and quality contract](../LATENCY_AND_QUALITY_CONTRACT.md)
+- [Editor and RL contract](../EDITOR_AND_RL_CONTRACT.md)
+- Pinned model/backend primary documentation; verify supported behavior before using optional dependencies.

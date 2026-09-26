@@ -20,41 +20,39 @@
 ## 1. Final Project Architecture & Flow
 
 ```
-                      Damaged Audio Input
+              Audio In / SpeechDamageBench conditions
                                │
-                SpeechDamageBench / Live Input
+              VAD + endpointing (src/streaming, src/vad)
                                │
-                     Streaming FastConformer
+        Streaming ASR + cache (src/asr, src/streaming)
                                │
-                 Alignment + Calibrated Uncertainty
+        Decode: greedy / beam / beam+LM (src/asr)
                                │
-            ┌──────────────────┴──────────────────┐
-            ▼                                     ▼
-   [ Preserve / Abstain ]                  [ Repair Spans ]
-   Keep original audio                            │
-                                   ┌──────────────┴──────────────┐
-                                   ▼                             ▼
-                          MendSpeech V1: Cascaded      External Comparator:
-                          Speaker-Conditioned TTS      One Verified Audio
-                          + Boundary Matching          Restoration Model
-                                   │                             │
-                                   └──────────────┬──────────────┘
-                                                  ▼
-                                       Shared Evaluation Suite:
-                               WER, Retained %, Speaker Similarity,
-                               Latency, RTF, Seam Discontinuity
+     Calibrated confidence + triage (src/asr, src/controller)
+              ┌────────────────┴─────────────────┐
+              ▼                                  ▼
+    [ low confidence ]                  [ accept ]
+    return raw transcript,              raw ASR text
+    editor bypassed                            │
+              │                        Conservative editor
+              │                        (src/llm, guard)
+              │                                │
+              └────────────┬───────────────────┘
+                           ▼
+                   Guarded final text
+              (validated, or raw text + reason)
+                           │
+                     Latency budget
+        (src/bench: correlated per-stage p50/p95/p99)
 ```
 
-The external branch is evaluated only after its bounded feasibility check.
-Mask support and locality must be verified; unavailable comparisons remain
-explicitly deferred. The normal repair path uses predicted text, not reference
-transcripts. One application, `app/audio_lab.py`, exposes the measured system.
-
----
+Three invariant rules. Raw ASR text is always available. A rejected, malformed,
+timed-out, or low-confidence edit returns the original text with a reason.
+Formatting is never permitted to change names, numbers, negation, or units.
 
 ## 2. What the Revised Plan Changes
-- **Explicit Real-Time Baseline:** The cascaded ASR $\rightarrow$ text $\rightarrow$ TTS path is designated as a low-latency systems baseline, not an exaggerated claim of state-of-the-art restoration.
-- **Boundary Matching Layer:** Week 7 introduces short-time energy matching, local loudness equalization, room-tone handling, and equal-power crossfades with quantitative seam metrics.
+- **Explicit Real-Time Baseline:** The streaming ASR $\rightarrow$ conservative editor path is treated as a systems baseline measured against raw transcripts, deterministic formatting, and a disabled-editor control.
+- **Conservative Editing Layer:** the editor may format only, and every delivered edit passes a guard that preserves names, numbers, negation, and units.
 - **Standalone `SpeechDamageBench`:** Packaged as an independent, deterministic, versioned Python library with seed-controlled degradations.
 - **Bounded Restoration Comparison:** Week 2 checks one candidate; Week 8
   compares its verified behavior or documents why that comparison is unavailable.
@@ -101,7 +99,7 @@ transcripts. One application, `app/audio_lab.py`, exposes the measured system.
 | **Weeks 1–3** | Data quality, source leakage, tensor/mask correctness | Frozen corpus, fast tests, one scratch block rather than a second recognizer |
 | **Weeks 4–5** | Decoder/head compatibility, LM text leakage, stateful inference, latency | One small LM and acoustic model; validate offline decoding before any streaming integration; fixed-context streaming first |
 | **Week 6** | Fine-tuning stability and export/precision support | One adaptation experiment, clean regression, held-out calibration and backend-specific checks |
-| **Weeks 7–8** | TTS language/consent/data/budget, seams, native streaming compatibility | One stack; separate required language/latency evidence from conditional training and native streaming; retain report and reproduction |
+| **Weeks 7–8** | Serving, editor training budget, correlated latency | One endpoint; separate required latency evidence from conditional post-training; retain report and reproduction |
 
 Session counts are in the execution plan. The removed three nominal sessions
 do not guarantee equivalent capacity for TTS data preparation or training.
@@ -145,10 +143,10 @@ no fixed extra-session or compute estimate is promised before the capability che
 ## 7. Core Research Questions
 1. *Can selective semantic repair improve intelligibility while retaining more original speech than full resynthesis?*
 2. *Can calibrated ASR uncertainty guide streaming context spending so extra latency is consumed only when speech is degraded?*
-3. *Can boundary-matching DSP techniques reduce audible seam artifacts in short-span TTS reconstruction?*
-4. *Where does the cascaded path outperform or underperform the verified external restoration comparator?* This question remains deferred if the feasibility check fails; masked-inpainting claims require verified mask support.
-5. *Does an external LM improve recognition without increasing plausible but incorrect repairs?* Keep decoder and calibrated-policy changes distinguishable.
-6. *How do language, prosody controls, and synthesis delivery mode affect short-span repair quality and latency?* Unsupported controls and small-set limits remain explicit.
+3. *When does conservative editing improve a transcript, and when does it introduce an error that raw ASR did not have?*
+4. *How should the post-training budget be split between supervised editing and RL, and what does each buy?* A null result is reported as evidence.
+5. *Does an external language model improve recognition without making plausible but incorrect transcripts more likely?* Keep decoder and calibrated-triage changes distinguishable.
+6. *How should a bounded post-training budget be split between supervised editing and RL, and what does each buy on protected-content violations and identity behavior?* Null results are reported.
 
 ---
 
@@ -159,4 +157,5 @@ no fixed extra-session or compute estimate is promised before the capability che
 - **FastConformer:** Rekesh et al., *FastConformer with Linearly Scalable Attention for Efficient Speech Recognition*.
 - **Streaming ASR:** NVIDIA Stateful Conformer with Cache-Based Streaming Inference.
 - **Transducer:** Graves RNN-T papers and NeMo RNN-T decoders.
-- **TTS & Vocoders:** FastSpeech 2, HiFi-GAN, VITS papers.
+- **Post-training:** TRL SFT and GRPO documentation, LoRA reference, and reward-specification literature.
+- **Serving and timing:** vLLM metric definitions as a terminology reference, and FastAPI WebSocket documentation.
