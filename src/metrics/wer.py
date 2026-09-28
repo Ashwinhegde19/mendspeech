@@ -1,6 +1,6 @@
-"""Word and character error rates over aligned text.
+"""Word and character error rates, with the edit operations behind them.
 
-Day 10, concept 1: WER and CER. Two error rates, one definition:
+Day 10, concepts 1 and 2. One definition underlies both rates:
 
     error_rate = total_edits / ref_len
 
@@ -9,11 +9,21 @@ insertions, deletions and substitutions that turn the reference into the
 hypothesis) and ``ref_len`` is the number of reference units. WER counts
 words; CER counts characters.
 
-Both rates share one alignment routine, so a word rate and a character rate
-over the same texts cannot disagree by construction. The alignment must be a
-true Levenshtein alignment, not a positional comparison: comparing tokens
-index-by-index charges one deletion against every following token and
-inflates the rate.
+:func:`levenshtein_counts` returns the distance *and* attributes it to
+individual operations, so a dropped word is distinguishable from a wrong
+word. The three counts always sum to ``total_edits``, which is why every
+rate computed here still matches a distance-only alignment. WER and CER
+share that one routine and cannot disagree by construction.
+
+One caveat on the breakdown: when several alignments tie for the optimal
+distance, how the distance splits across S/D/I depends on the backtrace
+order, which is fixed (diagonal, then up, then left) and therefore
+deterministic. The *total* is alignment-independent; the distribution is not.
+Report the total as the metric and treat the split as one valid reading.
+
+The alignment must be a true Levenshtein alignment, not a positional
+comparison: comparing tokens index-by-index charges one deletion against
+every following token and inflates the rate.
 
 The empty-reference case is a stated convention, not an accident: with no
 reference units the rate is 0.0 when the hypothesis is also empty and
@@ -28,7 +38,7 @@ are compared exactly as given.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import List
+from typing import List, Sequence
 
 # Rate reported when the reference is empty but the hypothesis is not.
 # Named so callers compare against one documented sentinel, not a bare inf.
@@ -61,39 +71,111 @@ class ErrorRate:
     total_edits: int
     ref_len: int
     hyp_len: int
+    substitutions: int
+    deletions: int
+    insertions: int
 
     def to_dict(self) -> dict:
         """Return a flat dict suitable for csv.DictWriter."""
         return asdict(self)
 
 
-def _levenshtein(ref: List[str], hyp: List[str]) -> int:
-    """Return the Levenshtein distance between two token sequences.
+@dataclass
+class EditCounts:
+    """Per-operation counts from one alignment.
 
-    Dynamic programming over the full (n+1) x (m+1) table, where
-    ``dist[i][j]`` is the distance between ``ref[:i]`` and ``hyp[:j]``. Only
-    the final distance is returned; the per-operation breakdown is not
-    derived here.
+    The three counts always sum to the Levenshtein distance, so
+    ``total_edits`` derived from this record equals the distance a
+    distance-only alignment would report. Knowing *which* operations
+    occurred is what separates a dropped word from a wrong word.
+
+    Attributes:
+        substitutions: Reference units replaced by a different unit.
+        deletions: Reference units absent from the hypothesis (the
+            recognizer missed them).
+        insertions: Hypothesis units absent from the reference (the
+            recognizer hallucinated them).
+        ref_len: Number of reference units.
+        hyp_len: Number of hypothesis units.
+    """
+
+    substitutions: int
+    deletions: int
+    insertions: int
+    ref_len: int
+    hyp_len: int
+
+    @property
+    def total_edits(self) -> int:
+        """Sum of substitutions, deletions and insertions.
+
+        Equal to the Levenshtein distance between the two sequences.
+        """
+        return self.substitutions + self.deletions + self.insertions
+
+    def to_dict(self) -> dict:
+        """Return a flat dict suitable for csv.DictWriter."""
+        return {**asdict(self), "total_edits": self.total_edits}
+
+
+def levenshtein_counts(ref: Sequence[str], hyp: Sequence[str]) -> EditCounts:
+    """Align two token sequences and count each kind of edit.
+
+    Fills the full (n+1) x (m+1) distance table, then backtraces from the
+    bottom-right corner to attribute the distance to individual operations.
+    Ties resolve in a fixed order (diagonal, then up, then left), so the
+    counts are deterministic for a given input pair.
 
     Args:
-        ref: Reference tokens, in order.
-        hyp: Hypothesis tokens, in order.
+        ref: Reference tokens, in order. The ground-truth side.
+        hyp: Hypothesis tokens, in order. The produced side.
 
     Returns:
-        The fewest single-token insertions, deletions and substitutions that
-        turn ``ref`` into ``hyp``. 0 when the sequences are identical.
+        EditCounts whose fields sum to the Levenshtein distance. Inputs are
+        not mutated.
     """
-    n, m = len(ref), len(hyp)
+    ref_tokens = list(ref)
+    hyp_tokens = list(hyp)
+    n, m = len(ref_tokens), len(hyp_tokens)
 
-    # Rolling row: dist_row[j] is dist[i][j] for the current i.
-    previous = list(range(m + 1))
+    # dist[i][j] is the edit distance between ref[:i] and hyp[:j].
+    dist = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n + 1):
+        dist[i][0] = i
+    for j in range(m + 1):
+        dist[0][j] = j
     for i in range(1, n + 1):
-        current = [i] + [0] * m
         for j in range(1, m + 1):
-            substitution = previous[j - 1] + (ref[i - 1] != hyp[j - 1])
-            current[j] = min(substitution, previous[j] + 1, current[j - 1] + 1)
-        previous = current
-    return previous[m]
+            diagonal = dist[i - 1][j - 1] + (ref_tokens[i - 1] != hyp_tokens[j - 1])
+            dist[i][j] = min(diagonal, dist[i - 1][j] + 1, dist[i][j - 1] + 1)
+
+    substitutions = deletions = insertions = 0
+    i, j = n, m
+    while i > 0 or j > 0:
+        if (
+            i > 0
+            and j > 0
+            and dist[i][j]
+            == dist[i - 1][j - 1] + (ref_tokens[i - 1] != hyp_tokens[j - 1])
+        ):
+            if ref_tokens[i - 1] != hyp_tokens[j - 1]:
+                substitutions += 1
+            i -= 1
+            j -= 1
+        elif i > 0 and dist[i][j] == dist[i - 1][j] + 1:
+            deletions += 1
+            i -= 1
+        else:
+            insertions += 1
+            j -= 1
+
+    return EditCounts(
+        substitutions=substitutions,
+        deletions=deletions,
+        insertions=insertions,
+        ref_len=n,
+        hyp_len=m,
+    )
 
 
 def _build_rate(
@@ -110,7 +192,8 @@ def _build_rate(
         ErrorRate with the rate and the counts behind it.
     """
     ref_len, hyp_len = len(ref), len(hyp)
-    total_edits = _levenshtein(ref, hyp)
+    counts = levenshtein_counts(ref, hyp)
+    total_edits = counts.total_edits
 
     if ref_len == 0:
         rate = 0.0 if hyp_len == 0 else EMPTY_REFERENCE_RATE
@@ -123,6 +206,9 @@ def _build_rate(
         total_edits=total_edits,
         ref_len=ref_len,
         hyp_len=hyp_len,
+        substitutions=counts.substitutions,
+        deletions=counts.deletions,
+        insertions=counts.insertions,
     )
 
 
