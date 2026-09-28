@@ -18,6 +18,11 @@ project. Result files follow the `dayNN_<what>.<ext>` naming convention.
 | 07 | `day07_recreation.png` | Blank-notebook recreation: log-Mel (80 bins, 400/160) scales with duration (1496 frames @ 14.95 s) and additive_noise medium seed 7 reproduces SNR 10.00 dB deterministically — validates clean→corruption→feature path is teachable. |
 | 08 | `day08_baseline_transcripts.csv` | 30 runs: 5 clean clips × (1 clean + 5 medium corruptions). Clean ASR confidence averages 0.969; additive noise drives confidence down to 0.886 and produces phonetic substitutions/omissions; clipping preserves intelligibility at 0.970; reverberation and bandwidth loss cause perceptual misrecognitions while confidence stays relatively high, confirming raw softmax confidence alone requires calibration. |
 
+| 10 | `day10_wer_by_damage.csv` | 192 runs: 12 utterances (calibration + validation roles) × (1 clean + 5 corruptions × 3 severities), scored against real LibriSpeech ground truth. Clean WER 1.22% (4 edits / 374 words) is the genuine model floor, not a self-comparison. Damage ordering is additive_noise (86.74% WER at severe) > reverberation (47.54%) > bandwidth (14.58%) > dropout (13.01%) > clipping (1.48%); clipping is nearly lossless at every severity. WER exceeds CER everywhere, ~2.5× at severe noise. |
+| 10 | `day10_error_types.csv` | Substitution/deletion/insertion totals per condition. Substitutions dominate until severe noise, where deletions overtake them (197 S vs 148 D) — severe noise destroys words rather than corrupting them. Insertions stay near zero (max 4), so the baseline rarely hallucinates words on this corpus. |
+| 10 | `day10_slice_rates.csv` | Protected-content slice rates. Severe additive noise drives negation to 80% and numbers to 100% error, far above the 37.5% overall WER — damage concentrates on meaning-bearing content. **Name slice is `null`, not 0.0**: all 11 name words in the corpus fall in the train and final-test roles, so the scored subset contains none. Reported as not-measured per the protocol. |
+| 10 | `day10_raw_runs.csv` | One row per scored run (192), carrying clip ID, speaker, role, seed, severity, confidence, WER/CER, S/D/I counts and per-slice counts. Supports re-aggregation without re-running ASR. |
+
 ## Naming rules
 
 - Result and notebook files carry the day prefix (`dayNN_<what>.<ext>`).

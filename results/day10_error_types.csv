@@ -1,0 +1,17 @@
+condition,severity,runs,substitutions,deletions,insertions,total_edits,reference_words,normalization
+clean,none,12,4,0,0,4,374,mendspeech.v1
+additive_noise,mild,12,8,0,0,8,374,mendspeech.v1
+additive_noise,medium,12,54,6,4,64,374,mendspeech.v1
+additive_noise,severe,12,197,148,3,348,374,mendspeech.v1
+clipping,mild,12,4,0,0,4,374,mendspeech.v1
+clipping,medium,12,4,0,0,4,374,mendspeech.v1
+clipping,severe,12,5,0,0,5,374,mendspeech.v1
+bandwidth,mild,12,6,0,0,6,374,mendspeech.v1
+bandwidth,medium,12,9,0,0,9,374,mendspeech.v1
+bandwidth,severe,12,30,1,2,33,374,mendspeech.v1
+dropout,mild,12,4,0,0,4,374,mendspeech.v1
+dropout,medium,12,4,0,0,4,374,mendspeech.v1
+dropout,severe,12,16,12,1,29,374,mendspeech.v1
+reverberation,mild,12,7,2,0,9,374,mendspeech.v1
+reverberation,medium,12,20,3,0,23,374,mendspeech.v1
+reverberation,severe,12,145,38,2,185,374,mendspeech.v1

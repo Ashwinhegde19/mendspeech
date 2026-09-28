@@ -1,0 +1,17 @@
+condition,severity,seed,runs,independent_utterances,independent_speakers,mean_wer,mean_cer,mean_confidence,normalization
+clean,none,42,12,12,2,1.216,0.2781,0.9745,mendspeech.v1
+additive_noise,mild,42,12,12,2,2.0597,0.4257,0.9728,mendspeech.v1
+additive_noise,medium,42,12,12,2,13.7743,5.3396,0.954,mendspeech.v1
+additive_noise,severe,42,12,12,2,86.7391,63.124,0.849,mendspeech.v1
+clipping,mild,42,12,12,2,1.216,0.2781,0.9748,mendspeech.v1
+clipping,medium,42,12,12,2,1.216,0.2781,0.9755,mendspeech.v1
+clipping,severe,42,12,12,2,1.4764,0.3246,0.9748,mendspeech.v1
+bandwidth,mild,42,12,12,2,1.591,0.4055,0.9749,mendspeech.v1
+bandwidth,medium,42,12,12,2,2.2155,0.5149,0.9745,mendspeech.v1
+bandwidth,severe,42,12,12,2,14.5758,4.6045,0.9678,mendspeech.v1
+dropout,mild,42,12,12,2,1.216,0.2781,0.9739,mendspeech.v1
+dropout,medium,42,12,12,2,1.216,0.2781,0.9745,mendspeech.v1
+dropout,severe,42,12,12,2,13.0117,8.0706,0.9684,mendspeech.v1
+reverberation,mild,42,12,12,2,2.3787,0.5153,0.9749,mendspeech.v1
+reverberation,medium,42,12,12,2,5.3683,1.8069,0.9671,mendspeech.v1
+reverberation,severe,42,12,12,2,47.5361,24.9422,0.9144,mendspeech.v1
