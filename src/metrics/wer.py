@@ -29,16 +29,19 @@ The empty-reference case is a stated convention, not an accident: with no
 reference units the rate is 0.0 when the hypothesis is also empty and
 :data:`EMPTY_REFERENCE_RATE` otherwise. It never raises and never returns NaN.
 
-Scope note: this module scores text that is already in comparable form. It
-does not lowercase, strip punctuation, or otherwise rewrite its inputs;
-normalization is a separate frozen convention applied by the caller. Tokens
-are compared exactly as given.
+Scope note: text is normalized through
+:func:`src.metrics.normalization.normalize_text` before scoring, so a
+reference and a hypothesis that differ only in case or punctuation compare
+equal. Pass ``normalize=False`` to score raw text. Normalization is a
+scoring-time convention only; it never rewrites stored transcripts.
 """
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from typing import List, Sequence
+
+from src.metrics.normalization import normalize_text
 
 # Rate reported when the reference is empty but the hypothesis is not.
 # Named so callers compare against one documented sentinel, not a bare inf.
@@ -212,16 +215,20 @@ def _build_rate(
     )
 
 
-def word_error_rate(reference: str, hypothesis: str) -> ErrorRate:
+def word_error_rate(
+    reference: str, hypothesis: str, *, normalize: bool = True
+) -> ErrorRate:
     """Score a hypothesis against a reference in words.
 
-    Splits both strings on whitespace and aligns the word sequences. Case and
-    punctuation are compared as given; the caller is responsible for having
-    normalized both texts the same way.
+    Splits both strings on whitespace and aligns the word sequences.
 
     Args:
         reference: Ground-truth text.
         hypothesis: Produced text to score.
+        normalize: Apply the frozen normalization convention from
+            :mod:`src.metrics.normalization` to both sides before scoring.
+            Both sides are treated identically, so this only changes the
+            token boundaries and spelling compared, never the unit.
 
     Returns:
         ErrorRate where ``ref_len`` counts words and ``error_rate`` is the
@@ -237,18 +244,26 @@ def word_error_rate(reference: str, hypothesis: str) -> ErrorRate:
     """
     if not isinstance(reference, str) or not isinstance(hypothesis, str):
         raise ValueError("reference and hypothesis must both be str")
+    if normalize:
+        reference = normalize_text(reference)
+        hypothesis = normalize_text(hypothesis)
     return _build_rate(reference.split(), hypothesis.split(), "wer")
 
 
-def character_error_rate(reference: str, hypothesis: str) -> ErrorRate:
+def character_error_rate(
+    reference: str, hypothesis: str, *, normalize: bool = True
+) -> ErrorRate:
     """Score a hypothesis against a reference in characters.
 
-    Aligns the two strings character by character, including spaces, which
-    the caller controls by choosing what to normalize beforehand.
+    Aligns the two strings character by character, including the single
+    spaces that normalization leaves between words.
 
     Args:
         reference: Ground-truth text, already normalized.
         hypothesis: Produced text, already normalized the same way.
+        normalize: Apply the frozen normalization convention from
+            :mod:`src.metrics.normalization` to both sides before scoring.
+            When False the caller is responsible for normalizing.
 
     Returns:
         ErrorRate where ``ref_len`` counts characters and ``error_rate`` is
@@ -263,4 +278,7 @@ def character_error_rate(reference: str, hypothesis: str) -> ErrorRate:
     """
     if not isinstance(reference, str) or not isinstance(hypothesis, str):
         raise ValueError("reference and hypothesis must both be str")
+    if normalize:
+        reference = normalize_text(reference)
+        hypothesis = normalize_text(hypothesis)
     return _build_rate(list(reference), list(hypothesis), "cer")

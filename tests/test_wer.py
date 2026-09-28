@@ -70,9 +70,13 @@ class TestWordErrorRate:
         assert positional == 2
         assert rate.total_edits < positional
 
-    def test_case_sensitive_until_normalized(self):
-        """Documents that the module does not lowercase its inputs."""
-        assert word_error_rate("The cat", "the cat").error_rate > 0.0
+    def test_case_differences_normalized_away(self):
+        """Normalization is on by default, so case is not an error."""
+        assert word_error_rate("The cat", "the cat").error_rate == 0.0
+
+    def test_raw_scoring_still_case_sensitive(self):
+        """With normalize=False the caller owns the convention."""
+        assert word_error_rate("The cat", "the cat", normalize=False).error_rate > 0.0
 
     def test_rejects_non_string(self):
         with pytest.raises(ValueError, match="must both be str"):
