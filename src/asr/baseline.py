@@ -5,7 +5,7 @@ a pretrained Wav2Vec2 CTC acoustic model, extracts frame-level logits and probab
 and implements greedy CTC decoding with token-level timestamps and calibrated confidences.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
@@ -30,6 +30,10 @@ class ASROutput:
         token_timestamps_sec: Estimated center timestamp for each emitted token.
         average_confidence: Mean softmax probability over emitted non-blank tokens.
         frame_confidences: Max softmax probability at every individual acoustic frame.
+        frame_class_indices: Argmax class index at every acoustic frame. Added
+            on Day 11 so per-token confidence can be re-derived from the frame
+            decisions without re-running the model. Purely additive and does
+            not change any previously reported value.
     """
 
     clip_id: str
@@ -42,6 +46,7 @@ class ASROutput:
     token_timestamps_sec: List[float]
     average_confidence: float
     frame_confidences: List[float]
+    frame_class_indices: List[int] = field(default_factory=list)
 
 
 def greedy_ctc_decode(
@@ -190,6 +195,12 @@ class ASRBaseline:
             token_timestamps_sec=timestamps,
             average_confidence=round(avg_confidence, 4),
             frame_confidences=[round(c, 4) for c in frame_confidences],
+            frame_class_indices=[
+                int(i)
+                for i in torch.argmax(
+                    torch.softmax(emissions[0], dim=-1), dim=-1
+                ).tolist()
+            ],
         )
 
     def transcribe_file(self, audio_path: Union[str, Path]) -> ASROutput:

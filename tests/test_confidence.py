@@ -12,6 +12,7 @@ from src.asr.confidence import (
     TokenScore,
     WordScore,
     align_tokens_to_reference,
+    confidence_accuracy_bins,
     confidence_summary,
     mean_frame_confidence,
     mean_token_confidence,
@@ -204,10 +205,94 @@ class TestAlignTokensToReference:
         assert isinstance(word, WordScore)
         assert set(word.to_dict()) == {
             "word", "index", "state", "token_probability", "token_count",
+            "is_correct",
         }
+
+    def test_correctness_flag_distinguishes_match_from_substitution(self):
+        """Both are matched, but only one is spelled correctly."""
+        matched = align_tokens_to_reference([token("HAVE", 0.9, 0)], ["HAVE"])
+        assert matched.word_scores[0].is_correct is True
+
+        substituted = align_tokens_to_reference([token("HAD", 0.9, 0)], ["HAVE"])
+        assert substituted.word_scores[0].is_correct is False
+        assert substituted.word_scores[0].state == MATCHED
+
+    def test_deleted_word_correctness_is_none_not_false(self):
+        """Nothing was produced, so nothing can be judged wrong."""
+        result = align_tokens_to_reference([token("A", 0.9, 0)], ["A", "B"])
+        deleted = [w for w in result.word_scores if w.state == DELETED]
+
+
+class TestConfidenceAccuracyBins:
+    """Concept 3: does confidence actually predict correctness?"""
+
+    def words(self, pairs):
+        return [
+            WordScore(
+                word="W", index=i, state=MATCHED,
+                token_probability=p, token_count=1, is_correct=c,
+            )
+            for i, (p, c) in enumerate(pairs)
+        ]
+
+    def test_perfect_scores_give_full_accuracy(self):
+        out = confidence_accuracy_bins(self.words([(0.99, True)] * 5))
+        assert out["bins"][0]["accuracy"] == 1.0
+
+    def test_confident_errors_surface_in_a_high_bin(self):
+        """A wrong word scored 0.99 must land in the top bin, uncorrect."""
+        out = confidence_accuracy_bins(
+            self.words([(0.99, True)] * 9 + [(0.99, False)])
+        )
+        top = out["bins"][-1]
+        assert top["bin_lower"] == 0.95
+        assert top["accuracy"] == pytest.approx(0.9)
+
+    def test_accuracy_rises_when_confidence_is_informative(self):
+        words = self.words(
+            [(0.99, True)] * 8 + [(0.60, False)] * 2
+        )
+        out = confidence_accuracy_bins(words)
+        by_bin = {b["bin_lower"]: b["accuracy"] for b in out["bins"]}
+        assert by_bin[0.95] == 1.0
+        assert by_bin[0.5] == 0.0
+
+    def test_deleted_words_counted_separately_not_binned(self):
+        words = [WordScore("GONE", 0, DELETED, None, 0, None)] + self.words(
+            [(0.99, True)]
+        )
+        out = confidence_accuracy_bins(words)
+        assert out["deleted_words"] == 1
+        assert out["judged_words"] == 1
+
+    def test_empty_bins_are_omitted_not_zero_accuracy(self):
+        out = confidence_accuracy_bins(self.words([(0.99, True)]))
+        assert len(out["bins"]) == 1
+        assert out["bins"][0]["bin_lower"] == 0.95
+
+    def test_unjudged_word_is_not_counted_as_correct(self):
+        """is_correct=None must not inflate accuracy."""
+        words = [
+            WordScore("A", 0, MATCHED, 0.99, 1, None),
+            WordScore("B", 1, MATCHED, 0.99, 1, True),
+        ]
+        out = confidence_accuracy_bins(words)
+        assert out["bins"][0]["accuracy"] == pytest.approx(0.5)
+
+    def test_no_words_returns_empty_bins(self):
+        out = confidence_accuracy_bins([])
+        assert out["bins"] == []
+        assert out["judged_words"] == 0
+
+    def test_too_few_edges_raises(self):
+        with pytest.raises(ValueError, match="bin_edges"):
+            confidence_accuracy_bins(self.words([(0.9, True)]), bin_edges=(0.0,))
 
 
 class TestDifferentSystemsAreDistinguishable:
+    """Provenance makes two systems distinguishable."""
+
+    def test_different_systems_are_distinguishable(self):
         other = ConfidenceProvenance(
             model="OTHER", head="ctc", tokenizer="chars",
             decoder="greedy_ctc", precision="float32",

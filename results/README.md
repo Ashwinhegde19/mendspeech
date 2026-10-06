@@ -22,6 +22,8 @@ project. Result files follow the `dayNN_<what>.<ext>` naming convention.
 | 10 | `day10_error_types.csv` | Substitution/deletion/insertion totals per condition. Substitutions dominate until severe noise, where deletions overtake them (197 S vs 148 D) — severe noise destroys words rather than corrupting them. Insertions stay near zero (max 4), so the baseline rarely hallucinates words on this corpus. |
 | 10 | `day10_slice_rates.csv` | Protected-content slice rates. Severe additive noise drives negation to 80% and numbers to 100% error, far above the 37.5% overall WER — damage concentrates on meaning-bearing content. **Name slice is `null`, not 0.0**: all 11 name words in the corpus fall in the train and final-test roles, so the scored subset contains none. Reported as not-measured per the protocol. |
 | 10 | `day10_raw_runs.csv` | One row per scored run (192), carrying clip ID, speaker, role, seed, severity, confidence, WER/CER, S/D/I counts and per-slice counts. Supports re-aggregation without re-running ASR. |
+| 11 | `day11_confidence_by_damage.csv` | 256 confidence-bin rows from 96 validation runs (6 utterances × 16 conditions). Words binned by confidence show 99.46% accuracy at p ≥ 0.95 but only 38.5% correct below 0.90 — high confidence predicts correctness, low confidence does not predict error. The Day 10 aggregate correlation (r = −0.99) does not describe per-word behavior. |
+| 11 | `day11_token_scores.csv` | 2,432 per-word rows with score, alignment state and correctness. Contains exactly 10 confident errors (p ≥ 0.95, wrong) and 137 low-confidence-correct words. Deleted words carry no probability by design. |
 
 ## Naming rules
 

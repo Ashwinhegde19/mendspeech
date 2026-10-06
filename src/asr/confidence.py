@@ -219,6 +219,11 @@ class WordScore:
         token_probability: Mean probability of the tokens aligned to this
             word, or None when the word was deleted.
         token_count: Number of tokens aligned to this word.
+        is_correct: True when the aligned token spelled this word exactly.
+            A substitution sets this False while leaving the state
+            :data:`MATCHED`, because the word was attempted but realized
+            wrongly. None when the word was deleted, since nothing was
+            produced to judge.
     """
 
     word: str
@@ -226,6 +231,7 @@ class WordScore:
     state: str
     token_probability: Optional[float]
     token_count: int
+    is_correct: Optional[bool] = None
 
     @property
     def is_matched(self) -> bool:
@@ -322,9 +328,14 @@ def align_tokens_to_reference(
     word_state = [DELETED] * m
     content_to_reference: Dict[int, int] = {}
 
+    # Record which reference words were spelled exactly right. A diagonal
+    # step that matched the same token is correct; one that substituted is
+    # an attempt at that word but a wrong realization.
+    correct_flags: Dict[int, bool] = {}
     i, j = n, m
     while i > 0 or j > 0:
         if i > 0 and j > 0 and dist[i][j] == dist[i - 1][j - 1] + (0 if same(i, j) else 1):
+            correct_flags[j - 1] = same(i, j)
             token_state[i - 1] = VALID
             word_state[j - 1] = MATCHED
             content_to_reference[i - 1] = j - 1
@@ -369,6 +380,9 @@ def align_tokens_to_reference(
                 else None
             ),
             token_count=len(per_word.get(index, [])),
+            is_correct=(
+                correct_flags.get(index) if index in correct_flags else None
+            ),
         )
         for index, word in enumerate(reference_words)
     ]
@@ -398,6 +412,143 @@ def align_tokens_to_reference(
             "num_matched_words": self.num_matched_words,
             "num_deleted_words": self.num_deleted_words,
         }
+
+
+def collapse_tokens_to_words(
+    scores: Sequence[TokenScore], separator: str = "|"
+) -> List[TokenScore]:
+    """Group character-level tokens into word-level tokens.
+
+    The CTC baseline emits one token per character with ``"|"`` marking a
+    word boundary, so its vocabulary has 29 entries rather than one per word.
+    Comparing those characters directly against reference *words* would mark
+    every word wrong: a single ``"I"`` substituted for ``"ILLUSTRATION"`` is
+    one edit in the model's favour, not a correct word and not a wrong one.
+
+    Grouping first is what makes word-level confidence meaningful. A word's
+    probability is the mean of its character probabilities, its frame index
+    and timestamp come from its first character, and it counts as a valid
+    token because it occupies a real word slot.
+
+    A word with no characters cannot occur, but an empty input returns an
+    empty list rather than raising.
+
+    Args:
+        scores: Character-level token scores in emission order.
+        separator: Token text marking a word boundary.
+
+    Returns:
+        Word-level TokenScore list, in order. A word is emitted whenever a
+        non-separator token follows a boundary or the start of the sequence.
+
+    Raises:
+        ValueError: If any probability lies outside [0, 1].
+    """
+    words: List[TokenScore] = []
+    buffer: List[TokenScore] = []
+
+    def flush() -> None:
+        if not buffer:
+            return
+        words.append(
+            TokenScore(
+                token="".join(s.token for s in buffer),
+                index=len(words),
+                probability=round(
+                    sum(s.probability for s in buffer) / len(buffer), 6
+                ),
+                frame_index=buffer[0].frame_index,
+                timestamp_sec=buffer[0].timestamp_sec,
+                blank_before=buffer[0].blank_before,
+            )
+        )
+        buffer.clear()
+
+    for score in scores:
+        _validate([score.probability], "token probabilities")
+        if score.token == separator:
+            flush()
+        else:
+            buffer.append(score)
+    flush()
+    return words
+
+
+def confidence_accuracy_bins(
+    word_scores: Sequence[WordScore],
+    bin_edges: Sequence[float] = (0.0, 0.5, 0.7, 0.9, 0.95, 1.0),
+) -> List[Dict[str, object]]:
+    """Bin reference words by confidence and measure accuracy in each bin.
+
+    This is the test of whether a confidence score carries information. If it
+    does, accuracy rises across the bins; if the score is noise, every bin
+    sits near the same accuracy. A high-confidence bin with low accuracy is
+    the definition of a confident error.
+
+    Deleted words are counted separately rather than binned, because they
+    have no probability and assigning one would invent evidence. They are
+    reported in the ``deleted_words`` field of the returned summary.
+
+    Only exact spelling counts as correct. A substituted word is binned by
+    its own (typically lower) probability and marked incorrect, so a
+    confident mishearing lands in a high bin with low accuracy rather than
+    disappearing.
+
+    Args:
+        word_scores: Reference words with states and probabilities, typically
+            from :func:`align_tokens_to_reference`.
+        bin_edges: Ascending bin edges. The last value is the upper bound of
+            the final bin. Defaults give five bins spanning [0, 1].
+
+    Returns:
+        Dict with ``bins`` (one row per non-empty bin, carrying bounds, word
+        count, correct count and accuracy) plus ``deleted_words`` and
+        ``judged_words``. Bins with no words are omitted, never reported as
+        0.0 accuracy.
+
+    Raises:
+        ValueError: If ``bin_edges`` has fewer than two values.
+    """
+    edges = list(bin_edges)
+    if len(edges) < 2:
+        raise ValueError("bin_edges needs at least a lower and upper edge")
+
+    num_bins = len(edges) - 1
+    correct = [0] * num_bins
+    total = [0] * num_bins
+    deleted = 0
+
+    for word in word_scores:
+        if word.state == DELETED or word.token_probability is None:
+            deleted += 1
+            continue
+        # Assign to the highest bin whose lower edge the probability reaches.
+        index = 0
+        for i in range(num_bins):
+            if word.token_probability >= edges[i]:
+                index = i
+        total[index] += 1
+        if word.is_correct:
+            correct[index] += 1
+
+    rows = [
+        {
+            "bin_lower": round(edges[i], 4),
+            "bin_upper": round(edges[i + 1], 4),
+            "words": total[i],
+            "correct": correct[i],
+            "accuracy": round(correct[i] / total[i], 6),
+        }
+        for i in range(num_bins)
+        if total[i] > 0
+    ]
+    return {
+        "bins": rows,
+        "deleted_words": deleted,
+        "judged_words": sum(total),
+    }
+
+
 
 
 def _validate(values: Sequence[float], label: str) -> List[float]:
