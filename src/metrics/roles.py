@@ -50,7 +50,7 @@ SPLIT_TO_ROLE = {
     "test": "final_test",
 }
 
-# The four roles required by docs/days/day_10.md.
+# The four roles required by the frozen benchmark protocol.
 DECLARED_ROLES = ("train", "calibration", "validation", "final_test")
 
 # Corruption families used by SpeechDamageBench, recorded so the row-count

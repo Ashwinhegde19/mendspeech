@@ -1,14 +1,10 @@
 # Revised Execution Plan (v4 — Meaning-Preserving Dictation)
 
-> **Scope revision, September 26, 2026.** This document governs scope, phases,
-> and release gates. The individual day specs define implementation and artifact
-> contracts; [`plan_manifest.json`](plan_manifest.json) is the machine-readable
-> source of truth for statuses, prerequisites, and effort.
->
-> **Gates advance on measured evidence, not elapsed dates.** A blocked required
-> target is incomplete. It requires an explicit scope decision, never a relabelled
-> result. Regenerate the derived documents with `python scripts/plan_docs.py --write`
-> and verify them with `--check`.
+> **Product baseline, October 15, 2026.** This document records established scope,
+> phases, and release gates. Legacy learning session specs and their planning
+> manifest remain available on the `research/learning` branch. Gates advance on
+> measured evidence, not elapsed dates. A blocked required target is incomplete
+> and requires an explicit scope decision, never a relabelled result.
 
 ---
 
@@ -56,8 +52,7 @@ explicit scope decision recorded in the manifest.
 | [`MendSpeech_Project_Blueprint.md`](MendSpeech_Project_Blueprint.md) | Architecture, metrics, and definition of done |
 | [`LATENCY_AND_QUALITY_CONTRACT.md`](LATENCY_AND_QUALITY_CONTRACT.md) | Timing boundaries, workload, sampling, and fair-comparison rules |
 | [`EDITOR_AND_RL_CONTRACT.md`](EDITOR_AND_RL_CONTRACT.md) | Editing limits, data roles, model route, reward design, and anti-shortcut tests |
-| [`plan_manifest.json`](plan_manifest.json) | Statuses, prerequisites, phases, and effort ranges |
-| `docs/days/day_NN.md` | Per-session specifications and artifact contracts |
+| Focused branches and pull requests | Implementation and review workflow for this product branch |
 
 These documents take precedence over this file when any two disagree, and this
 file takes precedence over generated week and compiled views.
@@ -180,6 +175,6 @@ reproducible artifact:
     experiment, and every blocked or partial capability appears as a limitation.
 12. One-command reproduction of at least one benchmark from a clean environment.
 
-Negative results are measurements and belong in the report. The
-[optional systems drills](SPEECH_ML_SYSTEMS_DRILLS.md) are study material, not
-release gates. Archived PDFs are historical and remain unchanged.
+Negative results are measurements and belong in the report. Optional study
+drills are learning material on `research/learning`, not release gates.
+Archived PDFs are historical and remain unchanged.
