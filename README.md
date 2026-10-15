@@ -5,10 +5,12 @@ conservative transcript editing.**
 
 MendSpeech is an experimental voice-AI platform. The current repository
 contains reusable audio, ASR, metrics, benchmark, and evaluation components.
-The long-term product direction is to identify speech-recognition failures,
-select valuable training examples, correct transcripts, fine-tune existing ASR
-models, and evaluate improvements on unseen speech, including Hindi-English
-(Hinglish) recognition.
+The Symphony MVP product direction is to identify speech-recognition failures,
+select valuable training examples, correct transcripts, and evaluate measured
+ASR adaptation, with an initial focus on Hindi-English (Hinglish)
+recognition. The streaming-dictation architecture, triage policy, conservative
+editor, bounded post-training, and correlated latency budget described in the
+blueprint remain longer-term context and are not completed MVP requirements.
 
 ## Current status
 
@@ -84,4 +86,3 @@ spec = spectrogram_db(wave, n_fft=400, hop_length=160)
 
 Session-level learning material, day specifications, notebooks, and day-specific
 measurements are preserved on `research/learning`.
-```

@@ -18,5 +18,3 @@ filename and one row to this index in the same change.
 - Reusable source and test modules use functional names.
 - Result files should be named for their evaluation scope, not for a day number.
 - Audio, checkpoints, and run logs remain gitignored; only manifests, tables, figures, and notes are tracked.
-
-">
