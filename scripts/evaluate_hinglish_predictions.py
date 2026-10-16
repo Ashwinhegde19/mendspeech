@@ -179,4 +179,3 @@ HINGLISH_PREDICTION_COLUMNS = frozenset({"clip_id", "prediction"})
 
 if __name__ == "__main__":
     raise SystemExit(main())
-PY

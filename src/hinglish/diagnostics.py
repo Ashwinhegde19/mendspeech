@@ -93,9 +93,21 @@ def likely_repetitive_hallucination(
     """Return whether a prediction has clear repeated-hallucination evidence."""
     if prediction_words <= 0:
         return False
-    insertion_heavy = insertion_count >= 20 and prediction_words >= 3 * max(1, reference_words)
-    local_repeat = max_consecutive_repeat >= 3
-    phrase_repeat = longest_repeated_phrase >= 2
+    # A literal immediate repetition is only a hallucination concern when the
+    # prediction is long or materially exceeds the reference. Repeated
+    # content in genuine speech does not satisfy those conditions.
+    insertion_heavy = (
+        insertion_count >= 8
+        and prediction_words >= max(10, 2 * max(1, reference_words))
+    )
+    local_repeat = (
+        max_consecutive_repeat >= 3
+        and prediction_words > max(3, reference_words)
+    )
+    phrase_repeat = (
+        longest_repeated_phrase >= 4
+        and insertion_count >= max(1, reference_words)
+    )
     return insertion_heavy or local_repeat or phrase_repeat
 
 

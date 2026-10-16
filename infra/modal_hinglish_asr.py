@@ -109,11 +109,15 @@ if modal is not None:
                     resampler = torchaudio.transforms.Resample(sample_rate, 16000)
                     data = resampler(waveform).squeeze(0).cpu().numpy()
 
+                generate_kwargs = {"task": task}
+                if language not in {"auto", "detect", "None"}:
+                    generate_kwargs["language"] = language
+
                 started_at = time.perf_counter()
                 with torch.inference_mode():
                     output = asr_pipeline(
                         data,
-                        generate_kwargs={"task": task, "language": language},
+                        generate_kwargs=generate_kwargs,
                     )
                 runtime_sec = round(time.perf_counter() - started_at, 3)
                 results.append(
@@ -235,7 +239,7 @@ def main() -> int:
     )
     parser.add_argument("--clip-id", action="append", default=None)
     parser.add_argument("--gpu", choices=["T4", "L4"], default=DEFAULT_GPU)
-    parser.add_argument("--language", default="hi")
+    parser.add_argument("--language", choices=["hi", "auto"], default="hi")
     parser.add_argument("--task", choices=["transcribe", "translate"], default="transcribe")
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
