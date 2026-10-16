@@ -48,34 +48,24 @@ if modal is not None:
     )
     app = modal.App(APP_NAME)
 
-    def _run_whisper(
+    def _run_whisper_batch(
         model_id: str,
-        audio_bytes: bytes,
-        clip_id: str,
+        audio_records: list[dict[str, Any]],
         language: str,
         task: str,
         precision: str,
-    ) -> dict[str, Any]:
-        """Run Whisper inference inside a GPU container."""
+    ) -> list[dict[str, Any]]:
+        """Run Whisper inference for a small batch in one loaded model context."""
         import io as io_module
 
         import numpy as np
         import soundfile as sf
         import torch
-        import torchaudio
         from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
         os.environ.setdefault("HF_HOME", "/cache/model")
         os.environ.setdefault("TRANSFORMERS_CACHE", "/cache/model/transformers")
         os.environ.setdefault("HUGGINGFACE_HUB_CACHE", "/cache/model/huggingface")
-
-        data, sample_rate = sf.read(io_module.BytesIO(audio_bytes), dtype="float32")
-        if data.ndim > 1:
-            data = data.mean(axis=1)
-        if sample_rate != 16000:
-            waveform = torch.from_numpy(data).unsqueeze(0)
-            resampler = torchaudio.transforms.Resample(sample_rate, 16000)
-            data = resampler(waveform).squeeze(0).numpy()
 
         torch_dtype = torch.float16 if precision == "float16" else torch.float32
         processor = AutoProcessor.from_pretrained(model_id, cache_dir="/cache/model")
@@ -95,25 +85,55 @@ if modal is not None:
             device=0,
         )
 
-        started_at = time.perf_counter()
-        with torch.inference_mode():
-            output = asr_pipeline(
-                data,
-                generate_kwargs={"task": task, "language": language},
-            )
-        runtime_sec = round(time.perf_counter() - started_at, 3)
+        results: list[dict[str, Any]] = []
+        for record in audio_records:
+            clip_id = str(record["clip_id"])
+            audio_bytes = bytes(record["audio_bytes"])
+            try:
+                data, sample_rate = sf.read(
+                    io_module.BytesIO(audio_bytes), dtype="float32"
+                )
+                if data.ndim > 1:
+                    data = data.mean(axis=1)
+                if sample_rate != 16000:
+                    waveform = torch.from_numpy(data).unsqueeze(0)
+                    resampler = torchaudio.transforms.Resample(sample_rate, 16000)
+                    data = resampler(waveform).squeeze(0).cpu().numpy()
 
-        return {
-            "clip_id": clip_id,
-            "transcript": str(output.get("text", "")).strip(),
-            "model_id": model_id,
-            "task": task,
-            "language": language,
-            "precision": precision,
-            "device": "NVIDIA GPU",
-            "runtime_sec": runtime_sec,
-            "audio_duration_sec": round(len(data) / 16000, 3),
-        }
+                started_at = time.perf_counter()
+                with torch.inference_mode():
+                    output = asr_pipeline(
+                        data,
+                        generate_kwargs={"task": task, "language": language},
+                    )
+                runtime_sec = round(time.perf_counter() - started_at, 3)
+                results.append(
+                    {
+                        "clip_id": clip_id,
+                        "transcript": str(output.get("text", "")).strip(),
+                        "model_id": model_id,
+                        "task": task,
+                        "language": language,
+                        "precision": precision,
+                        "device": "NVIDIA GPU",
+                        "runtime_sec": runtime_sec,
+                        "audio_duration_sec": round(len(data) / 16000, 3),
+                    }
+                )
+            except Exception as exc:
+                results.append(
+                    {
+                        "clip_id": clip_id,
+                        "transcript": "",
+                        "model_id": model_id,
+                        "task": task,
+                        "language": language,
+                        "precision": precision,
+                        "device": "NVIDIA GPU",
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+        return results
 
     @app.function(
         image=image,
@@ -123,22 +143,14 @@ if modal is not None:
         scaledown_window=SCALEDOWN_WINDOW_SEC,
         volumes={"/cache/model": model_cache},
     )
-    def transcribe_audio_t4(
-        audio_bytes: bytes,
-        clip_id: str = "clip",
+    def transcribe_hinglish_batch_t4(
+        audio_records: list[dict[str, Any]],
         language: str = "hi",
         task: str = "transcribe",
         precision: str = "float16",
-    ) -> dict[str, Any]:
-        """Inference on an NVIDIA T4."""
-        return _run_whisper(
-            MODEL_ID,
-            audio_bytes,
-            clip_id,
-            language,
-            task,
-            precision,
-        )
+    ) -> list[dict[str, Any]]:
+        """Batch inference on an NVIDIA T4."""
+        return _run_whisper_batch(MODEL_ID, audio_records, language, task, precision)
 
     @app.function(
         image=image,
@@ -148,30 +160,23 @@ if modal is not None:
         scaledown_window=SCALEDOWN_WINDOW_SEC,
         volumes={"/cache/model": model_cache},
     )
-    def transcribe_audio_l4(
-        audio_bytes: bytes,
-        clip_id: str = "clip",
+    def transcribe_hinglish_batch_l4(
+        audio_records: list[dict[str, Any]],
         language: str = "hi",
         task: str = "transcribe",
         precision: str = "float16",
-    ) -> dict[str, Any]:
-        """Inference on an NVIDIA L4."""
-        return _run_whisper(
-            MODEL_ID,
-            audio_bytes,
-            clip_id,
-            language,
-            task,
-            precision,
-        )
+    ) -> list[dict[str, Any]]:
+        """Batch inference on an NVIDIA L4."""
+        return _run_whisper_batch(MODEL_ID, audio_records, language, task, precision)
 
 
 def _estimate_cost(gpu: str, estimated_runtime_sec: int) -> str:
     # Published Modal GPU rates vary by workload; these are conservative planning
     # figures for approval before any billable run.
+    # Source: Modal pricing page (verified October 16, 2026).
     rates = {
-        "T4": 0.00043,
-        "L4": 0.00070,
+        "T4": 0.000164,
+        "L4": 0.000222,
     }
     rate = rates.get(gpu, rates["T4"])
     return f"${estimated_runtime_sec * rate:.3f}"
@@ -206,36 +211,92 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Dry-run or explicitly execute Hinglish Whisper inference on Modal"
     )
-    parser.add_argument("--audio-path", type=Path, required=True)
-    parser.add_argument("--clip-id", type=str, default=None)
+    parser.add_argument(
+        "--audio-path",
+        type=Path,
+        action="append",
+        required=True,
+        help="Audio file to transcribe. Repeat for a small approved batch.",
+    )
+    parser.add_argument("--clip-id", action="append", default=None)
     parser.add_argument("--gpu", choices=["T4", "L4"], default=DEFAULT_GPU)
     parser.add_argument("--language", default="hi")
     parser.add_argument("--task", choices=["transcribe", "translate"], default="transcribe")
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
 
-    audio_path = args.audio_path
-    clip_id = args.clip_id or audio_path.stem
+    audio_paths = args.audio_path
+    clip_ids = args.clip_id or []
+    if len(clip_ids) not in (0, len(audio_paths)):
+        print("--clip-id must be omitted or provided once per --audio-path")
+        return 1
+
     if not args.execute:
-        return dry_run(audio_path, args.gpu, clip_id, args.language, args.task)
+        total_bytes = 0
+        all_exist = True
+        for path in audio_paths:
+            if not path.exists():
+                all_exist = False
+                print(f"Audio file not found: {path}")
+            else:
+                total_bytes += path.stat().st_size
+
+        if not all_exist:
+            return 1
+        estimated_runtime = max(60, min(300, 45 + 12 * len(audio_paths)))
+        print("MendSpeech Hinglish Modal dry run")
+        for path, clip_id in zip(audio_paths, clip_ids or audio_paths):
+            print(f"  clip: {clip_id or path.stem}")
+        print(f"audio_files: {len(audio_paths)}")
+        print(f"total_audio_bytes: {total_bytes}")
+        print(f"gpu: {args.gpu}")
+        print(f"model_id: {MODEL_ID}")
+        print(f"language: {args.language}")
+        print(f"task: {args.task}")
+        print(f"max_containers: {MAX_CONTAINERS}")
+        print(f"scaledown_window_sec: {SCALEDOWN_WINDOW_SEC}")
+        print(f"function_timeout_sec: {FUNCTION_TIMEOUT_SEC}")
+        print(f"estimated_gpu_runtime_sec: {estimated_runtime}")
+        print(f"official_gpu_rate: $0.000164/sec for T4, $0.000222/sec for L4")
+        print(f"estimated_gpu_cost: {_estimate_cost(args.gpu, estimated_runtime)}")
+        print(
+            "additional_cost_notes: CPU and memory are also billed; "
+            "first run may add model-download and cold-start latency"
+        )
+        print("status: no GPU launched; pass --execute for approved inference")
+        return 0
 
     if modal is None:
         print("Modal is not installed. Install with: pip install -e '.[hinglish]'")
         return 1
 
-    if not audio_path.exists():
-        print(f"Audio file not found: {audio_path}")
+    missing_paths = [str(path) for path in audio_paths if not path.exists()]
+    if missing_paths:
+        for path in missing_paths:
+            print(f"Audio file not found: {path}")
         return 1
 
-    function = transcribe_audio_t4 if args.gpu == "T4" else transcribe_audio_l4
-    print(f"Launching Modal inference on {args.gpu}...")
+    audio_records = [
+        {
+            "clip_id": clip_ids[index] if clip_ids else path.stem,
+            "audio_bytes": path.read_bytes(),
+        }
+        for index, path in enumerate(audio_paths)
+    ]
+
+    print(f"Launching batched Modal inference on {args.gpu}...")
+    function = (
+        transcribe_hinglish_batch_t4
+        if args.gpu == "T4"
+        else transcribe_hinglish_batch_l4
+    )
     try:
-        result = function.remote(
-            audio_path.read_bytes(),
-            clip_id=clip_id,
-            language=args.language,
-            task=args.task,
-        )
+        with app.run():
+            result = function.remote(
+                audio_records,
+                language=args.language,
+                task=args.task,
+            )
     except Exception as exc:
         print(f"Modal execution failed: {type(exc).__name__}: {exc}")
         return 1
