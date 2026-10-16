@@ -94,6 +94,7 @@ def summarize_predictions(
         "mean_utterance_cer": (sum(float(row["cer"]) for row in scored) / len(scored))
         if scored
         else 0.0,
+        "results": scored,
         "bins": bin_summary,
     }
 

@@ -17,13 +17,16 @@ from pathlib import Path
 from typing import Any
 
 MODEL_ID = os.environ.get("MENDSPEECH_HINGLISH_MODEL", "openai/whisper-small")
+MODEL_REVISION = os.environ.get(
+    "MENDSPEECH_HINGLISH_MODEL_REVISION", "973afd24965f72e36ca33b3055d56a652f456b4d"
+)
 APP_NAME = "mendspeech-hinglish-asr"
 FUNCTION_TIMEOUT_SEC = 600
 DEFAULT_GPU = "T4"
 MAX_CONTAINERS = 1
-# Modal requires a positive scaledown window even when near-idle shutdown is
-# desired. One second is the code-level minimum.
-SCALEDOWN_WINDOW_SEC = 1
+# Modal requires a scaledown window between 2 and 3600 seconds. Two seconds is
+# the smallest near-immediate scale-to-zero value accepted by the SDK.
+SCALEDOWN_WINDOW_SEC = 2
 
 try:
     import modal
@@ -50,6 +53,7 @@ if modal is not None:
 
     def _run_whisper_batch(
         model_id: str,
+        model_revision: str,
         audio_records: list[dict[str, Any]],
         language: str,
         task: str,
@@ -68,9 +72,14 @@ if modal is not None:
         os.environ.setdefault("HUGGINGFACE_HUB_CACHE", "/cache/model/huggingface")
 
         torch_dtype = torch.float16 if precision == "float16" else torch.float32
-        processor = AutoProcessor.from_pretrained(model_id, cache_dir="/cache/model")
+        processor = AutoProcessor.from_pretrained(
+            model_id,
+            revision=model_revision,
+            cache_dir="/cache/model",
+        )
         model = AutoModelForSpeechSeq2Seq.from_pretrained(
             model_id,
+            revision=model_revision,
             cache_dir="/cache/model",
             torch_dtype=torch_dtype,
             low_cpu_mem_usage=True,
@@ -148,9 +157,12 @@ if modal is not None:
         language: str = "hi",
         task: str = "transcribe",
         precision: str = "float16",
+        model_revision: str = MODEL_REVISION,
     ) -> list[dict[str, Any]]:
         """Batch inference on an NVIDIA T4."""
-        return _run_whisper_batch(MODEL_ID, audio_records, language, task, precision)
+        return _run_whisper_batch(
+            MODEL_ID, model_revision, audio_records, language, task, precision
+        )
 
     @app.function(
         image=image,
@@ -165,9 +177,12 @@ if modal is not None:
         language: str = "hi",
         task: str = "transcribe",
         precision: str = "float16",
+        model_revision: str = MODEL_REVISION,
     ) -> list[dict[str, Any]]:
         """Batch inference on an NVIDIA L4."""
-        return _run_whisper_batch(MODEL_ID, audio_records, language, task, precision)
+        return _run_whisper_batch(
+            MODEL_ID, model_revision, audio_records, language, task, precision
+        )
 
 
 def _estimate_cost(gpu: str, estimated_runtime_sec: int) -> str:
@@ -251,6 +266,7 @@ def main() -> int:
         print(f"total_audio_bytes: {total_bytes}")
         print(f"gpu: {args.gpu}")
         print(f"model_id: {MODEL_ID}")
+        print(f"model_revision: {MODEL_REVISION}")
         print(f"language: {args.language}")
         print(f"task: {args.task}")
         print(f"max_containers: {MAX_CONTAINERS}")
