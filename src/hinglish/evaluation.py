@@ -26,7 +26,9 @@ class HinglishPrediction:
     prediction: str
     ratio_english_words: float = 0.5
     language: str = "hi"
+    task: str = "transcribe"
     model_id: str = ""
+    model_revision: str = ""
     device: str = ""
     status: str = "ok"
     error: str = ""

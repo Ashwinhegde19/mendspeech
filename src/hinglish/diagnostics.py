@@ -128,6 +128,17 @@ def diagnose_prediction(prediction: HinglishPrediction) -> dict[str, object]:
         max_consecutive_repeat=repetition.max_consecutive_repeat,
         longest_repeated_phrase=repetition.longest_repeated_phrase,
     )
+    decoded_language = "automatic language detection" if prediction.language == "auto" else prediction.language
+    baseline_label = (
+        (prediction.model_id or "openai/whisper-small")
+        + " (language="
+        + decoded_language
+        + ", task="
+        + prediction.task
+        + ", revision="
+        + (prediction.model_revision or "unspecified")
+        + ")"
+    )
     raw_reference_counts = script_word_counts(prediction.reference)
     raw_prediction_counts = script_word_counts(prediction.prediction)
     return {
@@ -151,9 +162,11 @@ def diagnose_prediction(prediction: HinglishPrediction) -> dict[str, object]:
         "longest_repeated_phrase": repetition.longest_repeated_phrase,
         "repeated_phrase_count": repetition.repeated_phrase_count,
         "likely_repetitive_hallucination": is_hallucinated,
+        "hallucination_flag_type": "heuristic",
+        "hallucination_confirmed": False,
         "reference_script_counts": raw_reference_counts,
         "prediction_script_counts": raw_prediction_counts,
-        "baseline_label": "Whisper-small-0 (language=hi, task=transcribe)",
+        "baseline_variant": baseline_label,
     }
 
 

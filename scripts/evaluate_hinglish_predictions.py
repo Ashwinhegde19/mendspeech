@@ -107,6 +107,10 @@ def main() -> int:
     )
     parser.add_argument("--predictions", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--language", default="hi")
+    parser.add_argument("--task", default="transcribe")
+    parser.add_argument("--model-id", default="openai/whisper-small")
+    parser.add_argument("--model-revision", default="973afd24965f72e36ca33b3055d56a652f456b4d")
     parser.add_argument(
         "--output",
         type=Path,
@@ -142,6 +146,10 @@ def main() -> int:
                 ratio_english_words=float(
                     manifest_row.get("ratio_english_words", 0.5)
                 ),
+                language=str(row.get("language", args.language)),
+                task=str(row.get("task", args.task)),
+                model_id=str(row.get("model_id", args.model_id)),
+                model_revision=str(row.get("model_revision", args.model_revision)),
                 status="ok",
                 error="",
             )
