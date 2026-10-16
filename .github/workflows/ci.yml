@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - "chore/**"
+      - "feat/**"
+      - "fix/**"
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Python tests and documentation checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          pip install -e . --extra-index-url https://download.pytorch.org/whl/cpu
+
+      - name: Compile Python sources
+        run: python -m compileall src speechdamagebench
+
+      - name: Check Markdown code fences
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          failures = []
+          for path in Path(".").rglob("*.md"):
+              if ".git" in path.parts:
+                  continue
+              if path.read_text(encoding="utf-8").count("```") % 2:
+                  failures.append(str(path))
+          if failures:
+              raise SystemExit("Unbalanced Markdown code fences:\n" + "\n".join(failures))
+          PY
+
+      - name: Run test suite
+        run: python -m pytest -q
+
+      - name: Validate documentation links
+        run: python -m pytest tests/test_docs_links.py -q

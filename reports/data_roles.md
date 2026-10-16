@@ -1,7 +1,8 @@
 # Data Roles — Frozen Speech Benchmark
 
-> Day 10, concepts 5 and 6. Declared before any downstream tuning, per
-> [`docs/days/day_10.md`](../docs/days/day_10.md). Generated facts are checked
+> Day 10, concepts 5 and 6. Declared before any downstream tuning. The source
+> day specification is preserved on the `research/learning` branch. Generated
+> facts are checked
 > by `src/metrics/roles.py`; run `pytest tests/test_roles.py` to verify.
 
 ## Frozen artifact

@@ -1,7 +1,7 @@
 # Evaluation Protocol
 
-> Day 10, concept 7. Declared **before** downstream tuning, per
-> [`docs/days/day_10.md`](../docs/days/day_10.md). Data roles are in
+> Day 10, concept 7. Declared **before** downstream tuning. The source day
+> specification is preserved on the `research/learning` branch. Data roles are in
 > [`reports/data_roles.md`](../reports/data_roles.md). Changing anything here
 > after a model has been selected invalidates the comparison and requires a
 > scope review.
