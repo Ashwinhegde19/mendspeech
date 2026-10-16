@@ -27,6 +27,7 @@ from .evaluation import (
 from .metrics import (
     code_switch_bin,
     code_switch_ratio,
+    english_word_ratio,
     language_aware_word_error_rate,
 )
 from .normalization import (

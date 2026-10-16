@@ -10,13 +10,21 @@ from __future__ import annotations
 from typing import Iterable
 
 
-def code_switch_ratio(english_words: int, total_words: int) -> float:
-    """Return the English word ratio without claiming a language identity."""
+def english_word_ratio(english_words: int, total_words: int) -> float:
+    """Return the English word ratio.
+
+    This is a language-composition measure, not a code-switch transition
+    count. Switch-count metrics are unavailable in the current transcripts.
+    """
     if total_words <= 0:
         raise ValueError("total_words must be positive")
     if english_words < 0 or english_words > total_words:
         raise ValueError("english_words must be between 0 and total_words")
     return english_words / total_words
+
+
+# Compatibility alias. The primary metric name describes language composition.
+code_switch_ratio = english_word_ratio
 
 
 def code_switch_bin(ratio: float, *, low: float = 0.2, high: float = 0.8) -> str:

@@ -18,7 +18,7 @@ def test_prediction_scoring_reports_wer_and_code_switch_bin() -> None:
         )
     )
     assert 0 <= score["wer"] <= 1
-    assert score["code_switch_bin"] == "english-dominant"
+    assert score["english_ratio_bin"] == "english-dominant"
 
 
 def test_prediction_summary_aggregates_by_code_switch_bin() -> None:
