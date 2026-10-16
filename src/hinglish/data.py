@@ -15,12 +15,13 @@ MUCS_HINGLISH_DATASET = "dianavdavidson/MUCS-Hinglish"
 # scripts/prepare_mucs_hinglish_manifest.py on October 16, 2026.
 MUCS_HINGLISH_REVISION = "3c66ee127a7b0e0a746d4df1002858567135edc1"
 
+# The audio column is intentionally discarded after schema validation so its
+# values are never decoded. These required columns are the metadata contract.
 REQUIRED_MUCS_COLUMNS = frozenset(
     {
         "segment_id",
         "speaker_id",
         "transcript",
-        "audio",
         "ratio_english_words",
         "ratio_hindi_words",
     }
@@ -244,6 +245,9 @@ def load_mucs_hinglish_manifest(
         )
 
     dataset = resolved_loader(dataset_name, split, streaming)
+    features = getattr(dataset, "features", None)
+    if isinstance(features, dict) and "audio" not in features:
+        raise ValueError("dataset is missing required audio column")
     # Hugging Face's Audio feature decodes on access. Removing the column makes
     # this manifest operation metadata-only and prevents accidental downloads.
     if hasattr(dataset, "remove_columns"):

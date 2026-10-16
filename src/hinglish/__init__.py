@@ -12,6 +12,7 @@ from __future__ import annotations
 from .data import (
     REQUIRED_MUCS_COLUMNS,
     MUCS_HINGLISH_DATASET,
+    MUCS_HINGLISH_REVISION,
     HinglishSplitAudit,
     MucsHinglishRecord,
     audit_split_records,
@@ -39,6 +40,7 @@ from .normalization import (
 __all__ = [
     "REQUIRED_MUCS_COLUMNS",
     "MUCS_HINGLISH_DATASET",
+    "MUCS_HINGLISH_REVISION",
     "HinglishSplitAudit",
     "MucsHinglishRecord",
     "audit_split_records",
