@@ -6,6 +6,8 @@ write prediction CSVs and local code can score them without a GPU.
 
 from __future__ import annotations
 
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
@@ -26,10 +28,14 @@ class HinglishPrediction:
     language: str = "hi"
     model_id: str = ""
     device: str = ""
+    status: str = "ok"
+    error: str = ""
 
 
 def score_prediction(prediction: HinglishPrediction) -> dict[str, object]:
     """Normalize and score a single Hinglish prediction."""
+    if not prediction.reference or not prediction.reference.strip():
+        raise ValueError("reference transcript must not be empty")
     reference = normalize_hinglish_text(prediction.reference)
     hypothesis = normalize_hinglish_text(prediction.prediction)
     wer = word_error_rate(reference, hypothesis)
@@ -58,7 +64,12 @@ def summarize_predictions(
     predictions: Iterable[HinglishPrediction],
 ) -> dict[str, float | int]:
     """Calculate aggregate rates and per-bin averages."""
-    scored = [score_prediction(prediction) for prediction in predictions]
+    materialized = list(predictions)
+    scored_records = [
+        prediction for prediction in materialized
+        if getattr(prediction, "status", "ok") == "ok"
+    ]
+    scored = [score_prediction(prediction) for prediction in scored_records]
     total_reference_words = sum(int(row["reference_words"]) for row in scored)
     total_reference_characters = sum(int(row["reference_characters"]) for row in scored)
     total_edits = sum(int(row["total_edits"]) for row in scored)

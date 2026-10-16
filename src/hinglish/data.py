@@ -384,6 +384,36 @@ def audit_split_records(
     )
 
 
+def select_one_per_speaker(
+    records: Iterable[MucsHinglishRecord],
+    *,
+    speaker_limit: int | None = None,
+) -> list[MucsHinglishRecord]:
+    """Select one deterministic record per speaker.
+
+    Speakers are considered in first-seen order. The function does not alter
+    transcripts. It can return a small cohort for diagnostics or all available
+    speakers for validation-set construction.
+    """
+    if speaker_limit is not None and speaker_limit < 0:
+        raise ValueError("speaker_limit must be non-negative")
+
+    selected: list[MucsHinglishRecord] = []
+    seen: set[str] = set()
+    for record in records:
+        if not record.speaker_id:
+            continue
+        if record.speaker_id in seen:
+            continue
+        seen.add(record.speaker_id)
+        selected.append(record)
+        if speaker_limit is not None and speaker_limit > 0 and len(selected) >= speaker_limit:
+            break
+    if not selected:
+        raise ValueError("records must contain at least one speaker")
+    return selected
+
+
 def split_speakers_for_validation(
     speakers: Iterable[str],
     *,

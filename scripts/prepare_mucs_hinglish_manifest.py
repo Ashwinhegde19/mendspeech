@@ -16,11 +16,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from dataclasses import replace
+
 from src.hinglish.data import (
     MUCS_HINGLISH_DATASET,
     MUCS_HINGLISH_REVISION,
     export_mucs_manifest,
     load_mucs_hinglish_manifest,
+    select_one_per_speaker,
 )
 
 import pandas as pd
@@ -31,8 +34,30 @@ def main() -> int:
         description="Stream MUCS Hinglish metadata into a MendSpeech manifest"
     )
     parser.add_argument("--dataset", default=MUCS_HINGLISH_DATASET)
-    parser.add_argument("--split", choices=["train", "test"], default="train")
-    parser.add_argument("--max-items", type=int, default=25)
+    parser.add_argument("--source-split", choices=["train", "test"], default="train")
+    parser.add_argument(
+        "--split",
+        choices=["train", "validation", "test"],
+        default=None,
+        help="Override the manifest split label; defaults to --source-split.",
+    )
+    parser.add_argument(
+        "--max-items",
+        type=int,
+        default=25,
+        help="Metadata rows to stream. Use 0 to stream the available source split.",
+    )
+    parser.add_argument(
+        "--one-per-speaker",
+        action="store_true",
+        help="Select one deterministic record for each distinct speaker.",
+    )
+    parser.add_argument(
+        "--speaker-limit",
+        type=int,
+        default=0,
+        help="Maximum speakers for --one-per-speaker (0 means every speaker).",
+    )
     parser.add_argument(
         "--output",
         type=Path,
@@ -43,9 +68,10 @@ def main() -> int:
     if args.max_items < 0:
         raise ValueError("--max-items must be non-negative")
 
+    actual_split = args.split or args.source_split
     stream_limit = None if args.max_items == 0 else args.max_items
     records = load_mucs_hinglish_manifest(
-        args.split,
+        args.source_split,
         max_items=stream_limit,
         dataset_name=args.dataset,
         recompute_policy="count_ratio",
@@ -53,6 +79,15 @@ def main() -> int:
     if not records:
         print("No records loaded")
         return 1
+    if args.one_per_speaker:
+        records = select_one_per_speaker(
+            records,
+            speaker_limit=args.speaker_limit if args.speaker_limit > 0 else None,
+        )
+    if actual_split != args.source_split:
+        records = [
+            replace(record, split=actual_split) for record in records
+        ]
 
     export_path = args.output.resolve()
     export_path.parent.mkdir(parents=True, exist_ok=True)

@@ -17,6 +17,7 @@ from .data import (
     MucsHinglishRecord,
     audit_split_records,
     load_mucs_hinglish_manifest,
+    select_one_per_speaker,
     split_speakers_for_validation,
     validate_mucs_manifest,
 )
@@ -53,6 +54,7 @@ __all__ = [
     "summarize_predictions",
     "load_mucs_hinglish_manifest",
     "normalize_hinglish_text",
+    "select_one_per_speaker",
     "split_speakers_for_validation",
     "validate_mucs_manifest",
 ]
