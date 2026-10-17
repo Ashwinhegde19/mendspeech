@@ -21,7 +21,10 @@ from src.hinglish.evaluation import (
 from src.hinglish.normalization import HINGLISH_NORMALIZATION_VERSION
 
 PREDICTION_COLUMNS = frozenset({"clip_id", "prediction"})
-MANIFEST_COLUMNS = frozenset({"clip_id", "transcript"})
+MANIFEST_REQUIRED = frozenset({"clip_id"})
+# The frozen validation manifest names the reference column
+# `reference_transcript`; the smoke-test manifest calls it `transcript`.
+MANIFEST_REFERENCE_ALIASES = ("transcript", "reference_transcript")
 
 
 def _validate_prediction_manifest(
@@ -34,10 +37,21 @@ def _validate_prediction_manifest(
         raise ValueError(
             "predictions CSV must contain: " + ", ".join(sorted(missing_prediction))
         )
-    missing_manifest = MANIFEST_COLUMNS.difference(manifest.columns)
-    if missing_manifest:
+    missing_required = MANIFEST_REQUIRED.difference(manifest.columns)
+    if missing_required:
         raise ValueError(
-            "manifest CSV must contain: " + ", ".join(sorted(missing_manifest))
+            "manifest CSV must contain: " + ", ".join(sorted(missing_required))
+        )
+    if not set(MANIFEST_REFERENCE_ALIASES).intersection(manifest.columns):
+        raise ValueError(
+            "manifest CSV must contain one of: "
+            + ", ".join(MANIFEST_REFERENCE_ALIASES)
+        )
+    # Normalize the reference column to `transcript` so downstream logic only
+    # sees one field, regardless of which alias the manifest used.
+    if "transcript" not in manifest.columns:
+        manifest = manifest.rename(
+            columns={"reference_transcript": "transcript"}
         )
 
     if predictions["clip_id"].duplicated().any():

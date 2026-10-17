@@ -18,3 +18,7 @@ filename and one row to this index in the same change.
 - Reusable source and test modules use functional names.
 - Result files should be named for their evaluation scope, not for a day number.
 - Audio, checkpoints, and run logs remain gitignored; only manifests, tables, figures, and notes are tracked.
+
+## Measured results
+
+- `results/hinglish/validation_baseline_metrics.json` — frozen 30-utterance speaker-disjoint MUCS-Hinglish validation cohort; corpus WER 296.8% and CER 283.9% driven by 777 insertions from 13 repetitive-hallucination clips (WER without flagged clips 69.7%). Reference transcripts and raw hypotheses stay in the private run archive outside Git. Run date 2026-10-17 (T4, whisper-small @ 973afd24, `hi`/`transcribe`, float16).
