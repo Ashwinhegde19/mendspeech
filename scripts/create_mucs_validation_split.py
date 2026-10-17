@@ -369,11 +369,41 @@ def main() -> int:
 
     manifest_rows.sort(key=lambda row: str(row["clip_id"]))
 
-    # Step 4: audit leakage.
+    # Step 4: audit leakage. The validation side covers every record from the
+    # complete 77-speaker held-out pool, not only the 30 sampled clips.
     split_audit = audit_split_records(
-        {"train": _split_records(records, training_sorted), "validation": manifest_records(records, chosen_speakers)},
+        {
+            "train": _split_records(records, training_sorted),
+            "validation": validation_pool_records(records, validation_sorted),
+        },
         expected_speakers=set(all_speakers),
     )
+    validation_pool = list(validation_pool_records(records, validation_sorted))
+    pool_stats = {
+        "validation_pool_speakers": len(validation_sorted),
+        "validation_pool_records": len(validation_pool),
+        "validation_pool_empty_transcripts": sum(
+            1 for record in validation_pool if not record.transcript.strip()
+        ),
+        "validation_pool_invalid_metadata_records": sum(
+            1 for record in validation_pool if not record.metadata_valid
+        ),
+        "validation_pool_invalid_clip_ids": sorted(
+            record.clip_id for record in validation_pool if not record.metadata_valid
+        ),
+        "validation_pool_bucket_distribution": dict(
+            Counter(
+                _speaker_buckets(records).get(speaker, "mixed_code")
+                for speaker in validation_sorted
+            )
+        ),
+        "sampled_clip_bucket_distribution": dict(
+            Counter(
+                stratification_buckets.get(speaker, "mixed_code")
+                for speaker in chosen_speakers
+            )
+        ),
+    }
     leakage_audit = {
         "speaker_overlap": split_audit.speaker_overlaps,
         "duplicate_clips_within_split": split_audit.duplicate_within_split,
@@ -389,6 +419,13 @@ def main() -> int:
             "separation was audited; recording-level overlap cannot be "
             "verified from the available fields."
         ),
+        "parquet_source_revision_limitation": (
+            "The Hugging Face refs%2Fconvert%2Fparquet conversion URL is not "
+            "itself revision-pinned to the dataset revision; the collected "
+            "inventory and the frozen cohort are protected by SHA-256 "
+            "checksums instead."
+        ),
+        "validation_pool_audit": pool_stats,
     }
 
     language_distribution = Counter(
@@ -498,17 +535,12 @@ def _split_records(records, training_speakers):
             yield record
 
 
-def manifest_records(records, chosen_speakers):
-    by_speaker = defaultdict(list)
+def validation_pool_records(records, validation_speakers):
+    """Yield every record belonging to validation-pool speakers."""
+    pool = set(validation_speakers)
     for record in records:
-        by_speaker[record.speaker_id].append(record)
-    for speaker in chosen_speakers:
-        pool = by_speaker[speaker]
-        eligible = [record for record in pool if record.metadata_valid]
-        if not eligible:
-            eligible = [record for record in pool if record.transcript.strip()]
-        chosen = min(eligible, key=lambda record: record.clip_id)
-        yield chosen
+        if record.speaker_id in pool:
+            yield record
 
 
 if __name__ == "__main__":

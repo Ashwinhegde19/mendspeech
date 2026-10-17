@@ -28,11 +28,16 @@ def _predictions_from_csv(predictions, manifest) -> list[HinglishPrediction]:
     records = []
     for row in predictions.to_dict(orient="records"):
         manifest_row = lookup[str(row["clip_id"])]
+        # The frozen validation manifest stores the reference under
+        # `reference_transcript`; the smoke manifest uses `transcript`.
+        reference = manifest_row.get(
+            "transcript", manifest_row.get("reference_transcript", "")
+        )
         records.append(
             HinglishPrediction(
                 clip_id=str(row["clip_id"]),
                 speaker_id=str(manifest_row.get("speaker_id", "")),
-                reference=str(manifest_row["transcript"]),
+                reference=str(reference),
                 prediction=str(row["prediction"]),
                 ratio_english_words=float(manifest_row.get("ratio_english_words", 0.5)),
             )
