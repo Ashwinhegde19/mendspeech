@@ -29,6 +29,18 @@ tolerance), and the documented requirement that the annotator instructions,
 annotator pool, base checkpoint and revision, fine-tuning hyperparameters, and
 step budget are identical across arms.
 
+Label-free acquisition (formula ``hinglish.labelfree.v1``, frozen
+2026-10-18 before any pool evaluation and before any J2 inference)
+ranks without reference text from model-derived numeric ASR output
+statistics carried by :class:`AsrOutputFeatures` (repetition, token
+budget/stop behaviour, chosen-token logprob risk) plus manifest duration
+and optional manifest audio-quality inputs. The prohibition is stronger
+than in the oracle mode: ground-truth failure features raise outright, a
+failed model scoring record is rejected as ineligible (never scored, never
+zeroed), and a candidate without a usable ``AsrOutputFeatures`` record
+cannot be scored at all. Weights are renormalized over the components that
+are available for a candidate; a missing feature is never treated as zero.
+
 Determinism is a product feature. Both arms are pure functions of
 (candidates, config): the random arm uses ``random.Random(seed)`` over a
 deterministically sorted list, and the intelligent arm sorts by
@@ -77,6 +89,100 @@ FAILURE_EDIT_SATURATION = 2.0
 FAILURE_INSERTION_SATURATION = 4.0
 FAILURE_HALLUCINATION_FLOOR = 0.75
 
+# ---------------------------------------------------------------------------
+# Label-free scoring formula ``hinglish.labelfree.v1``.
+#
+# FROZEN 2026-10-18 before pool evaluation and before J2 inference. No
+# weights, saturation constants, band edges, or precedence rules may be
+# tuned after seeing J2 results. Every constant below is mirrored in
+# results/hinglish/label_free_scoring_formula.v1.json.
+# ---------------------------------------------------------------------------
+LABEL_FREE_FORMULA_VERSION = "hinglish.labelfree.v1"
+LABEL_FREE_FROZEN_NOTE = (
+    "Frozen 2026-10-18 before pool evaluation and before J2 inference; no "
+    "weights may be tuned after seeing J2 results."
+)
+
+# Component names in canonical order and their frozen weights. The weights
+# sum to exactly 1.0; for a candidate with unavailable components the
+# weights of the available components are renormalized (missing features
+# are never zero-filled).
+LABEL_FREE_COMPONENTS: Tuple[str, ...] = (
+    "duration_fit",
+    "repetition_risk",
+    "length_anomaly",
+    "confidence_risk",
+    "audio_quality_risk",
+)
+LABEL_FREE_SCORING_WEIGHTS: Mapping[str, float] = {
+    "duration_fit": 0.30,
+    "repetition_risk": 0.30,
+    "length_anomaly": 0.20,
+    "confidence_risk": 0.12,
+    "audio_quality_risk": 0.08,
+}
+
+# Repetition component saturations. ``repeated_token_fraction`` saturates at
+# 0.4 and ``max_consecutive_repeated_tokens`` at 24 before the 0.6/0.4
+# combination. ``repetition_flag`` floors the component at 0.75.
+LF_REPETITION_FRACTION_SATURATION = 0.4
+LF_REPETITION_CONSECUTIVE_SATURATION = 24.0
+LF_REPETITION_FLAG_FLOOR = 0.75
+# J1 evidence: a decode that hits its token budget without emitting EOS is
+# looping until truncation, so the repetition-risk component is floored at
+# 0.85. A decode that emitted EOS without hitting the budget stopped
+# naturally, so the component is clamped to at most 0.55.
+LF_CAP_HIT_NO_EOS_FLOOR = 0.85
+LF_NATURAL_EOS_REPETITION_CEILING = 0.55
+
+# Length-anomaly component. The expected transcription-rate band
+# [10.32258064516129, 13.693693693693694] tokens per audio second is the
+# min/max over the three pre-registered J1 control clips at config C0
+# (results/hinglish/decoder_probe_metrics.json, per_clip, category
+# ``control``): 111627_bYPRSx2sjXooUdv8_0000 (86 tokens / 7.275 s),
+# 136706_PMLT41UVHAjHIiJW_0000 (76 tokens / 5.55 s),
+# 415128_riwQQ9Di2QY1QXwx_0000 (16 tokens / 1.55 s). Inside the band the
+# anomaly is exactly 0; outside it rises linearly from 0 at the band edge
+# to 1.0 at half of the low edge (LF_TOKEN_RATE_SATURATION_LOW = 0.5 x
+# LF_TOKEN_RATE_BAND_LOW = 5.161290322580645) or 50% beyond the high edge
+# (LF_TOKEN_RATE_SATURATION_HIGH = 1.5 x LF_TOKEN_RATE_BAND_HIGH =
+# 20.54054054054054).
+LF_TOKEN_RATE_BAND_LOW = 10.32258064516129
+LF_TOKEN_RATE_BAND_HIGH = 13.693693693693694
+LF_TOKEN_RATE_BAND_MEAN = 11.945860060259795
+LF_LENGTH_ANOMALY_EDGE_FRACTION = 0.5
+LF_TOKEN_RATE_SATURATION_LOW = 5.161290322580645
+LF_TOKEN_RATE_SATURATION_HIGH = 20.54054054054054
+# A decode that hit the token budget without emitting EOS is treated as at
+# least this anomalous regardless of its token rate.
+LF_LENGTH_ANOMALY_CAP_HIT_FLOOR = 0.80
+
+# Confidence component. Chosen-token logprob risk: ``min_logprob`` at or
+# above 0.10 is healthy (risk 0) and saturates to risk 1.0 at -1.00;
+# ``mean_logprob`` at or above 0.05 is healthy and saturates to risk 1.0 at
+# -0.40. The two risks are combined 0.5/0.5. Unavailable logprobs leave the
+# whole component None (never zero).
+LF_CONFIDENCE_MIN_LOGPROB_HEALTHY = 0.10
+LF_CONFIDENCE_MIN_LOGPROB_SPAN = 1.10
+LF_CONFIDENCE_MEAN_LOGPROB_HEALTHY = 0.05
+LF_CONFIDENCE_MEAN_LOGPROB_SPAN = 0.45
+LF_CONFIDENCE_SUBWEIGHT_MIN = 0.5
+LF_CONFIDENCE_SUBWEIGHT_MEAN = 0.5
+
+# Audio-quality component inputs come from the pool manifest (dBFS and
+# fraction units). Clipping fraction saturates at 0.05; a peak at or above
+# -0.5 dBFS floors the base risk at 0.70; |mean RMS| of at most 38 dBFS is
+# quiet (risk 0) and 58 dBFS or louder saturates to risk 1.0. Base and RMS
+# risks combine 0.5/0.5; when only some inputs are available the available
+# risks are renormalized, and with no inputs the component is None.
+LF_QUALITY_CLIPPING_SATURATION_FRACTION = 0.05
+LF_QUALITY_PEAK_FLOOR_DBFS = -0.5
+LF_QUALITY_PEAK_FLOOR_RISK = 0.70
+LF_QUALITY_RMS_QUIET_DBFS = 38.0
+LF_QUALITY_RMS_SATURATION_DBFS = 20.0
+LF_QUALITY_SUBWEIGHT_BASE = 0.5
+LF_QUALITY_SUBWEIGHT_RMS = 0.5
+
 # Component weights when ASR failure evidence is available. Weights are
 # renormalized over the components that are available for a candidate, so an
 # unavailable component is never silently treated as zero signal. When
@@ -101,6 +207,15 @@ REASON_DURATION_MISSING = "duration_missing"
 REASON_DURATION_OUT_OF_BOUNDS = "duration_out_of_bounds"
 REASON_INSUFFICIENT_WORDS = "insufficient_word_count"
 REASON_EMPTY_REFERENCE = "empty_reference_after_normalization"
+# Label-free mode only: the model-derived scoring record exists but reported
+# a failed decode, so the candidate cannot be scored (never scored, never
+# zeroed). A candidate whose record is missing entirely keeps the reason
+# code unset here and instead fails loudly in score_candidate, so that an
+# integration bug after the scoring run surfaces as an explicit error.
+REASON_SCORING_FAILED = "scoring_failed"
+
+ASR_OUTPUT_STATUS_OK = "ok"
+ASR_OUTPUT_STATUS_FAILED = "failed"
 
 SELECTION_BIAS_WARNING = (
     "Intelligent selection concentrates the annotation budget on intrinsically "
@@ -131,11 +246,15 @@ ACQUISITION_LABEL_FREE = "label_free"
 ACQUISITION_MODES: Tuple[str, ...] = (ACQUISITION_ORACLE, ACQUISITION_LABEL_FREE)
 
 LABEL_FREE_ACQUISITION_NOTE = (
-    "label_free acquisition ranks from acquisition-time signals only: it "
-    "prohibits ground-truth WER/S/D/I features, reference word counts, and "
-    "transcript-derived language ratios during ranking; unavailable "
-    "components are never zeroed, weights renormalize over the remaining "
-    "components, and ranking optimizes a proxy, not annotated outcomes"
+    "label_free acquisition ranks from acquisition-time signals only under "
+    f"formula {LABEL_FREE_FORMULA_VERSION}: model-derived numeric ASR output "
+    "statistics and manifest duration and audio-quality metadata; it "
+    "prohibits ground-truth WER/S/D/I features, reference word counts, "
+    "transcript-derived language ratios, and any reference text during "
+    "ranking; a failed model scoring record is rejected as ineligible "
+    f"({REASON_SCORING_FAILED}) and never scored; unavailable components are "
+    "never zeroed, weights renormalize over the remaining components, and "
+    "ranking optimizes a proxy, not annotated outcomes"
 )
 
 # The only columns a selection manifest may contain. Reference transcripts,
@@ -181,11 +300,14 @@ class SelectionConfig:
             rejected instead of passing with the duration component marked
             unavailable.
         acquisition_mode: ``oracle`` (default) ranks with reference-derived
-            evidence; ``label_free`` ranks from acquisition-time signals only
-            and rejects ground-truth-derived inputs. In ``label_free`` mode
-            ``min_total_words`` must be 0 and ``require_duration`` must be
-            true, because the word-count gate is transcript-derived and
-            duration is the only label-free scoring signal.
+            evidence; ``label_free`` ranks from acquisition-time signals
+            only and rejects ground-truth-derived inputs. In ``label_free``
+            mode ``min_total_words`` must be 0 and ``require_duration``
+            must be true, because the word-count gate is transcript-derived
+            and durations are always required from the manifest. Scoring in
+            this mode additionally requires a usable model-derived
+            ``AsrOutputFeatures`` record (status ``ok``) on every scored
+            candidate.
     """
 
     target_count: int = DEFAULT_TARGET_COUNT
@@ -252,6 +374,65 @@ class AsrFailureFeatures:
 
 
 @dataclass(frozen=True)
+class AsrOutputFeatures:
+    """Model-derived numeric output statistics for one pool clip.
+
+    Every field is a number, a boolean, or the decode status; no property
+    that requires parsing generated text (word counts, ratios, text
+    lengths) is carried here. The decoded text itself always stays private
+    in the inference-run witness. Repetition statistics are decoded-text-
+    derived TOKEN statistics (token IDs and repetition fractions), which is
+    why they are allowed.
+
+    Units: durations in seconds, logprobs and entropy as produced by the
+    model over the sequence, counts in tokens.
+
+    Args:
+        status: ``"ok"`` for a usable decode record, ``"failed"`` otherwise.
+            A failed record is never scored; in ``label_free`` mode the
+            candidate is rejected with reason code ``scoring_failed``.
+        audio_duration_sec: Audio duration in seconds as measured by the
+            scoring run. Informational in the frozen formula (the manifest
+            ``CandidateRecord.duration_sec`` remains the duration source of
+            record); present so runs can be cross-checked.
+        inference_runtime_sec: Decode wall-clock time, seconds.
+        generated_token_count: Number of content tokens generated by the
+            decode (trailing EOS stripped, per the pinned semantics).
+        eos_emitted_effective: Whether the decode ended with an effective
+            EOS (any EOS channel of the pinned semantics).
+        hit_length_limit_effective: Whether the decode hit its effective
+            token budget (444 content tokens at the pinned default; 160
+            for a ``max_new_tokens=160`` config).
+        max_consecutive_repeated_tokens: Longest run of one repeated token
+            ID in the output sequence; ``None`` when unknown.
+        repeated_token_fraction: Fraction of output tokens that repeat any
+            earlier token ID in the same sequence; ``None`` when unknown.
+        repetition_flag: Heuristic looping flag over the decoded token
+            sequence; ``None`` when not measured.
+        mean_logprob: Mean chosen-token logprob; ``None`` when not
+            measured.
+        min_logprob: Minimum chosen-token logprob; ``None`` when not
+            measured.
+        entropy_mean: Mean chosen-token entropy (nats); carried for the
+            inference witness. Recorded but deliberately unused (weight 0)
+            in the frozen ``hinglish.labelfree.v1`` formula.
+    """
+
+    status: str
+    audio_duration_sec: Optional[float] = None
+    inference_runtime_sec: Optional[float] = None
+    generated_token_count: Optional[int] = None
+    eos_emitted_effective: Optional[bool] = None
+    hit_length_limit_effective: Optional[bool] = None
+    max_consecutive_repeated_tokens: Optional[int] = None
+    repeated_token_fraction: Optional[float] = None
+    repetition_flag: Optional[bool] = None
+    mean_logprob: Optional[float] = None
+    min_logprob: Optional[float] = None
+    entropy_mean: Optional[float] = None
+
+
+@dataclass(frozen=True)
 class CandidateRecord:
     """One selection candidate with no transcript text.
 
@@ -260,16 +441,31 @@ class CandidateRecord:
         speaker_id: Speaker identifier.
         reference_available: Whether a nonempty reference exists. The text is
             deliberately not carried here.
-        ratio_english_words: English word ratio in [0, 1].
+        ratio_english_words: English word ratio in [0, 1]. Only used by the
+            oracle acquisition mode (and by manual audits); ``None`` is
+            tolerated in label-free flows and written as an empty manifest
+            value.
         ratio_hindi_words: Hindi word ratio in [0, 1].
         count_english_words: English word count from metadata.
         count_hindi_words: Hindi word count from metadata.
         segment_part: Source segment part as recorded in the inventory.
         shard: Inventory shard identifier used for diversity spreading.
-        duration_sec: Audio duration in seconds when known.
+        duration_sec: Audio duration in seconds when known; the required
+            duration source in ``label_free`` mode.
         metadata_valid: Whether upstream metadata validation passed.
         invalid_fields: Names of invalid metadata fields, for auditing.
-        asr: Optional ASR failure evidence.
+        asr: Optional ground-truth-derived ASR failure evidence. Prohibited
+            (raises) in ``label_free`` scoring.
+        asr_output: Optional model-derived scoring record. Required with
+            status ``ok`` for ``label_free`` scoring; never consulted in
+            oracle mode.
+        audio_peak_dbfs: Optional pool-manifest audio quality input: peak
+            level in dBFS (negative, 0.0 = full scale).
+        audio_clipping_fraction: Optional pool-manifest audio quality
+            input: fraction of samples at or near full scale, in [0, 1].
+        audio_mean_rms_dbfs: Optional pool-manifest audio quality input:
+            mean RMS level in dBFS (largest magnitude = louder, expressed
+            as a negative dBFS value).
     """
 
     clip_id: str
@@ -285,6 +481,10 @@ class CandidateRecord:
     metadata_valid: bool = True
     invalid_fields: Tuple[str, ...] = ()
     asr: Optional[AsrFailureFeatures] = None
+    asr_output: Optional[AsrOutputFeatures] = None
+    audio_peak_dbfs: Optional[float] = None
+    audio_clipping_fraction: Optional[float] = None
+    audio_mean_rms_dbfs: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -424,8 +624,11 @@ def evaluate_eligibility(
     forbidden (for example an already-evaluated development clip); a reference
     must exist; metadata must be valid; the English ratio must be in [0, 1];
     duration must satisfy the configured bounds when known (and must be known
-    when ``require_duration`` is set); the word-count floor must be met; and
-    ASR features must not describe an empty normalized reference.
+    when ``require_duration`` is set); the word-count floor must be met; ASR
+    features must not describe an empty normalized reference; and, in
+    ``label_free`` mode, a model-derived scoring record must not report a
+    failed decode (reason code ``scoring_failed``; the candidate is never
+    scored and never zeroed instead).
 
     Args:
         candidate: Candidate to evaluate.
@@ -457,7 +660,9 @@ def evaluate_eligibility(
         reasons.append(REASON_REFERENCE_UNAVAILABLE)
     if not candidate.metadata_valid:
         reasons.append(REASON_METADATA_INVALID)
-    if not 0.0 <= candidate.ratio_english_words <= 1.0:
+    if candidate.ratio_english_words is not None and not (
+        0.0 <= candidate.ratio_english_words <= 1.0
+    ):
         reasons.append(REASON_RATIO_OUT_OF_RANGE)
     if candidate.duration_sec is None:
         if config.require_duration:
@@ -469,6 +674,12 @@ def evaluate_eligibility(
         reasons.append(REASON_INSUFFICIENT_WORDS)
     if candidate.asr is not None and candidate.asr.reference_words <= 0:
         reasons.append(REASON_EMPTY_REFERENCE)
+    if (
+        config.acquisition_mode == ACQUISITION_LABEL_FREE
+        and candidate.asr_output is not None
+        and candidate.asr_output.status != ASR_OUTPUT_STATUS_OK
+    ):
+        reasons.append(REASON_SCORING_FAILED)
 
     return EligibilityDecision(eligible=not reasons, reasons=tuple(reasons))
 
@@ -606,6 +817,219 @@ def quality_component(count_english_words: int, count_hindi_words: int) -> float
     return min(total_words / 30.0, 1.0)
 
 
+def _clip01(value: float) -> float:
+    """Clamp a value into the closed interval [0, 1]."""
+    return min(1.0, max(0.0, float(value)))
+
+
+def lf_duration_component(
+    candidate: CandidateRecord, config: SelectionConfig
+) -> Optional[float]:
+    """Label-free duration-fit component in [0, 1], or None without duration.
+
+    Reuses :func:`duration_component` semantics unchanged: 1.0 at
+    ``config.preferred_duration_sec`` (8.0 seconds by default) and linear
+    decay to 0.0 at the furthest configured duration bound, so the
+    annotation-preferred ~8 second band scores highest. Higher is a better
+    annotation fit (this component is a preference, not a risk). Weight
+    0.30 in ``hinglish.labelfree.v1``.
+    """
+    return duration_component(candidate.duration_sec, config)
+
+
+def lf_repetition_component(
+    asr_output: AsrOutputFeatures,
+) -> Optional[float]:
+    """Label-free repetition-risk component in [0, 1], or None.
+
+    Risk of repetitive hallucination implied by decoded-token repetition
+    statistics alone (no generated text leaves the inference witness).
+    Weight 0.30 in ``hinglish.labelfree.v1``. Higher is more suspicious.
+
+    Args:
+        asr_output: Model-derived record with status ``ok``. The component
+            is None unless BOTH ``repeated_token_fraction`` and
+            ``max_consecutive_repeated_tokens`` are present (a partial
+            repetition measurement is never scored as a partial sum).
+
+    Returns:
+        The component value. Returned levels: the 0.6/0.4 weighted
+        combination of the saturated repetition fraction and consecutive
+        repeat run (bases in [0, 1]); floored at 0.75 when
+        ``repetition_flag`` is true; floored at 0.85 when the decode hit
+        its token budget without emitting EOS (J1 evidence: cap-hit
+        without EOS is looping until truncation); clamped to at most 0.55
+        when the decode emitted EOS without hitting the budget (a natural
+        stop reduces suspicion). The precedence rules are evaluated in that
+        order, so a cap-hit floor dominates the flag floor and the
+        natural-stop clamp is applied last (unconditionally over the flag
+        floor).
+    """
+    fraction = asr_output.repeated_token_fraction
+    consecutive = asr_output.max_consecutive_repeated_tokens
+    if fraction is None or consecutive is None:
+        return None
+    base = 0.6 * _clip01(fraction / LF_REPETITION_FRACTION_SATURATION)
+    base += 0.4 * _clip01(consecutive / LF_REPETITION_CONSECUTIVE_SATURATION)
+    result = base
+    if asr_output.repetition_flag is True:
+        result = max(result, LF_REPETITION_FLAG_FLOOR)
+    if (
+        asr_output.hit_length_limit_effective is True
+        and asr_output.eos_emitted_effective is not True
+    ):
+        result = max(result, LF_CAP_HIT_NO_EOS_FLOOR)
+    if (
+        asr_output.eos_emitted_effective is True
+        and asr_output.hit_length_limit_effective is False
+    ):
+        result = min(result, LF_NATURAL_EOS_REPETITION_CEILING)
+    return _clip01(result)
+
+
+def lf_length_anomaly_component(
+    asr_output: AsrOutputFeatures, duration_sec: Optional[float]
+) -> Optional[float]:
+    """Label-free length-anomaly component in [0, 1], or None.
+
+    Compares the decoded token count against the audio duration in seconds
+    using the pre-registered healthy transcription-rate band from the
+    committed J1 control clips (results/hinglish/decoder_probe_metrics.json,
+    per_clip C0 records, category ``control``):
+
+    - 111627_bYPRSx2sjXooUdv8_0000: 86 tokens / 7.275 s
+      = 11.821305841924397 tokens per audio second
+    - 136706_PMLT41UVHAjHIiJW_0000: 76 tokens / 5.55 s
+      = 13.693693693693694 tokens per audio second
+    - 415128_riwQQ9Di2QY1QXwx_0000: 16 tokens / 1.55 s
+      = 10.32258064516129 tokens per audio second
+
+    The healthy band is the min/max of those three rates:
+    [10.32258064516129, 13.693693693693694] tokens per audio second (band
+    mean 11.945860060259795). A rate inside the band is exactly 0. Outside
+    the band it rises linearly from 0 at the band edge to 1.0 at half of
+    the low edge (5.161290322580645 tokens per audio second) or 50% beyond
+    the high edge (20.54054054054054 tokens per audio second). A decode that
+    hit its token budget without emitting EOS raises a smaller computed
+    anomaly to at least 0.80 (J1 cap-hit looping signature). Weight
+    0.20 in ``hinglish.labelfree.v1``. Higher is more anomalous.
+
+    Args:
+        asr_output: Model-derived record with status ``ok``.
+        duration_sec: Manifest audio duration in seconds; the denominator
+            of record for the token rate. None leaves the component None
+            (never zero).
+
+    Raises:
+        ValueError: If ``duration_sec`` is not positive (a zero or negative
+            duration cannot define a token rate).
+    """
+    tokens = asr_output.generated_token_count
+    if tokens is None or duration_sec is None:
+        return None
+    if duration_sec <= 0:
+        raise ValueError(
+            "duration_sec must be positive to form a tokens-per-second "
+            f"rate (candidate record reports {duration_sec})"
+        )
+    rate = tokens / duration_sec
+    if rate < LF_TOKEN_RATE_BAND_LOW:
+        anomaly = (
+            LF_TOKEN_RATE_BAND_LOW - rate
+        ) / (
+            LF_TOKEN_RATE_BAND_LOW - LF_TOKEN_RATE_SATURATION_LOW
+        )
+    elif rate > LF_TOKEN_RATE_BAND_HIGH:
+        anomaly = (
+            rate - LF_TOKEN_RATE_BAND_HIGH
+        ) / (
+            LF_TOKEN_RATE_SATURATION_HIGH - LF_TOKEN_RATE_BAND_HIGH
+        )
+    else:
+        anomaly = 0.0
+    if (
+        asr_output.hit_length_limit_effective is True
+        and asr_output.eos_emitted_effective is not True
+    ):
+        anomaly = max(anomaly, LF_LENGTH_ANOMALY_CAP_HIT_FLOOR)
+    return _clip01(anomaly)
+
+
+def lf_confidence_component(
+    asr_output: AsrOutputFeatures,
+) -> Optional[float]:
+    """Label-free confidence-risk component in [0, 1], or None.
+
+    Chosen-token logprob risk measured per step over the decoded sequence.
+    ``min_logprob`` risk is ``min((0.10 - min_logprob) / 1.10, 1.0)``
+    clamped to [0, 1] (min_logprob >= 0.10 healthy -> 0; <= -1.00 -> 1.0);
+    ``mean_logprob`` risk is ``min((0.05 - mean_logprob) / 0.45, 1.0)``
+    clamped (0.05 healthy -> 0; -0.40 -> 1.0). Combined 0.5 min / 0.5 mean.
+    Weight 0.12 in ``hinglish.labelfree.v1``. Higher is riskier. When
+    either measured logprob is None the component is None (never zero).
+    """
+    min_logprob = asr_output.min_logprob
+    mean_logprob = asr_output.mean_logprob
+    if min_logprob is None or mean_logprob is None:
+        return None
+    min_risk = _clip01(
+        (LF_CONFIDENCE_MIN_LOGPROB_HEALTHY - min_logprob)
+        / LF_CONFIDENCE_MIN_LOGPROB_SPAN
+    )
+    mean_risk = _clip01(
+        (LF_CONFIDENCE_MEAN_LOGPROB_HEALTHY - mean_logprob)
+        / LF_CONFIDENCE_MEAN_LOGPROB_SPAN
+    )
+    return LF_CONFIDENCE_SUBWEIGHT_MIN * min_risk + LF_CONFIDENCE_SUBWEIGHT_MEAN * mean_risk
+
+
+def lf_audio_quality_component(
+    *,
+    audio_peak_dbfs: Optional[float],
+    audio_clipping_fraction: Optional[float],
+    audio_mean_rms_dbfs: Optional[float],
+) -> Optional[float]:
+    """Label-free audio-quality-risk component in [0, 1], or None.
+
+    Inputs come from the pool manifest, not from inference: peak level
+    (dBFS), clipping fraction in [0, 1], and mean RMS level (dBFS). Base
+    clipping risk is ``min(clipping_fraction / 0.05, 1.0)`` clamped; a peak
+    at or above -0.5 dBFS floors the base risk at 0.70; the RMS risk is
+    ``clip((abs(mean_rms_dbfs) - 38) / 20, 0, 1)`` so |RMS| <= 38 dBFS is
+    quiet (0) and >= 58 dBFS saturates (1.0). Base and RMS risks combine
+    0.5/0.5. With only some inputs available the available risks are
+    renormalized (a missing input is never a zero); with no inputs at all
+    the component is None. Weight 0.08 in ``hinglish.labelfree.v1``.
+    Higher is riskier audio.
+    """
+    base_risk: Optional[float] = None
+    if audio_clipping_fraction is not None:
+        base_risk = _clip01(
+            audio_clipping_fraction / LF_QUALITY_CLIPPING_SATURATION_FRACTION
+        )
+        if (
+            audio_peak_dbfs is not None
+            and audio_peak_dbfs >= LF_QUALITY_PEAK_FLOOR_DBFS
+        ):
+            base_risk = max(base_risk, LF_QUALITY_PEAK_FLOOR_RISK)
+    elif audio_peak_dbfs is not None and audio_peak_dbfs >= LF_QUALITY_PEAK_FLOOR_DBFS:
+        # A clipping fraction is the primary base input; with only a peak
+        # level available the peak floor stands alone as the base risk.
+        base_risk = LF_QUALITY_PEAK_FLOOR_RISK
+    rms_risk: Optional[float] = None
+    if audio_mean_rms_dbfs is not None:
+        rms_risk = _clip01(
+            (abs(audio_mean_rms_dbfs) - LF_QUALITY_RMS_QUIET_DBFS)
+            / LF_QUALITY_RMS_SATURATION_DBFS
+        )
+    if base_risk is None and rms_risk is None:
+        return None
+    # Equal 0.5/0.5 subweights over the available risks; a single available
+    # risk renormalizes to full weight (never a zero contribution).
+    available = [risk for risk in (base_risk, rms_risk) if risk is not None]
+    return sum(available) / len(available)
+
+
 def code_mix_bucket(ratio_english_words: float) -> str:
     """Bucket an English ratio relative to the preferred band."""
     if ratio_english_words < CODE_MIX_BAND_LOW:
@@ -633,6 +1057,14 @@ def score_candidate(
 ) -> CandidateScore:
     """Score one candidate with components renormalized over availability.
 
+    In ``oracle`` mode the components are exactly the four supervised
+    signals (``failure``, ``code_mix``, ``duration``, ``quality``). In
+    ``label_free`` mode the components are exactly the five frozen
+    ``hinglish.labelfree.v1`` signals (``duration_fit``, ``repetition_risk``,
+    ``length_anomaly``, ``confidence_risk``, ``audio_quality_risk``); the
+    transcript-derived code-mix and quality signals are not part of the
+    component set (not even as unavailable slots).
+
     Args:
         candidate: Candidate to score.
         config: Selection configuration.
@@ -640,12 +1072,15 @@ def score_candidate(
     Returns:
         CandidateScore where ``components`` marks unavailable components with
         ``None``. The overall score is a weighted mean over the components
-        that are available; unavailable components never contribute.
+        that are available; unavailable components never contribute and are
+        never zero-filled.
 
     Raises:
         ValueError: In ``label_free`` mode when the candidate carries ASR
             failure features (ground-truth-derived and therefore prohibited
-            during acquisition).
+            during acquisition), or when it lacks a usable (present with
+            status ``ok``) model-derived ``AsrOutputFeatures`` scoring
+            record.
     """
     if (
         config.acquisition_mode == ACQUISITION_LABEL_FREE
@@ -655,33 +1090,56 @@ def score_candidate(
             "label_free acquisition prohibits ground-truth WER/S/D/I "
             f"features (candidate {candidate.clip_id} carries them)"
         )
-    components: dict[str, Optional[float]] = {
-        "failure": failure_component(candidate.asr),
-        "code_mix": code_mix_component(candidate.ratio_english_words),
-        "duration": duration_component(candidate.duration_sec, config),
-        "quality": quality_component(
-            candidate.count_english_words, candidate.count_hindi_words
-        ),
-    }
+    weights_map: Mapping[str, float]
     if config.acquisition_mode == ACQUISITION_LABEL_FREE:
-        # The ratios and word counts are transcript-derived; mark them
-        # unavailable instead of using them (or implicitly zeroing the
-        # components) during label-free ranking.
-        components["code_mix"] = None
-        components["quality"] = None
+        asr_output = candidate.asr_output
+        if asr_output is None or asr_output.status != ASR_OUTPUT_STATUS_OK:
+            raise ValueError(
+                "label_free scoring requires AsrOutputFeatures (status ok) "
+                f"for candidate {candidate.clip_id}"
+            )
+        weights_map = LABEL_FREE_SCORING_WEIGHTS
+        components: dict[str, Optional[float]] = {
+            "duration_fit": lf_duration_component(candidate, config),
+            "repetition_risk": lf_repetition_component(asr_output),
+            "length_anomaly": lf_length_anomaly_component(
+                asr_output, candidate.duration_sec
+            ),
+            "confidence_risk": lf_confidence_component(asr_output),
+            "audio_quality_risk": lf_audio_quality_component(
+                audio_peak_dbfs=candidate.audio_peak_dbfs,
+                audio_clipping_fraction=candidate.audio_clipping_fraction,
+                audio_mean_rms_dbfs=candidate.audio_mean_rms_dbfs,
+            ),
+        }
+    else:
+        weights_map = SCORING_WEIGHTS
+        components = {
+            "failure": failure_component(candidate.asr),
+            "code_mix": code_mix_component(candidate.ratio_english_words),
+            "duration": duration_component(candidate.duration_sec, config),
+            "quality": quality_component(
+                candidate.count_english_words, candidate.count_hindi_words
+            ),
+        }
     available_weight = sum(
-        SCORING_WEIGHTS[name]
+        weights_map[name]
         for name, value in components.items()
         if value is not None
     )
     if available_weight <= 0.0:
         raise ValueError("no scoring component is available for candidate")
     weighted = sum(
-        SCORING_WEIGHTS[name] * float(value)
+        weights_map[name] * float(value)
         for name, value in components.items()
         if value is not None
     )
     asr_status = ASR_AVAILABLE if candidate.asr is not None else ASR_UNAVAILABLE
+    code_mix_bucket_value = (
+        code_mix_bucket(candidate.ratio_english_words)
+        if candidate.ratio_english_words is not None
+        else ASR_UNAVAILABLE
+    )
     return CandidateScore(
         clip_id=candidate.clip_id,
         score=weighted / available_weight,
@@ -689,7 +1147,7 @@ def score_candidate(
         asr_status=asr_status,
         asr_wer=candidate.asr.wer if candidate.asr is not None else None,
         difficulty_bucket=difficulty_bucket(candidate),
-        code_mix_bucket=code_mix_bucket(candidate.ratio_english_words),
+        code_mix_bucket=code_mix_bucket_value,
     )
 
 
@@ -1277,12 +1735,35 @@ def build_selection_report(
 
     Returns:
         A JSON-serializable report with arm sizes, duration totals, bucket
-        composition, per-speaker cap usage, pool rejection reasons, the bias
-        warning, and the mitigation contract.
+        composition, per-speaker cap usage, pool rejection reasons (including
+        ``scoring_failed`` in ``label_free`` mode), the bias warning, and the
+        mitigation contract. In ``label_free`` mode it also echoes
+        ``formula_version = "hinglish.labelfree.v1"`` and
+        ``label_free_component_availability`` mapping each frozen component to
+        how many of the eligible pool candidates had it available; in oracle
+        mode both keys are ``None``.
     """
     reason_counts: Counter = Counter()
     for _, reasons in pool.rejected:
         reason_counts.update(reasons)
+
+    label_free_availability: Optional[Mapping[str, object]] = None
+    formula_version_reported: Optional[str] = None
+    if config.acquisition_mode == ACQUISITION_LABEL_FREE:
+        formula_version_reported = LABEL_FREE_FORMULA_VERSION
+        eligible_count = len(pool.eligible)
+        scored = score_candidates(pool.eligible, config)
+        label_free_availability = {
+            component: {
+                "available_count": sum(
+                    1
+                    for entry in scored
+                    if entry.components.get(component) is not None
+                ),
+                "eligible_count": eligible_count,
+            }
+            for component in LABEL_FREE_COMPONENTS
+        }
 
     mitigations = list(SELECTION_MITIGATIONS)
     if config.acquisition_mode == ACQUISITION_LABEL_FREE:
@@ -1290,6 +1771,7 @@ def build_selection_report(
 
     return {
         "selection_version": SELECTION_VERSION,
+        "formula_version": formula_version_reported,
         "config": asdict(config),
         "acquisition_mode": config.acquisition_mode,
         "pool": {
@@ -1305,6 +1787,7 @@ def build_selection_report(
         "arms": {
             name: _arm_summary(arm, config) for name, arm in sorted(arms.items())
         },
+        "label_free_component_availability": label_free_availability,
         "bias_warning": SELECTION_BIAS_WARNING,
         "mitigations": mitigations,
         "asr_coverage_note": (
@@ -1317,7 +1800,14 @@ def build_selection_report(
 
 
 def selection_manifest_rows(arm: ArmSelection) -> list[dict[str, object]]:
-    """Convert one arm into safe manifest rows (no transcript text)."""
+    """Convert one arm into safe manifest rows (no transcript text).
+
+    Optional numeric columns that are unavailable (``None``) are written as
+    empty strings. This can happen in ``label_free`` selection runs, where
+    transcript-derived ratio/count/wer columns carry no value; the writer
+    never emits ``NaN`` or ``None`` strings. The column set is always
+    :data:`SAFE_MANIFEST_COLUMNS`, unchanged.
+    """
     rows: list[dict[str, object]] = []
     for entry in arm.ranked:
         candidate = entry.candidate
@@ -1328,10 +1818,22 @@ def selection_manifest_rows(arm: ArmSelection) -> list[dict[str, object]]:
                 "arm": arm.arm,
                 "score": "" if entry.score is None else round(entry.score, 6),
                 "rank": entry.rank,
-                "ratio_english_words": candidate.ratio_english_words,
-                "ratio_hindi_words": candidate.ratio_hindi_words,
-                "count_english_words": candidate.count_english_words,
-                "count_hindi_words": candidate.count_hindi_words,
+                "ratio_english_words": (
+                    "" if candidate.ratio_english_words is None
+                    else candidate.ratio_english_words
+                ),
+                "ratio_hindi_words": (
+                    "" if candidate.ratio_hindi_words is None
+                    else candidate.ratio_hindi_words
+                ),
+                "count_english_words": (
+                    "" if candidate.count_english_words is None
+                    else candidate.count_english_words
+                ),
+                "count_hindi_words": (
+                    "" if candidate.count_hindi_words is None
+                    else candidate.count_hindi_words
+                ),
                 "segment_part": candidate.segment_part,
                 "shard": candidate.shard,
                 "duration_sec": (

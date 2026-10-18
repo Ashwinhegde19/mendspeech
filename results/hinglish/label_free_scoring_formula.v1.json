@@ -1,0 +1,181 @@
+{
+  "formula_version": "hinglish.labelfree.v1",
+  "created_utc": "2026-10-18T10:44:24Z",
+  "frozen_note": "Frozen 2026-10-18 before pool evaluation and before J2 inference; no weights may be tuned after seeing J2 results. This artifact describes the exact frozen scoring formula in src/hinglish/selection.py (hinglish/labelfree v1) as hashed below.",
+  "provenance": {
+    "note": "All weights, saturation constants, band edges, and precedence rules were fixed before any pool evaluation and before any J2 inference. The only evidence consulted was the committed J1 decoder-probe history (results/hinglish/decoder_probe_metrics.json and results/hinglish/decoder_probe_plan.json, pre-registered before its own execution): its three pre-registered control clips define the expected transcription-rate band, and its ceiling/cap-hit findings motivate the cap-hit floors. No J2 (pool) inference had been run, and no pool statistics other than the committed control clips were inspected before freezing.",
+    "hash_scope": "sha256 of the final frozen src/hinglish/selection.py file bytes, computed before any J2 run or label-free pool evaluation.",
+    "selection_module_sha256": "6e89dd1341c5fab0efccc28f4b84196ae918e9774455f3e68e725ad2af14042d",
+    "selection_module_note": "If this hash does not match the selection module used at evaluation time, the session contract violation is: the scoring code drifted after pre-registration and cannot be compared against this pre-registration."
+  },
+  "scope": {
+    "applies_to": "candidate acquisition in acquisition_mode='label_free' only (ACQUISITION_LABEL_FREE)",
+    "oracle_mode_untouched": "SelectionConfig(acquisition_mode='oracle') scoring (failure/code_mix/duration/quality with SCORING_WEIGHTS) is unchanged byte-for-byte; nothing in this artifact modifies the supervised oracle formula.",
+    "ranking_orientation": "The overall label-free score is the weighted mean of the component values; HIGHER overall = a better acquisition candidate (more suspicious/more useful for adaptation), consistent with the existing intelligent-arm convention in which high failure evidence raises rank. duration_fit is the one preference component: high means the duration fits the ~8 s annotation-preferred band."
+  },
+  "weights": {
+    "duration_fit": 0.3,
+    "repetition_risk": 0.3,
+    "length_anomaly": 0.2,
+    "confidence_risk": 0.12,
+    "audio_quality_risk": 0.08,
+    "sum": 1.0,
+    "renormalization": "For each candidate, the overall score is (sum of weight_i * value_i over components with value not None) / (sum of weight_i over components with value not None). Components with value None are excluded entirely; they are never zero-filled."
+  },
+  "tokenizer_and_inference_semantics": {
+    "source": "Pinned transformers Whisper semantics (J1 instrumentation).",
+    "eos_token_id": 50257,
+    "eos_equals_pad": true,
+    "trailing_eos_stripped_from_sequences": true,
+    "forced_decoder_prefix_ids": [50258, 50276, 50359, 50363],
+    "forced_decoder_prefix_token_count": 4,
+    "generation_config_max_length": 448,
+    "default_content_token_budget": 444,
+    "c1_max_new_tokens_config_budget": 160,
+    "budget_meaning": "generated_token_count counts content tokens outside the forced prefix (trailing EOS stripped). Hitting 444 (default) or 160 (C1 config, beyond the 4-token prefix) sets hit_length_limit_effective."
+  },
+  "components": {
+    "duration_fit": {
+      "function": "lf_duration_component",
+      "weight": 0.3,
+      "orientation": "higher = better annotation fit",
+      "math": "reuse duration_component(candidate.duration_sec, config) exactly: None if duration is unknown; span = max(preferred - min_bound, max_bound - preferred); value = max(0, 1 - |duration - preferred| / span). With the default bounds [1, 20] s it is 1.0 at preferred = 8.0 s and decays linearly to 0.0 at the bounds.",
+      "inputs": "CandidateRecord.duration_sec (pool manifest, seconds); config.min_duration_sec / max_duration_sec / preferred_duration_sec.",
+      "None_policy": "None when duration is unknown (require_duration=True makes this impossible for eligible pool candidates)."
+    },
+    "repetition_risk": {
+      "function": "lf_repetition_component",
+      "weight": 0.3,
+      "orientation": "higher = more suspicious repetition",
+      "math": [
+        "base = 0.6 * clamp01(repeated_token_fraction / 0.4) + 0.4 * clamp01(max_consecutive_repeated_tokens / 24.0)",
+        "if repetition_flag is True: base = max(base, 0.75)",
+        "if hit_length_limit_effective is True and eos_emitted_effective is not True: base = max(base, 0.85)",
+        "if eos_emitted_effective is True and hit_length_limit_effective is False: base = min(base, 0.55)",
+        "result = clamp01(base)"
+      ],
+      "inputs": "AsrOutputFeatures.repeated_token_fraction (fraction of output tokens repeating an earlier token ID in the same sequence), max_consecutive_repeated_tokens (longest single-token-run length), repetition_flag (heuristic looping flag), eos_emitted_effective, hit_length_limit_effective.",
+      "None_policy": "None unless BOTH repeated_token_fraction AND max_consecutive_repeated_tokens are present. A partial repetition measurement is never scored as a partial sum (missing statistics are never treated as zero repetition).",
+      "flag_and_stop_boolean_policy": "repetition_flag=None behaves as not flagged (no floor). The cap-hit floor requires hit_length_limit_effective to be exactly True and eos_emitted_effective to be anything other than True (None or False both trigger it, because an unknown EOS with a capped decode is consistent with truncation looping). The natural-stop clamp requires eos_emitted_effective to be exactly True and hit_length_limit_effective to be exactly False."
+    },
+    "length_anomaly": {
+      "function": "lf_length_anomaly_component",
+      "weight": 0.2,
+      "orientation": "higher = more anomalous",
+      "math": [
+        "rate = generated_token_count / candidate.duration_sec (tokens per audio second; duration from the pool manifest, positive by eligibility)",
+        "if rate < band_low: anomaly = (band_low - rate) / (band_low - saturation_low)",
+        "elif rate > band_high: anomaly = (rate - band_high) / (saturation_high - band_high)",
+        "else: anomaly = 0.0",
+        "if hit_length_limit_effective is True and eos_emitted_effective is not True: anomaly = max(anomaly, 0.80)",
+        "result = clamp01(anomaly)"
+      ],
+      "healthy_token_rate_band": {
+        "derivation": "tokens per audio second at probe config C0 over the three pre-registered control clips in results/hinglish/decoder_probe_metrics.json (per_clip records, category 'control', resolved per decoder_probe_plan.json selection rule R3 by clip-ID prefixes 111627_ / 136706_ / 415128_). C0 = pinned default decoding (max_length 448 -> 444 content tokens; every control ended naturally by EOS).",
+        "control_clips": [
+          {
+            "clip_id": "111627_bYPRSx2sjXooUdv8_0000",
+            "c0_generated_token_count": 86,
+            "audio_duration_sec": 7.275,
+            "tokens_per_audio_second": 11.821305841924397
+          },
+          {
+            "clip_id": "136706_PMLT41UVHAjHIiJW_0000",
+            "c0_generated_token_count": 76,
+            "audio_duration_sec": 5.55,
+            "tokens_per_audio_second": 13.693693693693694
+          },
+          {
+            "clip_id": "415128_riwQQ9Di2QY1QXwx_0000",
+            "c0_generated_token_count": 16,
+            "audio_duration_sec": 1.55,
+            "tokens_per_audio_second": 10.32258064516129
+          }
+        ],
+        "band_low": 10.32258064516129,
+        "band_high": 13.693693693693694,
+        "band_mean": 11.945860060259795,
+        "band_rule": "min/max/mean of the three control rates; min and max are the band edges.",
+        "metric_consistency_requirement": "J2 must compute generated_token_count with the same definition as the committed J1 C0 records (content tokens, trailing EOS stripped)."
+      },
+      "saturation_constants": {
+        "saturation_low": 5.161290322580645,
+        "saturation_low_definition": "0.5 x band_low (rate 50% below the healthy low edge -> 1.0)",
+        "saturation_high": 20.54054054054054,
+        "saturation_high_definition": "1.5 x band_high (rate 50% above the healthy high edge -> 1.0)",
+        "edge_fraction": 0.5
+      },
+      "cap_override": {
+        "floor": 0.8,
+        "rule": "hit_length_limit_effective is True and eos_emitted_effective is not True -> anomaly = max(anomaly, 0.80). It never lowers a larger computed anomaly."
+      },
+      "None_policy": "None when generated_token_count is None or the manifest duration is None. A non-positive duration raises ValueError (cannot define a rate); eligibility in this mode guarantees a known positive duration."
+    },
+    "confidence_risk": {
+      "function": "lf_confidence_component",
+      "weight": 0.12,
+      "orientation": "higher = riskier chosen-token logprobs",
+      "math": [
+        "min_risk = clamp01((0.10 - min_logprob) / 1.10)   # min_logprob >= 0.10 healthy -> 0; <= -1.00 -> 1.0",
+        "mean_risk = clamp01((0.05 - mean_logprob) / 0.45) # mean_logprob >= 0.05 healthy -> 0; <= -0.40 -> 1.0",
+        "result = 0.5 * min_risk + 0.5 * mean_risk"
+      ],
+      "inputs": "AsrOutputFeatures.mean_logprob and min_logprob (chosen-token logprobs per step, sequence-level mean and minimum).",
+      "None_policy": "None when either measured logprob is None. Both are required (a probability record with one missing channel is not scored as a partial sum)."
+    },
+    "audio_quality_risk": {
+      "function": "lf_audio_quality_component",
+      "weight": 0.08,
+      "orientation": "higher = riskier audio",
+      "math": [
+        "clip_risk = clamp01(clipping_fraction / 0.05) if clipping_fraction is not None else None",
+        "if clip_risk is not None and peak_dbfs is not None and peak_dbfs >= -0.5: clip_risk = max(clip_risk, 0.70)",
+        "if clip_risk is None and peak_dbfs is not None and peak_dbfs >= -0.5: clip_risk = 0.70  # peak floor stands alone",
+        "rms_risk = clamp01((abs(mean_rms_dbfs) - 38.0) / 20.0) if mean_rms_dbfs is not None else None  # |rms| <= 38 dBFS -> 0; >= 58 -> 1",
+        "result = arithmetic mean of the available risks (equal 0.5/0.5 subweights renormalized over what is available)"
+      ],
+      "inputs": "Pool-manifest audio metadata carried on CandidateRecord: audio_peak_dbfs (dBFS, negative; 0.0 = full scale), audio_clipping_fraction (in [0, 1]), audio_mean_rms_dbfs (dBFS). These are optional manifest fields, not inference outputs.",
+      "None_policy": "None only when ALL three inputs are None. With some inputs present, the available risks are renormalized (a missing clipping fraction is the one case that cannot create a partial base; a peak >= -0.5 dBFS alone still yields the 0.70 floor). A single available risk renormalizes to full weight: e.g. clipping 0.02 alone gives 0.4, RMS 58.0 alone gives 1.0, peak -0.2 alone gives 0.70."
+    }
+  },
+  "precedence_and_stop_mode_rules": {
+    "evaluation_order": [
+      "repetition base from fraction/consecutive saturations",
+      "repetition_flag floor (0.75)",
+      "cap-hit-without-EOS floor (0.85) in repetition_risk",
+      "natural-stop clamp (0.55) in repetition_risk",
+      "length_anomaly cap override (0.80)"
+    ],
+    "frozen_consequences": [
+      "The cap-hit floor dominates the flag floor (0.85 beats 0.75) because it is evaluated after it.",
+      "The natural-stop clamp is evaluated LAST and is unconditional over the flag floor: a repetition_flag=True record that stopped naturally (EOS, no cap) is clamped to 0.55. This is a deliberate consequence of the frozen rule order from the pre-registration text ('natural stop reduces suspicion' applied last).",
+      "Contradictory instrumentation (eos_emitted_effective True AND hit_length_limit_effective True) applies neither the cap floor nor the natural clamp; the base (after the flag floor) stands. The pinned Whisper semantics make this state unreachable; it is recorded so the behavior is defined, not accidental.",
+      "Length-anomaly override fires on the same cap-hit-without-EOS condition and is a max(), so it never lowers a larger anomaly."
+    ]
+  },
+  "eligibility_and_status_policy": {
+    "scoring_record_requirement": "In label_free mode every scored candidate requires candidate.asr_output present with status 'ok'. score_candidate raises ValueError('label_free scoring requires AsrOutputFeatures (status ok) for candidate X') otherwise. This keeps premature (pre-J2) selection runs impossible rather than silently ranking on duration alone.",
+    "failed_status_policy": "A record with status 'failed' is NOT usable: prepare_candidate_pool rejects the candidate with reason code 'scoring_failed' (never scored, never zero-filled, and the reason is reported in pool.rejection_reason_counts).",
+    "missing_record_policy": "A candidate with NO asr_output is not rejected at eligibility (absence of a record is a distinct fact from a failed decode); it instead fails loudly in score_candidate with the ValueError above, so an integration bug after the scoring run surfaces as an explicit error rather than a silently smaller pool.",
+    "ground_truth_prohibition": "score_candidate raises ValueError in label_free mode when candidate.asr (ground-truth-derived AsrFailureFeatures) is present, even if a valid asr_output also exists."
+  },
+  "prohibited_acquisition_signals": "reference transcript text; reference word count; ground-truth WER/CER/S/D/I; transcript-derived language ratios; transcript-derived word-count eligibility; information from the 47-speaker final reserve; official MUCS test data",
+  "missing_feature_policy": "unavailable -> None; never zero; weights renormalize",
+  "failed_status_policy": "scoring_failed rejects; never counted as usable",
+  "reporting_contract": {
+    "selection_report_keys": {
+      "formula_version": "'hinglish.labelfree.v1' in label_free mode, None in oracle mode.",
+      "label_free_component_availability": "In label_free mode: {component: {available_count, eligible_count}} over the eligible pool (the rejected failed records are not part of eligible_count). None in oracle mode."
+    },
+    "safe_manifest_columns": "UNCHANGED (SAFE_MANIFEST_COLUMNS byte-for-byte). Optional numeric columns carrying None (ratio/count/wer in label-free outputs) are written as empty strings; the writer never emits NaN or None strings.",
+    "allowed_record_shape": "AsrOutputFeatures carries numbers and booleans only: status, audio_duration_sec, inference_runtime_sec, generated_token_count, eos_emitted_effective, hit_length_limit_effective, max_consecutive_repeated_tokens, repeated_token_fraction, repetition_flag, mean_logprob, min_logprob, entropy_mean. No decoded_text_length_words or any generated-text property except decoded-text-derived TOKEN repetition statistics. Decoded text stays private in the J2 run witness. entropy_mean is recorded but deliberately unused (weight 0) in this frozen formula."
+  },
+  "frozen_interpretations_and_deviations_note": [
+    "Length-anomaly phase: the pre-registration text read 'anomaly = 0 outside band, else linear from 0 at band edge to 1.0 at lo/hi +- 50%'; the ramp endpoints (0.5*lo, 1.5*hi) lie outside the band, so the only coherent reading is anomaly 0 INSIDE the band with the linear ramp OUTSIDE the band. The frozen implementation states this explicitly: in-band -> 0.0, out-of-band -> linear ramp from 0 at the edge to 1.0 at 0.5*lo / 1.5*hi.",
+    "The token-rate denominator is the manifest candidate duration (candidate.duration_sec, guaranteed present in label_free mode); the J2 record's audio_duration_sec is informational in v1 so runs can be cross-checked.",
+    "Partial sub-inputs are never averaged into a component: repetition requires both repetition statistics; confidence requires both logprob channels. Whole components missing -> component None -> weight renormalization.",
+    "The audio-quality inputs had no carrier field in the pre-registration CandidateRecord sketch; frozen as three new defaulted CandidateRecord fields (audio_peak_dbfs, audio_clipping_fraction, audio_mean_rms_dbfs), all tolerating None so every existing construction site is unchanged.",
+    "The pre-J2 CLI 'duration_fit-only prerun' listed in the original spec was rejected by the recorded decision: label_free scoring requires an AsrOutputFeatures record with status 'ok' on every scored candidate, so premature label_free CLI runs fail loudly with 'label_free scoring requires AsrOutputFeatures (status ok) for candidate X'."
+  ],
+  "privacy": "no transcript or reference text; no audio; no predictions; identifier prefixes, numbers, booleans, and formula constants only"
+}
