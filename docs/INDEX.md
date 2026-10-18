@@ -13,6 +13,7 @@ Product-oriented documentation for MendSpeech.
 
 ## Evaluation documentation
 
+- [Hinglish evaluation policy](hinglish_evaluation_policy.md) — speaker roles, held-out reserve rule, and frozen-pool immutability
 - [Data roles and leakage audit](../reports/data_roles.md) — frozen benchmark roles and leakage checks
 - [Evaluation protocol](../experiments/protocol.md) — metrics, data rules, failure thresholds, and reproducibility
 
