@@ -106,13 +106,6 @@ def test_duplicate_prediction_clip_is_rejected(tmp_path: Path) -> None:
 
 
 def test_duplicate_manifest_clip_is_rejected(tmp_path: Path) -> None:
-    result = _run_eval(
-        tmp_path,
-        [{"clip_id": "clip_1", "prediction": "hello"}],
-        [
-            {"clip_id": "clip_1", "transcript": "hello", "speaker_id": "spk_1"},
-        ],
-    )
     # Duplicate manifest must exist as a separate file, so construct one manually.
     manifest_path = tmp_path / "duplicate_manifest.csv"
     pd.DataFrame(
@@ -133,6 +126,8 @@ def test_duplicate_manifest_clip_is_rejected(tmp_path: Path) -> None:
             str(predictions_path),
             "--manifest",
             str(manifest_path),
+            "--output",
+            str(tmp_path / "metrics.json"),
         ],
         cwd=Path(__file__).resolve().parent.parent,
         text=True,
