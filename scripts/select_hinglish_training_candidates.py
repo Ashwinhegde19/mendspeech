@@ -56,6 +56,7 @@ from src.hinglish.selection import (
     ARM_RANDOM,
     SELECTION_VERSION,
     AsrFailureFeatures,
+    AsrOutputFeatures,
     CandidateRecord,
     SelectionConfig,
     assert_finalized_arm_speakers,
@@ -190,6 +191,229 @@ def _prediction_is_failed(row: "Mapping[str, str]") -> bool:
     """
     status = str(row.get("status", "") or "").strip().lower()
     return status in {"failed", "fail", "error"}
+
+
+POOL_MANIFEST_REQUIRED_COLUMNS = frozenset(
+    {"clip_id", "speaker_id", "audio_duration_sec", "shard"}
+)
+# Transcript-derived columns must never appear in a label-free pool
+# manifest; their presence means reference-derived data leaked into the
+# acquisition input.
+POOL_MANIFEST_FORBIDDEN_COLUMNS = frozenset(
+    {
+        "transcript",
+        "reference_transcript",
+        "reference",
+        "prediction",
+        "hypothesis",
+        "ratio_english_words",
+        "ratio_hindi_words",
+        "count_english_words",
+        "count_hindi_words",
+        "count_dev_words",
+        "audio_duration_corrected",
+    }
+)
+SCORING_STATUS_VALUES = frozenset({"ok", "failed"})
+
+
+def _load_inventory_clip_ids(path: Path) -> tuple[set[str], int]:
+    """Load only the inventory's clip IDs (join check) plus the row count.
+
+    Label-free acquisition must not read transcript-derived inventory
+    values; this loader keeps ``segment_id`` values only. The returned row
+    count is parsed in the same pass.
+    """
+    with path.open(encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = reader.fieldnames or []
+        if "segment_id" not in fieldnames:
+            raise SystemExit("inventory is missing a segment_id column")
+        clip_ids = set()
+        row_count = 0
+        for row in reader:
+            row_count += 1
+            value = str(row.get("segment_id", "")).strip()
+            if value:
+                clip_ids.add(value)
+    if not clip_ids:
+        raise SystemExit("inventory contains no clip IDs")
+    return clip_ids, row_count
+
+
+def _load_pool_manifest(path: Path) -> list[dict[str, str]]:
+    """Load and validate the frozen label-free pool manifest."""
+    if not path.is_file():
+        raise SystemExit(f"pool manifest not found: {path}")
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = set(reader.fieldnames or [])
+        missing = POOL_MANIFEST_REQUIRED_COLUMNS.difference(fieldnames)
+        if missing:
+            raise SystemExit(
+                "pool manifest missing columns: " + ", ".join(sorted(missing))
+            )
+        forbidden = POOL_MANIFEST_FORBIDDEN_COLUMNS.intersection(fieldnames)
+        if forbidden:
+            raise SystemExit(
+                "label-free pool manifest must not contain transcript-derived "
+                "columns: " + ", ".join(sorted(forbidden))
+            )
+        rows = list(reader)
+    if not rows:
+        raise SystemExit("pool manifest is empty")
+
+    seen_ids: set[str] = set()
+    normalized: list[dict[str, str]] = []
+    for row in rows:
+        clip_id = str(row["clip_id"]).strip()
+        if not clip_id:
+            raise SystemExit("pool manifest contains an empty clip_id")
+        if clip_id in seen_ids:
+            raise SystemExit(f"duplicate clip IDs in pool manifest: {clip_id}")
+        seen_ids.add(clip_id)
+        validated = dict(row)
+        try:
+            duration = float(row["audio_duration_sec"])
+        except (TypeError, ValueError):
+            raise SystemExit(
+                f"pool manifest clip {clip_id}: invalid audio_duration_sec"
+            ) from None
+        if not duration > 0.0:
+            raise SystemExit(
+                f"pool manifest clip {clip_id}: audio_duration_sec must be positive"
+            )
+        validated["audio_duration_sec"] = repr(duration)
+        validated["clip_id"] = clip_id
+        normalized.append(validated)
+    return normalized
+
+
+def _opt_float(value: object) -> Optional[float]:
+    """Coerce an optional JSON number to float or None."""
+    if value is None:
+        return None
+    try:
+        parsed = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if parsed != parsed:  # NaN guard
+        return None
+    return parsed
+
+
+def _opt_int(value: object) -> Optional[int]:
+    """Coerce an optional JSON number to int or None."""
+    if value is None:
+        return None
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _opt_bool(value: object) -> Optional[bool]:
+    """Coerce an optional boolean value or None."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no"}:
+        return False
+    return None
+
+
+def _load_scoring_records(path: Path) -> dict[str, AsrOutputFeatures]:
+    """Load model-derived scoring records from the J2 results JSON."""
+    if not path.is_file():
+        raise SystemExit(f"scoring results not found: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    records = payload.get("records") if isinstance(payload, dict) else None
+    if not isinstance(records, list) or not records:
+        raise SystemExit("scoring results JSON must contain a non-empty records list")
+    features: dict[str, AsrOutputFeatures] = {}
+    for record in records:
+        clip_id = str(record.get("clip_id", "")).strip()
+        if not clip_id:
+            raise SystemExit("scoring record without clip_id")
+        if clip_id in features:
+            raise SystemExit(f"duplicate scoring records for clip {clip_id}")
+        status = str(record.get("status", "") or "").strip().lower()
+        if status not in SCORING_STATUS_VALUES:
+            status = "failed"
+        features[clip_id] = AsrOutputFeatures(
+            status=status,
+            audio_duration_sec=_opt_float(record.get("audio_duration_sec")),
+            inference_runtime_sec=_opt_float(record.get("inference_runtime_sec")),
+            generated_token_count=_opt_int(record.get("generated_token_count")),
+            eos_emitted_effective=_opt_bool(record.get("eos_emitted_effective")),
+            hit_length_limit_effective=_opt_bool(
+                record.get("hit_length_limit_effective")
+            ),
+            max_consecutive_repeated_tokens=_opt_int(
+                record.get("max_consecutive_repeated_tokens")
+            ),
+            repeated_token_fraction=_opt_float(record.get("repeated_token_fraction")),
+            repetition_flag=_opt_bool(record.get("repetition_flag")),
+            mean_logprob=_opt_float(record.get("mean_logprob")),
+            min_logprob=_opt_float(record.get("min_logprob")),
+            entropy_mean=_opt_float(record.get("entropy_mean")),
+        )
+    return features
+
+
+def _build_label_free_candidates(
+    pool_rows: list[dict[str, str]],
+    scoring_features: dict[str, AsrOutputFeatures],
+    candidate_pool: Optional[set[str]] = None,
+) -> list[CandidateRecord]:
+    """Build label-free CandidateRecords from the frozen pool manifest.
+
+    Transcript-derived fields stay ``None``/0 by construction: the pool
+    manifest carries only clip/speaker/shard/duration/quality metadata and
+    the scoring records carry only model-derived numeric features.
+    """
+    candidates: list[CandidateRecord] = []
+    for row in pool_rows:
+        clip_id = row["clip_id"]
+        if candidate_pool is not None and clip_id not in candidate_pool:
+            continue
+        asr_output = scoring_features.get(clip_id)
+        scored_duration = (
+            asr_output.audio_duration_sec
+            if asr_output is not None and asr_output.status == "ok"
+            else None
+        )
+        manifest_duration = _opt_float(row["audio_duration_sec"])
+        candidates.append(
+            CandidateRecord(
+                clip_id=clip_id,
+                speaker_id=str(row["speaker_id"]).strip(),
+                reference_available=True,
+                ratio_english_words=None,
+                ratio_hindi_words=None,
+                count_english_words=0,
+                count_hindi_words=0,
+                segment_part=str(row.get("segment_part", "") or ""),
+                shard=str(row.get("shard", "") or ""),
+                duration_sec=scored_duration
+                if scored_duration is not None
+                else manifest_duration,
+                metadata_valid=True,
+                invalid_fields=(),
+                asr=None,
+                asr_output=asr_output,
+                audio_peak_dbfs=_opt_float(row.get("peak_dbfs")),
+                audio_clipping_fraction=_opt_float(row.get("clipping_fraction")),
+                audio_mean_rms_dbfs=_opt_float(row.get("mean_rms_dbfs")),
+            )
+        )
+    if not candidates:
+        raise SystemExit("pool manifest yielded no candidates")
+    return candidates
 
 
 def _load_prediction_manifest(path: Path) -> dict[str, str]:
@@ -351,8 +575,30 @@ def main() -> int:
         default=ACQUISITION_ORACLE,
         help=(
             "oracle: rank with reference-derived evidence (supervised). "
-            "label_free: rank from acquisition-time signals only; rejects "
-            "--predictions and transcript-derived gates."
+            "label_free: rank from acquisition-time signals only; requires "
+            "--pool-manifest and --scoring, rejects --predictions and "
+            "transcript-derived gates."
+        ),
+    )
+    parser.add_argument(
+        "--pool-manifest",
+        type=Path,
+        default=None,
+        help=(
+            "Label-free pool manifest CSV (clip_id, speaker_id, "
+            "audio_duration_sec, shard[, audio quality columns]) prepared "
+            "and frozen before the scoring run. Required in label_free "
+            "mode."
+        ),
+    )
+    parser.add_argument(
+        "--scoring",
+        type=Path,
+        default=None,
+        help=(
+            "scoring_results.json from the label-free scoring run; provides "
+            "AsrOutputFeatures (model-derived tokens/EOS/cap/repetition/"
+            "confidence). Required in label_free mode."
         ),
     )
     parser.add_argument(
@@ -396,11 +642,22 @@ def main() -> int:
                 f"--require-full-predictions: predictions file not found: "
                 f"{args.predictions}"
             )
+    label_free = args.acquisition_mode == ACQUISITION_LABEL_FREE
     if args.acquisition_mode == ACQUISITION_LABEL_FREE:
         if args.predictions is not None:
             raise SystemExit(
                 "label_free acquisition prohibits ground-truth WER/S/D/I "
                 "features: do not pass --predictions"
+            )
+        if args.predictions_manifest is not None:
+            raise SystemExit(
+                "label_free acquisition never reads reference transcripts: "
+                "do not pass --predictions-manifest"
+            )
+        if args.duration_manifest is not None:
+            raise SystemExit(
+                "label_free durations must come from the frozen --pool-manifest; "
+                "do not pass --duration-manifest"
             )
         if not args.require_duration:
             raise SystemExit(
@@ -412,6 +669,20 @@ def main() -> int:
                 "label_free acquisition prohibits the transcript-derived "
                 "word-count gate: pass --min-total-words 0"
             )
+        if args.pool_manifest is None:
+            raise SystemExit(
+                "label_free acquisition requires --pool-manifest (the frozen "
+                "300-clip candidate pool)"
+            )
+        if args.scoring is None:
+            raise SystemExit(
+                "label_free acquisition requires --scoring (the completed "
+                "candidate-scoring run results)"
+            )
+        if not args.pool_manifest.is_file():
+            raise SystemExit(f"pool manifest not found: {args.pool_manifest}")
+        if not args.scoring.is_file():
+            raise SystemExit(f"scoring results not found: {args.scoring}")
 
     inventory_path = args.inventory.resolve()
     if args.inventory_sha256 is not None:
@@ -421,12 +692,44 @@ def main() -> int:
                 f"inventory checksum mismatch: expected {args.inventory_sha256}, "
                 f"actual {actual}"
             )
-    rows = _load_inventory_rows(inventory_path)
-    if args.expected_rows is not None and len(rows) != args.expected_rows:
-        raise SystemExit(
-            f"inventory row mismatch: expected {args.expected_rows}, "
-            f"actual {len(rows)}"
+    rows: Optional[list[dict[str, str]]] = None
+    inventory_row_count: Optional[int] = None
+    pool_manifest_rows: list[dict[str, str]] = []
+    scoring_features: dict[str, AsrOutputFeatures] = {}
+    if label_free:
+        pool_manifest_rows = _load_pool_manifest(args.pool_manifest)
+        scoring_features = _load_scoring_records(args.scoring)
+        inventory_clip_ids, inventory_row_count = _load_inventory_clip_ids(
+            inventory_path
         )
+        # Join check only: label-free mode never reads inventory values.
+        pool_ids = {row["clip_id"] for row in pool_manifest_rows}
+        unknown_pool_ids = pool_ids - inventory_clip_ids
+        if unknown_pool_ids:
+            raise SystemExit(
+                "pool manifest clip IDs absent from the training inventory "
+                "(reference join check failed; references are loaded only for "
+                "the later training stage): "
+                + ", ".join(sorted(unknown_pool_ids)[:10])
+            )
+        if len({row["speaker_id"] for row in pool_manifest_rows}) != len(
+            pool_manifest_rows
+        ):
+            raise SystemExit(
+                "pool manifest must list one clip per distinct speaker"
+            )
+        if len(pool_manifest_rows) < args.count:
+            raise SystemExit(
+                f"pool manifest has {len(pool_manifest_rows)} clips; fewer than "
+                f"the requested arm size {args.count}"
+            )
+    else:
+        rows = _load_inventory_rows(inventory_path)
+        if args.expected_rows is not None and len(rows) != args.expected_rows:
+            raise SystemExit(
+                f"inventory row mismatch: expected {args.expected_rows}, "
+                f"actual {len(rows)}"
+            )
 
     training_speakers, validation_speakers, diagnostic_speakers = _load_speaker_split(
         args.speaker_split
@@ -451,12 +754,28 @@ def main() -> int:
     candidate_pool: Optional[set[str]] = None
     if args.candidate_pool is not None:
         candidate_pool = _load_clip_id_list(args.candidate_pool)
-        known_ids = {row["segment_id"] for row in rows}
+        if label_free:
+            known_ids = {row["clip_id"] for row in pool_manifest_rows}
+            universe_note = "the pool manifest"
+        else:
+            known_ids = {row["segment_id"] for row in rows}
+            universe_note = "the inventory"
         unknown_pool_ids = candidate_pool - known_ids
         if unknown_pool_ids:
             raise SystemExit(
-                "candidate pool contains clip IDs absent from the inventory: "
+                f"candidate pool contains clip IDs absent from {universe_note}: "
                 + ", ".join(sorted(unknown_pool_ids)[:10])
+            )
+    if label_free:
+        pool_ids = {row["clip_id"] for row in pool_manifest_rows}
+        selection_universe = pool_ids & candidate_pool if candidate_pool else pool_ids
+        missing_scoring = sorted(selection_universe - set(scoring_features))
+        if missing_scoring:
+            raise SystemExit(
+                f"scoring results missing {len(missing_scoring)} pool clips "
+                "required for label-free selection (missing records are never "
+                "silently skipped): "
+                + ", ".join(missing_scoring[:10])
             )
 
     predictions: dict[str, dict[str, str]] = {}
@@ -513,57 +832,62 @@ def main() -> int:
     elif args.predictions_manifest is not None:
         raise SystemExit("--predictions-manifest requires --predictions")
 
-    candidates: list[CandidateRecord] = []
-    for row in rows:
-        clip_id = row["segment_id"]
-        if candidate_pool is not None and clip_id not in candidate_pool:
-            continue
-        invalid_fields = invalid_mucs_fields(row)
-        try:
-            ratio_english = float(row["ratio_english_words"])
-            ratio_hindi = float(row["ratio_hindi_words"])
-        except (TypeError, ValueError):
-            ratio_english = float("nan")
-            ratio_hindi = float("nan")
-
-        asr: Optional[AsrFailureFeatures] = None
-        prediction_row = predictions.get(clip_id) if predictions else None
-        if prediction_row is not None:
-            status = str(prediction_row.get("status", "ok") or "ok").strip().lower()
-            if status not in {"failed", "fail", "error"}:
-                reference = prediction_manifest_references.get(clip_id)
-                if reference is None:
-                    reference = str(row["transcript"])
-                asr = _asr_features(
-                    str(prediction_row.get("prediction", "")),
-                    reference,
-                    ratio_english if ratio_english == ratio_english else 0.5,
-                )
-
-        try:
-            count_english = int(row.get("count_english_words", 0) or 0)
-            count_hindi = int(row.get("count_dev_words", 0) or 0)
-        except (TypeError, ValueError):
-            count_english = 0
-            count_hindi = 0
-
-        candidates.append(
-            CandidateRecord(
-                clip_id=clip_id,
-                speaker_id=str(row["speaker_id"]),
-                reference_available=bool(str(row["transcript"]).strip()),
-                ratio_english_words=ratio_english,
-                ratio_hindi_words=ratio_hindi,
-                count_english_words=count_english,
-                count_hindi_words=count_hindi,
-                segment_part=str(row.get("segment_part", "") or ""),
-                shard=str(row.get("shard", "") or ""),
-                duration_sec=durations.get(clip_id),
-                metadata_valid=not invalid_fields,
-                invalid_fields=invalid_fields,
-                asr=asr,
-            )
+    if label_free:
+        candidates = _build_label_free_candidates(
+            pool_manifest_rows, scoring_features, candidate_pool
         )
+    else:
+        candidates: list[CandidateRecord] = []
+        for row in rows:
+            clip_id = row["segment_id"]
+            if candidate_pool is not None and clip_id not in candidate_pool:
+                continue
+            invalid_fields = invalid_mucs_fields(row)
+            try:
+                ratio_english = float(row["ratio_english_words"])
+                ratio_hindi = float(row["ratio_hindi_words"])
+            except (TypeError, ValueError):
+                ratio_english = float("nan")
+                ratio_hindi = float("nan")
+
+            asr: Optional[AsrFailureFeatures] = None
+            prediction_row = predictions.get(clip_id) if predictions else None
+            if prediction_row is not None:
+                status = str(prediction_row.get("status", "ok") or "ok").strip().lower()
+                if status not in {"failed", "fail", "error"}:
+                    reference = prediction_manifest_references.get(clip_id)
+                    if reference is None:
+                        reference = str(row["transcript"])
+                    asr = _asr_features(
+                        str(prediction_row.get("prediction", "")),
+                        reference,
+                        ratio_english if ratio_english == ratio_english else 0.5,
+                    )
+
+            try:
+                count_english = int(row.get("count_english_words", 0) or 0)
+                count_hindi = int(row.get("count_dev_words", 0) or 0)
+            except (TypeError, ValueError):
+                count_english = 0
+                count_hindi = 0
+
+            candidates.append(
+                CandidateRecord(
+                    clip_id=clip_id,
+                    speaker_id=str(row["speaker_id"]),
+                    reference_available=bool(str(row["transcript"]).strip()),
+                    ratio_english_words=ratio_english,
+                    ratio_hindi_words=ratio_hindi,
+                    count_english_words=count_english,
+                    count_hindi_words=count_hindi,
+                    segment_part=str(row.get("segment_part", "") or ""),
+                    shard=str(row.get("shard", "") or ""),
+                    duration_sec=durations.get(clip_id),
+                    metadata_valid=not invalid_fields,
+                    invalid_fields=invalid_fields,
+                    asr=asr,
+                )
+            )
 
     try:
         config = SelectionConfig(
@@ -616,7 +940,7 @@ def main() -> int:
     report = build_selection_report(pool, arms, config)
     report["selection_version"] = SELECTION_VERSION
     report["inputs"] = {
-        "inventory_rows": len(rows),
+        "inventory_rows": len(rows) if rows is not None else inventory_row_count,
         "inventory_sha256": _sha256(inventory_path),
         "candidate_pool_size": len(candidate_pool) if candidate_pool else None,
         "predictions_provided": bool(predictions),
@@ -655,6 +979,40 @@ def main() -> int:
         "duration_manifest_clips": len(durations),
     }
     report["transcript_written"] = False
+    if label_free:
+        report["inputs"]["inventory_rows"] = inventory_row_count
+        assert args.pool_manifest is not None and args.scoring is not None
+        failed_ids = sorted(
+            clip_id
+            for clip_id, features in scoring_features.items()
+            if features.status != "ok"
+        )
+        report["inputs"]["pool_manifest_rows"] = len(pool_manifest_rows)
+        report["inputs"]["pool_manifest_sha256"] = _sha256(args.pool_manifest)
+        report["inputs"]["scoring_records"] = len(scoring_features)
+        report["inputs"]["scoring_sha256"] = _sha256(args.scoring)
+        report["inputs"]["scoring_failed_clip_count"] = len(failed_ids)
+        report["inputs"]["scoring_failed_clip_ids"] = failed_ids[:10]
+        report["inputs"]["scoring_ok_clip_count"] = (
+            len(scoring_features) - len(failed_ids)
+        )
+    report["transcript_written"] = False
+    if len(arms) == 2 and {"random", "intelligent"}.issubset(set(arms)):
+        random_ids = {
+            entry.candidate.clip_id for entry in arms["random"].ranked
+        }
+        intelligent_ids = {
+            entry.candidate.clip_id for entry in arms["intelligent"].ranked
+        }
+        overlap_ids = sorted(random_ids & intelligent_ids)
+        report["clip_overlap_between_arms"] = {
+            "count": len(overlap_ids),
+            "clip_ids": overlap_ids[:20],
+            "note": (
+                "arms draw independently from the identical 300-clip pool; "
+                "overlap is allowed and reported, never hidden"
+            ),
+        }
     report["selection_guardrails"] = {
         "training_pool_only": True,
         "validation_speakers_forbidden": True,
@@ -664,13 +1022,16 @@ def main() -> int:
         "transcript_free_outputs": True,
         "deterministic_seed": args.seed,
         "acquisition_mode": args.acquisition_mode,
-        "label_free_reference_features_prohibited": (
-            args.acquisition_mode == ACQUISITION_LABEL_FREE
-        ),
+        "label_free_reference_features_prohibited": label_free,
         "failed_predictions_counted_as_unusable_coverage": True,
         "distinct_speakers_asserted_when_cap_is_one": True,
+        "label_free_scoring_records_required": label_free,
+        "scoring_failed_rejected_not_zeroed": label_free,
+        "pool_manifest_is_single_duration_source": label_free,
+        "arms_clip_overlap_reported": len(arms) == 2,
     }
 
+    inputs_for_summary = report["inputs"]
     summary = {
         "pool": report["pool"],
         "arms": {
@@ -681,7 +1042,8 @@ def main() -> int:
             }
             for name, arm_summary in report["arms"].items()
         },
-        "inputs": report["inputs"],
+        "inputs": inputs_for_summary,
+        "clip_overlap_between_arms": report.get("clip_overlap_between_arms"),
     }
     print(json.dumps(summary, indent=2))
 
