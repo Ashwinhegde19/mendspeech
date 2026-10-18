@@ -1,0 +1,337 @@
+{
+  "probe_version": "mendspeech.hinglish_decoder_probe.v1",
+  "created_utc": "2026-10-18T14:00:00Z",
+  "gpu": "T4",
+  "rate_usd_per_sec": 0.000164,
+  "function_timeout_sec": 420,
+  "planning_budget_usd": 0.1,
+  "model": {
+    "id": "openai/whisper-small",
+    "revision": "973afd24965f72e36ca33b3055d56a652f456b4d"
+  },
+  "language": "hi",
+  "task": "transcribe",
+  "precision": "float16",
+  "normalizer": "mendspeech.hinglish.v1",
+  "configs": {
+    "C0": {
+      "purpose": "baseline decoding + instrumentation",
+      "generate_kwargs": {
+        "task": "transcribe",
+        "language": "hi"
+      }
+    },
+    "C1": {
+      "purpose": "single-parameter delta max_new_tokens=160",
+      "generate_kwargs_overrides": {
+        "max_new_tokens": 160
+      }
+    },
+    "C2": {
+      "purpose": "single-parameter delta no_repeat_ngram_size=4",
+      "generate_kwargs_overrides": {
+        "no_repeat_ngram_size": 4
+      }
+    }
+  },
+  "estimator_constants": {
+    "model_load_sec": 90.0,
+    "container_overhead_sec": 60.0,
+    "c1_max_per_clip_sec": 2.0,
+    "c2_min_per_clip_sec": 3.75
+  },
+  "selection_rules": {
+    "R1": "source = results/hinglish/failure_intelligence.json per-clip records; ceiling membership = baseline runtime within [3.687, 3.734] s inclusive OR failure class generation_cap_with_repetition; both signals must agree for every development-cohort clip.",
+    "R2": "ceiling_word_loop = ceiling AND word-loop; ceiling_char_loop = ceiling AND char-loop AND NOT word-loop; early_loop = NOT ceiling AND (word-loop OR char-loop); control = none of those categories AND not heuristic-flagged.",
+    "R3": "frozen set = top-8 ceiling_word_loop by insertion count descending with tie-break clip_id ascending + ALL ceiling_char_loop (exactly 3) + ALL early_loop (must be exactly ['304558_c8Ba68BmVqNaBudE_0000', '399287_1TuGgwSGEBVVydVA_0000']) + the 3 controls resolved by clip-ID prefixes ['111627_', '136706_', '415128_'] (each must satisfy the control criteria).",
+    "R4": "all frozen clips must be development-cohort manifest clip IDs whose WAV files hash-verify, and none of their speakers may appear in the frozen holdout reserve pool.",
+    "note": "Control prefixes were pre-registered in the Phase 7.0 design (111627 slowest clean decode, 136706 median clean, 415128 shortest clip). The plan never modifies the normalizer mendspeech.hinglish.v1."
+  },
+  "provenance": {
+    "manifest_sha256": "2669cb56ddf2a9c12602b9fcbe406a38724a8e3d1d65be0eeda228ad78955d67",
+    "reserve_sha256": "5dc051dab2e55da6586614676d0b6bfbcb3e7a809b8f28d737e78c399d8b4ff5",
+    "intelligence_json_sha256": "6787e4de929cf738175a2adacfc39bb580281dfad7a7bb50210d0307e34bc08f",
+    "raw_output_sha256": "0fbbba0eb3cb66aaf2aa79ffdb9f297a567bd703e8f629a3a38be688e718bbf9",
+    "archive_note": "private mucs-validation-t4-run-2026-10-16",
+    "baseline_runtime_and_duration_source": "archived per-clip runtime_sec and audio_duration_sec from the T4 baseline raw Modal output (raw_modal_output.json)",
+    "selection_features_source": "committed per-clip failure intelligence records: insertions, has_word_loop, has_char_loop, heuristic_flag, failure_class",
+    "runtime_class_window_agreement": {
+      "clips_checked": 30,
+      "disagreements": 0
+    }
+  },
+  "clips": [
+    {
+      "clip_id": "420389_9vdn8rISVcWlbojw_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.687,
+      "insertions": 132,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 8.55,
+      "audio_sha256": "7c0d2680aa2d30f550732a152564d92dc83520836aa6eaa928c1afe49d987e05"
+    },
+    {
+      "clip_id": "154712_txbpWebPgY4aS0sN_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.733,
+      "insertions": 74,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 6.55,
+      "audio_sha256": "4deb67f04fb6344b8f4cf4265f54ee874e00ca92976ab547efc09d9a48c57e21"
+    },
+    {
+      "clip_id": "296876_8NVl0ViOXGYOiW60_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.697,
+      "insertions": 73,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 3.55,
+      "audio_sha256": "ab9b020d6a85e41d8501bb9dcefee13dd836455b62fbdd409830d6a6fb850914"
+    },
+    {
+      "clip_id": "193949_kNy6anmVvg5h7xmA_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.714,
+      "insertions": 64,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 6.55,
+      "audio_sha256": "6728c9f18895d3e8894348d98954a8d3d6a61a7670cb553c28d51b32d4fee773"
+    },
+    {
+      "clip_id": "166257_RtAxi9ScmHHUqbCx_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.732,
+      "insertions": 62,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 6.55,
+      "audio_sha256": "3dee1aa323fadb50488a84be337186e5d79f455cdc00f4d094f4730c08cb9d6f"
+    },
+    {
+      "clip_id": "350956_AdztwNlAtCku4h6b_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.695,
+      "insertions": 60,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 6.55,
+      "audio_sha256": "95e02fc873b0c9a5e5b65e75ae48c779b2116993d103bb0ad7b3e76698598362"
+    },
+    {
+      "clip_id": "344267_aZSahmWizlD17OIp_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.734,
+      "insertions": 58,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 5.55,
+      "audio_sha256": "997a6758cfaa20c41f027e39dad18fa91a0b6749588578299d815ad9c24b4e8b"
+    },
+    {
+      "clip_id": "208711_z98W1r9OPyYYWZsZ_0000",
+      "category": "ceiling_word_loop",
+      "baseline_runtime_sec": 3.706,
+      "insertions": 56,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 7.55,
+      "audio_sha256": "590ad5c52bfdaaa679108a94ae755b8c0330fb2ebfcde849d9a3d8648c9b6e2a"
+    },
+    {
+      "clip_id": "180696_GSUP9H9fbPzTvUJf_0000",
+      "category": "ceiling_char_loop",
+      "baseline_runtime_sec": 3.733,
+      "insertions": 0,
+      "has_word_loop": false,
+      "has_char_loop": true,
+      "heuristic_flagged": false,
+      "duration_sec": 7.55,
+      "audio_sha256": "ea809e2900f590ea0d97fa2902ade8221c1f2be63364566da3fa19a2a98c4b20"
+    },
+    {
+      "clip_id": "246662_fLxNwT4sz4MQwqGE_0000",
+      "category": "ceiling_char_loop",
+      "baseline_runtime_sec": 3.702,
+      "insertions": 2,
+      "has_word_loop": false,
+      "has_char_loop": true,
+      "heuristic_flagged": false,
+      "duration_sec": 1.55,
+      "audio_sha256": "daae8aea640b5f065588150b4b7408f93f2a1d0a72d37adf825c158c4efcd41f"
+    },
+    {
+      "clip_id": "396461_myiAlAOYzbquNUxR_0000",
+      "category": "ceiling_char_loop",
+      "baseline_runtime_sec": 3.691,
+      "insertions": 1,
+      "has_word_loop": false,
+      "has_char_loop": true,
+      "heuristic_flagged": false,
+      "duration_sec": 6.55,
+      "audio_sha256": "44c76da0948e72e475e752c5df19e09a33edea92a08202ca90a86df741202c50"
+    },
+    {
+      "clip_id": "304558_c8Ba68BmVqNaBudE_0000",
+      "category": "early_loop",
+      "baseline_runtime_sec": 1.054,
+      "insertions": 16,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": true,
+      "duration_sec": 6.55,
+      "audio_sha256": "1e4bd116afac783e29cee45557d698549f59d4bf85583a97baaba819bc89b6df"
+    },
+    {
+      "clip_id": "399287_1TuGgwSGEBVVydVA_0000",
+      "category": "early_loop",
+      "baseline_runtime_sec": 1.2,
+      "insertions": 9,
+      "has_word_loop": true,
+      "has_char_loop": false,
+      "heuristic_flagged": false,
+      "duration_sec": 7.55,
+      "audio_sha256": "d4c3cf0937f14cad126f013692d3ff8f6b4cf05354801f1e77d3500aa47a0a66"
+    },
+    {
+      "clip_id": "111627_bYPRSx2sjXooUdv8_0000",
+      "category": "control",
+      "baseline_runtime_sec": 1.562,
+      "insertions": 0,
+      "has_word_loop": false,
+      "has_char_loop": false,
+      "heuristic_flagged": false,
+      "duration_sec": 7.275,
+      "audio_sha256": "5d3be137b5cf315d07aca8a0892d78bc0d6625b18dd81f0ec736b403ca1804bb"
+    },
+    {
+      "clip_id": "136706_PMLT41UVHAjHIiJW_0000",
+      "category": "control",
+      "baseline_runtime_sec": 0.667,
+      "insertions": 0,
+      "has_word_loop": false,
+      "has_char_loop": false,
+      "heuristic_flagged": false,
+      "duration_sec": 5.55,
+      "audio_sha256": "32fa7fe9de464431512d3971c4079e161870db73ce7dc0c54f216e3facb6e869"
+    },
+    {
+      "clip_id": "415128_riwQQ9Di2QY1QXwx_0000",
+      "category": "control",
+      "baseline_runtime_sec": 0.17,
+      "insertions": 1,
+      "has_word_loop": false,
+      "has_char_loop": false,
+      "heuristic_flagged": false,
+      "duration_sec": 1.55,
+      "audio_sha256": "624b59dfa34c1d50c5321dcb865d3948928b183dbca75b97e00fd4db4d72ead5"
+    }
+  ],
+  "estimate": {
+    "config_inference_seconds": {
+      "C0": 45.477,
+      "C1": 26.653,
+      "C2": 60.0
+    },
+    "per_clip_config_seconds": {
+      "420389_9vdn8rISVcWlbojw_0000": {
+        "C0": 3.687,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "154712_txbpWebPgY4aS0sN_0000": {
+        "C0": 3.733,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "296876_8NVl0ViOXGYOiW60_0000": {
+        "C0": 3.697,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "193949_kNy6anmVvg5h7xmA_0000": {
+        "C0": 3.714,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "166257_RtAxi9ScmHHUqbCx_0000": {
+        "C0": 3.732,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "350956_AdztwNlAtCku4h6b_0000": {
+        "C0": 3.695,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "344267_aZSahmWizlD17OIp_0000": {
+        "C0": 3.734,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "208711_z98W1r9OPyYYWZsZ_0000": {
+        "C0": 3.706,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "180696_GSUP9H9fbPzTvUJf_0000": {
+        "C0": 3.733,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "246662_fLxNwT4sz4MQwqGE_0000": {
+        "C0": 3.702,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "396461_myiAlAOYzbquNUxR_0000": {
+        "C0": 3.691,
+        "C1": 2.0,
+        "C2": 3.75
+      },
+      "304558_c8Ba68BmVqNaBudE_0000": {
+        "C0": 1.054,
+        "C1": 1.054,
+        "C2": 3.75
+      },
+      "399287_1TuGgwSGEBVVydVA_0000": {
+        "C0": 1.2,
+        "C1": 1.2,
+        "C2": 3.75
+      },
+      "111627_bYPRSx2sjXooUdv8_0000": {
+        "C0": 1.562,
+        "C1": 1.562,
+        "C2": 3.75
+      },
+      "136706_PMLT41UVHAjHIiJW_0000": {
+        "C0": 0.667,
+        "C1": 0.667,
+        "C2": 3.75
+      },
+      "415128_riwQQ9Di2QY1QXwx_0000": {
+        "C0": 0.17,
+        "C1": 0.17,
+        "C2": 3.75
+      }
+    },
+    "model_load_sec": 90.0,
+    "container_overhead_sec": 60.0,
+    "decoded_wall_sec": 132.13,
+    "total_wall_sec": 282.13,
+    "estimated_gpu_cost_usd": 0.046269,
+    "timeout_worst_case_usd": 0.06888,
+    "clips_total_audio_sec": 95.525
+  }
+}
