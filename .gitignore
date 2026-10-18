@@ -27,6 +27,10 @@ Thumbs.db
 !data/*.csv
 !data/*.json
 
+# Hinglish manifests under data/hinglish can carry reference transcripts;
+# they stay in the private artifact store and out of Git.
+data/hinglish/
+
 # Model Checkpoints & Logs
 *.pt
 *.pth
