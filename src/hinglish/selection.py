@@ -57,7 +57,7 @@ ASR_UNAVAILABLE = "unavailable"
 DEFAULT_TARGET_COUNT = 100
 DEFAULT_MIN_DURATION_SEC = 1.0
 DEFAULT_MAX_DURATION_SEC = 20.0
-DEFAULT_MAX_PER_SPEAKER = 2
+DEFAULT_MAX_PER_SPEAKER = 1
 DEFAULT_DURATION_TOLERANCE = 0.02
 DEFAULT_SEED = 42
 DEFAULT_MIN_TOTAL_WORDS = 2
@@ -121,6 +121,23 @@ SELECTION_MITIGATIONS: Tuple[str, ...] = (
     "aggregate claim.",
 )
 
+# Acquisition modes. ``oracle`` ranks with reference-derived evidence (ASR
+# failure features against ground truth, transcript-derived language ratios
+# and word counts) and is therefore supervised. ``label_free`` ranks from
+# acquisition-time signals only and rejects the ground-truth-derived inputs
+# outright instead of zeroing them.
+ACQUISITION_ORACLE = "oracle"
+ACQUISITION_LABEL_FREE = "label_free"
+ACQUISITION_MODES: Tuple[str, ...] = (ACQUISITION_ORACLE, ACQUISITION_LABEL_FREE)
+
+LABEL_FREE_ACQUISITION_NOTE = (
+    "label_free acquisition ranks from acquisition-time signals only: it "
+    "prohibits ground-truth WER/S/D/I features, reference word counts, and "
+    "transcript-derived language ratios during ranking; unavailable "
+    "components are never zeroed, weights renormalize over the remaining "
+    "components, and ranking optimizes a proxy, not annotated outcomes"
+)
+
 # The only columns a selection manifest may contain. Reference transcripts,
 # predictions, and any free text derived from them are rejected by the writer.
 SAFE_MANIFEST_COLUMNS: Tuple[str, ...] = (
@@ -163,6 +180,12 @@ class SelectionConfig:
         require_duration: When true, candidates without a duration are
             rejected instead of passing with the duration component marked
             unavailable.
+        acquisition_mode: ``oracle`` (default) ranks with reference-derived
+            evidence; ``label_free`` ranks from acquisition-time signals only
+            and rejects ground-truth-derived inputs. In ``label_free`` mode
+            ``min_total_words`` must be 0 and ``require_duration`` must be
+            true, because the word-count gate is transcript-derived and
+            duration is the only label-free scoring signal.
     """
 
     target_count: int = DEFAULT_TARGET_COUNT
@@ -174,6 +197,7 @@ class SelectionConfig:
     preferred_duration_sec: float = DEFAULT_PREFERRED_DURATION_SEC
     min_total_words: int = DEFAULT_MIN_TOTAL_WORDS
     require_duration: bool = False
+    acquisition_mode: str = ACQUISITION_ORACLE
 
     def __post_init__(self) -> None:
         if self.target_count < 1:
@@ -192,6 +216,22 @@ class SelectionConfig:
             )
         if self.min_total_words < 0:
             raise ValueError("min_total_words must be non-negative")
+        if self.acquisition_mode not in ACQUISITION_MODES:
+            raise ValueError(
+                "acquisition_mode must be one of " + ", ".join(ACQUISITION_MODES)
+            )
+        if self.acquisition_mode == ACQUISITION_LABEL_FREE:
+            if self.min_total_words != 0:
+                raise ValueError(
+                    "label_free acquisition prohibits the transcript-derived "
+                    "word-count eligibility gate: min_total_words must be 0"
+                )
+            if not self.require_duration:
+                raise ValueError(
+                    "label_free acquisition requires known durations: set "
+                    "require_duration=True so ranking uses the only "
+                    "label-free signal"
+                )
 
 
 @dataclass(frozen=True)
@@ -601,7 +641,20 @@ def score_candidate(
         CandidateScore where ``components`` marks unavailable components with
         ``None``. The overall score is a weighted mean over the components
         that are available; unavailable components never contribute.
+
+    Raises:
+        ValueError: In ``label_free`` mode when the candidate carries ASR
+            failure features (ground-truth-derived and therefore prohibited
+            during acquisition).
     """
+    if (
+        config.acquisition_mode == ACQUISITION_LABEL_FREE
+        and candidate.asr is not None
+    ):
+        raise ValueError(
+            "label_free acquisition prohibits ground-truth WER/S/D/I "
+            f"features (candidate {candidate.clip_id} carries them)"
+        )
     components: dict[str, Optional[float]] = {
         "failure": failure_component(candidate.asr),
         "code_mix": code_mix_component(candidate.ratio_english_words),
@@ -610,6 +663,12 @@ def score_candidate(
             candidate.count_english_words, candidate.count_hindi_words
         ),
     }
+    if config.acquisition_mode == ACQUISITION_LABEL_FREE:
+        # The ratios and word counts are transcript-derived; mark them
+        # unavailable instead of using them (or implicitly zeroing the
+        # components) during label-free ranking.
+        components["code_mix"] = None
+        components["quality"] = None
     available_weight = sum(
         SCORING_WEIGHTS[name]
         for name, value in components.items()
@@ -691,6 +750,32 @@ def _duration_summary(
     return sum(known), len(known), len(candidates) - len(known)
 
 
+def assert_finalized_arm_speakers(
+    arm: ArmSelection, config: SelectionConfig
+) -> None:
+    """Assert the finalized arm honors the one-clip-per-speaker contract.
+
+    With ``max_per_speaker=1`` a finalized arm must contain exactly one clip
+    per speaker — including after duration-budget matching swapped clips in
+    and out. For any other ``max_per_speaker`` this check is a no-op because
+    multi-clip speakers are then allowed.
+
+    Raises:
+        ValueError: If ``max_per_speaker`` is 1 and any speaker contributes
+            more than one clip to the finalized arm.
+    """
+    if config.max_per_speaker != 1:
+        return
+    speaker_counts = Counter(entry.candidate.speaker_id for entry in arm.ranked)
+    duplicated = sorted(speaker for speaker, n in speaker_counts.items() if n > 1)
+    if duplicated:
+        raise ValueError(
+            f"finalized arm {arm.arm!r} violates the one-clip-per-speaker "
+            "contract after duration matching; speakers with multiple "
+            "clips: " + ", ".join(duplicated[:5])
+        )
+
+
 def _rank_random_entries(
     selected: Sequence[CandidateRecord],
     config: SelectionConfig,
@@ -745,7 +830,7 @@ def select_random_arm(
             f"{config.max_per_speaker}"
         )
     total, known, unknown = _duration_summary(selected)
-    return ArmSelection(
+    arm = ArmSelection(
         arm=ARM_RANDOM,
         ranked=_rank_random_entries(selected, config),
         total_duration_sec=total,
@@ -753,6 +838,8 @@ def select_random_arm(
         duration_unknown_count=unknown,
         sample_order=tuple(candidate.clip_id for candidate in ordered),
     )
+    assert_finalized_arm_speakers(arm, config)
+    return arm
 
 
 def _interleave_by_shard(
@@ -843,13 +930,15 @@ def select_intelligent_arm(
         for index, candidate in enumerate(interleaved)
     )
     total, known, unknown = _duration_summary(interleaved)
-    return ArmSelection(
+    arm = ArmSelection(
         arm=ARM_INTELLIGENT,
         ranked=ranked,
         total_duration_sec=total,
         duration_known_count=known,
         duration_unknown_count=unknown,
     )
+    assert_finalized_arm_speakers(arm, config)
+    return arm
 
 
 # ---------------------------------------------------------------------------
@@ -1091,6 +1180,8 @@ def build_paired_selection(
             note="skipped_no_target",
         )
         random_final = replace(random_arm, budget_match=match)
+        assert_finalized_arm_speakers(random_final, config)
+        assert_finalized_arm_speakers(intelligent, config)
         return PairedSelectionResult(pool, intelligent, random_final)
 
     by_id = {candidate.clip_id: candidate for candidate in pool.eligible}
@@ -1108,6 +1199,8 @@ def build_paired_selection(
         max_per_speaker=config.max_per_speaker,
     )
     random_final = _rerank_after_budget_match(random_arm, adjusted, match, config)
+    assert_finalized_arm_speakers(random_final, config)
+    assert_finalized_arm_speakers(intelligent, config)
     return PairedSelectionResult(pool, intelligent, random_final)
 
 
@@ -1191,9 +1284,14 @@ def build_selection_report(
     for _, reasons in pool.rejected:
         reason_counts.update(reasons)
 
+    mitigations = list(SELECTION_MITIGATIONS)
+    if config.acquisition_mode == ACQUISITION_LABEL_FREE:
+        mitigations.append(LABEL_FREE_ACQUISITION_NOTE)
+
     return {
         "selection_version": SELECTION_VERSION,
         "config": asdict(config),
+        "acquisition_mode": config.acquisition_mode,
         "pool": {
             "eligible": len(pool.eligible),
             "rejected": len(pool.rejected),
@@ -1208,7 +1306,7 @@ def build_selection_report(
             name: _arm_summary(arm, config) for name, arm in sorted(arms.items())
         },
         "bias_warning": SELECTION_BIAS_WARNING,
-        "mitigations": list(SELECTION_MITIGATIONS),
+        "mitigations": mitigations,
         "asr_coverage_note": (
             "ASR failure components are marked unavailable when predictions "
             "are missing for a candidate; they are never scored as zero. "

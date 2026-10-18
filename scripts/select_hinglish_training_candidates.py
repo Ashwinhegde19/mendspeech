@@ -38,7 +38,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Mapping, Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -49,12 +49,16 @@ from src.hinglish.diagnostics import analyze_repetition, likely_repetitive_hallu
 from src.hinglish.evaluation import HinglishPrediction, score_prediction
 from src.hinglish.normalization import normalize_hinglish_text
 from src.hinglish.selection import (
+    ACQUISITION_LABEL_FREE,
+    ACQUISITION_MODES,
+    ACQUISITION_ORACLE,
     ARM_INTELLIGENT,
     ARM_RANDOM,
     SELECTION_VERSION,
     AsrFailureFeatures,
     CandidateRecord,
     SelectionConfig,
+    assert_finalized_arm_speakers,
     build_paired_selection,
     build_selection_report,
     select_intelligent_arm,
@@ -178,6 +182,16 @@ def _load_predictions(path: Path) -> list[dict[str, str]]:
     return rows
 
 
+def _prediction_is_failed(row: "Mapping[str, str]") -> bool:
+    """Return True when a prediction row records failed inference.
+
+    A failed row is present but does not describe a usable decode: it must
+    never silently count as ASR scoring coverage.
+    """
+    status = str(row.get("status", "") or "").strip().lower()
+    return status in {"failed", "fail", "error"}
+
+
 def _load_prediction_manifest(path: Path) -> dict[str, str]:
     """Load a reference manifest for exact one-to-one prediction validation."""
     with path.open(encoding="utf-8", newline="") as handle:
@@ -279,7 +293,7 @@ def main() -> int:
     )
     parser.add_argument("--count", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--max-per-speaker", type=int, default=2)
+    parser.add_argument("--max-per-speaker", type=int, default=1)
     parser.add_argument("--min-duration", type=float, default=1.0)
     parser.add_argument("--max-duration", type=float, default=20.0)
     parser.add_argument("--preferred-duration", type=float, default=8.0)
@@ -326,8 +340,19 @@ def main() -> int:
         "--require-full-predictions",
         action="store_true",
         help=(
-            "Require every clip in --candidate-pool to have a prediction row "
-            "(failed rows count as covered)."
+            "Require every clip in --candidate-pool to have a usable "
+            "(status=ok, nonempty) prediction; missing rows and failed rows "
+            "both reject."
+        ),
+    )
+    parser.add_argument(
+        "--acquisition-mode",
+        choices=list(ACQUISITION_MODES),
+        default=ACQUISITION_ORACLE,
+        help=(
+            "oracle: rank with reference-derived evidence (supervised). "
+            "label_free: rank from acquisition-time signals only; rejects "
+            "--predictions and transcript-derived gates."
         ),
     )
     parser.add_argument(
@@ -358,6 +383,35 @@ def main() -> int:
         help="Run the full pipeline and print the report without writing files.",
     )
     args = parser.parse_args()
+
+    if args.require_full_predictions:
+        if args.predictions is None:
+            raise SystemExit(
+                "--require-full-predictions requires --predictions: no "
+                "predictions file was provided, so full coverage cannot be "
+                "verified"
+            )
+        if not args.predictions.is_file():
+            raise SystemExit(
+                f"--require-full-predictions: predictions file not found: "
+                f"{args.predictions}"
+            )
+    if args.acquisition_mode == ACQUISITION_LABEL_FREE:
+        if args.predictions is not None:
+            raise SystemExit(
+                "label_free acquisition prohibits ground-truth WER/S/D/I "
+                "features: do not pass --predictions"
+            )
+        if not args.require_duration:
+            raise SystemExit(
+                "label_free acquisition ranks on duration only: pass "
+                "--require-duration"
+            )
+        if args.min_total_words != 0:
+            raise SystemExit(
+                "label_free acquisition prohibits the transcript-derived "
+                "word-count gate: pass --min-total-words 0"
+            )
 
     inventory_path = args.inventory.resolve()
     if args.inventory_sha256 is not None:
@@ -433,11 +487,24 @@ def main() -> int:
                     "--require-full-predictions needs --candidate-pool so the "
                     "expected coverage is well defined"
                 )
-            covered = {str(row["clip_id"]).strip() for row in prediction_rows}
-            missing = candidate_pool - covered
+            present = {
+                str(row["clip_id"]).strip()
+                for row in prediction_rows
+            }
+            missing = candidate_pool - present
+            failed_in_pool = {
+                str(row["clip_id"]).strip()
+                for row in prediction_rows
+                if _prediction_is_failed(row) and str(row["clip_id"]).strip() in candidate_pool
+            }
+            if failed_in_pool:
+                raise SystemExit(
+                    "candidate pool clip IDs with failed inference rows: "
+                    + ", ".join(sorted(failed_in_pool)[:10])
+                )
             if missing:
                 raise SystemExit(
-                    "candidate pool clip IDs without predictions: "
+                    "candidate pool clip IDs without usable predictions: "
                     + ", ".join(sorted(missing)[:10])
                 )
         for row in prediction_rows:
@@ -498,17 +565,21 @@ def main() -> int:
             )
         )
 
-    config = SelectionConfig(
-        target_count=args.count,
-        min_duration_sec=args.min_duration,
-        max_duration_sec=args.max_duration,
-        max_per_speaker=args.max_per_speaker,
-        duration_tolerance=args.duration_tolerance,
-        seed=args.seed,
-        preferred_duration_sec=args.preferred_duration,
-        min_total_words=args.min_total_words,
-        require_duration=args.require_duration,
-    )
+    try:
+        config = SelectionConfig(
+            target_count=args.count,
+            min_duration_sec=args.min_duration,
+            max_duration_sec=args.max_duration,
+            max_per_speaker=args.max_per_speaker,
+            duration_tolerance=args.duration_tolerance,
+            seed=args.seed,
+            preferred_duration_sec=args.preferred_duration,
+            min_total_words=args.min_total_words,
+            require_duration=args.require_duration,
+            acquisition_mode=args.acquisition_mode,
+        )
+    except ValueError as exc:
+        raise SystemExit(f"invalid selection config: {exc}") from exc
 
     selection_kwargs = dict(
         training_speakers=training_speakers,
@@ -536,6 +607,12 @@ def main() -> int:
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
 
+    try:
+        for arm in arms.values():
+            assert_finalized_arm_speakers(arm, config)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
     report = build_selection_report(pool, arms, config)
     report["selection_version"] = SELECTION_VERSION
     report["inputs"] = {
@@ -543,8 +620,27 @@ def main() -> int:
         "inventory_sha256": _sha256(inventory_path),
         "candidate_pool_size": len(candidate_pool) if candidate_pool else None,
         "predictions_provided": bool(predictions),
+        "prediction_usable_count": (
+            sum(1 for row in predictions.values() if not _prediction_is_failed(row))
+            if predictions
+            else 0
+        ),
+        "prediction_failed_clip_count": (
+            sum(1 for row in predictions.values() if _prediction_is_failed(row))
+            if predictions
+            else 0
+        ),
+        "prediction_failed_clip_ids": sorted(
+            clip_id
+            for clip_id, row in predictions.items()
+            if _prediction_is_failed(row)
+        )[:10],
         "prediction_coverage_fraction": (
-            round(len(predictions) / len(candidate_pool), 4)
+            round(
+                sum(1 for row in predictions.values() if not _prediction_is_failed(row))
+                / len(candidate_pool),
+                4,
+            )
             if predictions and candidate_pool
             else None
         ),
@@ -567,6 +663,12 @@ def main() -> int:
         "duplicate_clip_ids_rejected": True,
         "transcript_free_outputs": True,
         "deterministic_seed": args.seed,
+        "acquisition_mode": args.acquisition_mode,
+        "label_free_reference_features_prohibited": (
+            args.acquisition_mode == ACQUISITION_LABEL_FREE
+        ),
+        "failed_predictions_counted_as_unusable_coverage": True,
+        "distinct_speakers_asserted_when_cap_is_one": True,
     }
 
     summary = {
